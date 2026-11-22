@@ -32,6 +32,9 @@
     "VisualDepthHint": "Les tokens dépassant de l’eau apparaissent devant les tuiles/dessins ; les tokens complètement immergés restent visibles derrière la texture jusqu’à la profondeur configurée.",
     "VisibilityDepth": "Profondeur maximale de visibilité sous l’eau",
     "VisibilityDepthHint": "Dans les unités de la scène (mètres ou pieds). Le token reste visible jusqu’à cette profondeur de son sommet ; il s’estompe sur les derniers 30 %.",
-    "InvalidVisibilityDepth": "La profondeur de visibilité doit être positive ou nulle."
+    "InvalidVisibilityDepth": "La profondeur de visibilité doit être positive ou nulle.",
+    "RingPng": "Image PNG des remous (facultatif)",
+    "RingPngHint": "Choisir un PNG transparent dans la bibliothèque de fichiers Foundry. Laisser vide pour ne montrer aucun anneau. L’image suit les tokens qui traversent la surface.",
+    "InvalidRingPng": "Le fichier de remous doit être un PNG ; laisser vide pour désactiver les anneaux."
   }
 }

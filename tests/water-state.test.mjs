@@ -197,9 +197,9 @@ test("leaving Region clears status and mirrored flags",async()=>{
 });
 test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
   const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:""});
   game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8});
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:""});
   assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
   r.flags["pf1-waters"].waterRegion.enabled=false;
   assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
@@ -214,4 +214,12 @@ test("projectile partially crossing water measures an immersed fraction",()=>{
 });
 test("works without Levels or Wall Height",()=>{
   const s=scene();region(s);assert.equal(getTokenWaterState(token(s,{elevation:-0.75})).inWater,true);
+});
+
+test("optional custom ring PNG resides only in the Region flag",()=>{
+ const s=scene(),r=region(s);
+ assert.equal(getWaterRegionData(r).ringPng,"");
+ r.flags["pf1-waters"].waterRegion.ringPng="worlds/my-world/assets/ripples.png";
+ assert.equal(getWaterRegionData(r).ringPng,"worlds/my-world/assets/ripples.png");
+ assert.equal(getWaterRegionData(r).surface,0);
 });

@@ -15,7 +15,9 @@ function parseRegionFlag(raw) {
   return {
     enabled: Boolean(raw?.enabled),
     surface,
-    depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null
+    depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
+    // Optional ring image provided by the GM; no default geometric rings.
+    ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : ""
   };
 }
 
@@ -130,13 +132,21 @@ export async function configureSelectedWaterRegions() {
       '<div class="form-group"><label>' + t("Depth", "Profondeur") + '</label>' +
       '<div class="form-fields"><input name="depth" type="number" step="any" min="0" value="' +
       (first.depth ?? "") + '" placeholder="' + t("NoBottom", "Fond illimité") +
-      '"><span class="units">' + units + '</span></div></div></div>',
+      '"><span class="units">' + units + '</span></div></div>' +
+      '<div class="form-group"><label>' +
+      t("RingPng", "Image PNG des remous (facultatif)") +
+      '</label><div class="form-fields"><file-picker type="image" name="ringPng" value="' +
+      foundry.utils.escapeHTML(first.ringPng) +
+      '"></file-picker></div><p class="hint">' +
+      t("RingPngHint", "Choisir un PNG transparent depuis les ressources Foundry ; laisser vide pour aucun effet.") +
+      '</p></div></div>',
     ok: {
       label: t("Confirm", "Définir comme corps d'eau"),
       icon: "fa-solid fa-water",
       callback: (_event, button) => {
         const surfaceRaw = button.form.elements.surface.value;
         const depthRaw = String(button.form.elements.depth.value ?? "").trim();
+        const ringPng = String(button.form.elements.ringPng?.value ?? "").trim();
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
         const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -144,7 +154,10 @@ export async function configureSelectedWaterRegions() {
         if (depth !== null && (!Number.isFinite(depth) || depth < 0)) {
           throw new Error(t("InvalidDepth", "La profondeur doit être positive ou nulle."));
         }
-        return { surface, depth };
+        if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
+          throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
+        }
+        return { surface, depth, ringPng };
       }
     },
     rejectClose: false,
@@ -153,7 +166,8 @@ export async function configureSelectedWaterRegions() {
   if (result === null || result === undefined) return;
   for (const region of regions) {
     await region.setFlag(MODULE_ID, WATER_REGION_FLAG, {
-      enabled: true, surface: result.surface, depth: result.depth
+      enabled: true, surface: result.surface, depth: result.depth,
+      ringPng: result.ringPng ?? ""
     });
   }
   ui.notifications.info(regions.length + " " + t("Configured", "corps d'eau configuré(s)."));
