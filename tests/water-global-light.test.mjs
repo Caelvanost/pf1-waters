@@ -53,17 +53,19 @@ test("v13 global-light setting gates the effect",()=>{
  assert.equal(hasSceneGlobalIllumination({environment:{globalLight:{enabled:false}}}),false);
  assert.equal(hasSceneGlobalIllumination({}),false);
 });
-test("linear falloff reaches full darkness at twice visibility depth",()=>{
+test("smooth sunlight stops at a 25% floor beyond twice visibility depth",()=>{
  assert.equal(globalWaterLightFactor(0,36),1);
  assert.equal(globalWaterLightFactor(18,36),.75);
  assert.equal(globalWaterLightFactor(36,36),.5);
- assert.equal(globalWaterLightFactor(54,36),.25);
- assert.equal(globalWaterLightFactor(72,36),0);
- assert.equal(globalWaterLightFactor(1000,36),0);
+ assert.equal(globalWaterLightFactor(54,36),.375);
+ assert.equal(globalWaterLightFactor(72,36),.25);
+ assert.equal(globalWaterLightFactor(1000,36),.25);
  assert.equal(globalWaterLightFactor(120,120),.5);
- assert.equal(globalWaterLightFactor(240,120),0);
+ assert.equal(globalWaterLightFactor(180,120),.375);
+ assert.equal(globalWaterLightFactor(240,120),.25);
+ assert.equal(globalWaterLightFactor(300,120),.25);
  assert.equal(globalWaterLightFactor(0,0),1);
- assert.equal(globalWaterLightFactor(.01,0),0);
+ assert.equal(globalWaterLightFactor(.01,0),.25);
 });
 test("observer depth and custom water visibility determine attenuation",()=>{
  const {sc}=setup({limit:36});
@@ -101,7 +103,10 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.equal(gfx.alpha,.5);
  viewer.document.elevation=-73.5; // top -72
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(gfx.alpha,1);
+ assert.equal(gfx.alpha,.75,"never fully black out the water");
+ viewer.document.elevation=-100;
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(gfx.alpha,.75,"25% sunlight remains at any greater depth");
  viewer.document.elevation=-1.5;
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(primary.children.length,0);
@@ -132,4 +137,22 @@ test("underwater illumination hooks registered",()=>{
  registerWaterGlobalLightingHooks();
  for(const name of ["canvasReady","updateToken","updateRegion","updateScene","canvasTearDown"])
   assert.equal(typeof hooks.get(name),"function");
+});
+
+test("explicit Region visibility changes the 50% and 25% thresholds",()=>{
+ const {sc,viewer}=setup({limit:10});
+ viewer.document.elevation=-11.5; // token top -10m
+ let states=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(states[0].factor,.5);
+ assert.equal(states[0].cutoff,20);
+ viewer.document.elevation=-21.5; // top -20m
+ states=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(states[0].factor,.25);
+});
+test("a non-global-light Scene never creates attenuation",()=>{
+ const {sc,viewer,primary}=setup({light:false});
+ viewer.document.elevation=-90;
+ assert.equal(getWaterRegionGlobalLightStates(sc,[viewer]).length,0);
+ assert.equal(refreshWaterGlobalLighting(),0);
+ assert.equal(primary.children.length,0);
 });

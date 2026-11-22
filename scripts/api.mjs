@@ -15,6 +15,10 @@ import {
 } from "./water-movement.mjs";
 import { measureProjectileWaterDistance } from "./water-projectiles.mjs";
 import { refreshWaterSurfaceMarkers } from "./water-rendering.mjs";
+import {
+  hasSceneGlobalIllumination, globalWaterLightFactor,
+  getWaterRegionGlobalLightStates, refreshWaterGlobalLighting
+} from "./water-global-light.mjs";
 
 export const WATER_AUTOMATION = Object.freeze({
   flagScope: "world",
@@ -47,6 +51,8 @@ export const WATER_API = Object.freeze({
   syncSceneUnderwaterFlags, configureSelectedWaterRegions,
   clearSelectedWaterRegions, migrateLegacyWaterRegions,
   refreshWaterSurfaceMarkers,
+  hasSceneGlobalIllumination, globalWaterLightFactor,
+  getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
   getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
   configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,

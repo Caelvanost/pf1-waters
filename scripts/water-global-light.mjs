@@ -27,12 +27,22 @@ export function hasSceneGlobalIllumination(scene) {
   return scene?.environment?.globalLight?.enabled === true;
 }
 
-/** Fraction of sunlight remaining: 100% surface, 50% at D, 0% at 2D. */
+/**
+ * User-defined underwater sunlight curve, piecewise linear:
+ * surface 100% → first visibility distance 50% → second distance 25%.
+ * Sunlight remains at a 25% visual floor below two times the distance.
+ */
 export function globalWaterLightFactor(depth, visibilityDepth) {
   const d = Math.max(0, finite(depth, 0));
   if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) return 1;
-  if (visibilityDepth === 0) return d > 0 ? 0 : 1;
-  return Math.max(0, Math.min(1, 1 - d / (2 * visibilityDepth)));
+  if (visibilityDepth === 0) return d > 0 ? 0.25 : 1;
+  if (d <= visibilityDepth) {
+    return 1 - 0.5 * (d / visibilityDepth);
+  }
+  if (d <= 2 * visibilityDepth) {
+    return 0.5 - 0.25 * ((d - visibilityDepth) / visibilityDepth);
+  }
+  return 0.25;
 }
 
 function localWaterViewers() {
@@ -193,8 +203,15 @@ export function registerWaterGlobalLightingHooks() {
   for (const name of [
     "canvasReady","sightRefresh","visibilityRefresh","lightingRefresh",
     "refreshToken","drawToken","createToken","updateToken","deleteToken",
-    "createRegion","updateRegion","deleteRegion","updateScene"
+    "updateScene"
   ]) Hooks.on(name,refreshWaterGlobalLighting);
+  for (const name of ["createRegion","updateRegion","deleteRegion"]) {
+    Hooks.on(name,()=>{
+      // Regions can change their polygon/hole triangulation as they are edited.
+      clearLayer();
+      refreshWaterGlobalLighting();
+    });
+  }
   Hooks.on("canvasTearDown",()=>{
     clearLayer();
     refreshing=false;

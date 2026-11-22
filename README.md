@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.8
+# PF1 Waters — v1.4.9
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -53,6 +53,27 @@ Un token **dans l'eau** qui **n'a pas pied** reçoit et conserve l'effet d'état
 - Les effets Nager appliqués à des personnages qui n'ont **jamais** été dans l'eau ne sont pas supprimés automatiquement par PF1 Waters, afin de ne pas interférer avec d'autres sources.
 
 Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting` et `waterwalk`, ni l'altitude réelle du token.
+
+## Atténuation de la lumière globale sous l'eau (v1.4.9)
+
+Lorsque l'**éclairage global de la scène** est activé dans Foundry v13, la luminosité ambiante à l'intérieur de la Region d'eau diminue **progressivement avec la profondeur du point de vue immergé**.
+
+La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres ou 120 pieds par défaut ; sinon la valeur définie par le MJ).
+
+| Profondeur sous la surface | Lumière globale visible |
+|---|---|
+| Surface | 100 % |
+| Demi-profondeur de visibilité | 75 % |
+| Une profondeur de visibilité | 50 % |
+| Une profondeur et demie de visibilité | 37,5 % |
+| Deux profondeurs de visibilité | **25 %** |
+| Au-delà | **25 %**, sans extinction complète |
+
+**Exemple :** une Region dont la visibilité vaut 36 m a 50 % de lumière globale à 36 m et 25 % à 72 m, et conserve 25 % au-delà. Pour une scène en pieds, les mêmes paliers valent 120 et 240 pieds.
+
+**Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur qui regarde depuis l'eau. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
+
+**Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique dans la passe primaire du Canvas est ensuite composé avec l'éclairage natif. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
 
 ## Visibilité entre créatures immergées (v1.4.8)
 

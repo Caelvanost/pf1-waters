@@ -1,3 +1,13 @@
+# 1.4.9 — Lumière globale sous l'eau : 50 %, puis 25 % minimum
+
+- Assombrissement visuel progressif de la Region d'eau lorsque l'éclairage global est activé et que le point de vue du client est immergé.
+- Lumière globale préservée à 100 % en surface, 50 % à une profondeur de visibilité, 25 % à deux fois la profondeur de visibilité, **25 % maintenus en dessous**, sans disparition totale.
+- Par défaut : 36 m / 120 pieds pour le premier palier et 72 m / 240 pieds pour le second ; respect des paramètres personnalisés de chaque Region.
+- Masque de la Region construit à partir de sa triangulation Foundry v13 ; tracé recalculé à la modification de sa géométrie.
+- Pas de modification des documents Scene, Region ou des sources de lumière locales ; affichage client uniquement, avec prise en compte des sources de vision actives.
+- Rendu 2D au niveau du point de vue : ce n'est pas une simulation photométrique volumétrique.
+- Tests de coefficients, paliers, valeurs explicites, géométrie, ouverture/fermeture de scène et mise à jour des observateurs.
+
 # 1.4.8 — Visibilité sans limite artificielle entre tokens dans la même eau
 
 - La profondeur de visibilité des Regions n'est plus appliquée à une cible immergée lorsque le client possède une source de vision immergée dans la **même Region** et que Foundry confirme la ligne de vue vers la cible.

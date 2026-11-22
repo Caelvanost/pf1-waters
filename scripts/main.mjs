@@ -8,6 +8,7 @@ import {
 } from "./water-regions.mjs";
 import { registerWaterMovementHooks, syncSceneUnderwaterFlags } from "./water-movement.mjs";
 import { registerWaterRenderingHooks, refreshWaterSurfaceMarkers } from "./water-rendering.mjs";
+import { registerWaterGlobalLightingHooks, refreshWaterGlobalLighting } from "./water-global-light.mjs";
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "partialSurfaceDepth", {
@@ -21,6 +22,7 @@ Hooks.once("init", () => {
 
   registerWaterMovementHooks();
   registerWaterRenderingHooks();
+  registerWaterGlobalLightingHooks();
   registerWaterVisualDepthHooks();
   registerWaterSurfaceHooks();
   registerWaterRegionHooks(async (scene) => {
@@ -43,6 +45,7 @@ Hooks.once("ready", async () => {
     await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);
     refreshSceneWaterVisualDepth();
+    refreshWaterGlobalLighting();
     await refreshWaterSurfaceMarkers();
   } catch (error) {
     console.error(MODULE_ID + " | Initialisation aquatique impossible", error);
