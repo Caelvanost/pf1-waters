@@ -14,8 +14,6 @@
     "Cleared": "corps d’eau désactivé(s).",
     "ToolConfigure": "PF1 Waters — Corps d’eau",
     "ToolClear": "PF1 Waters — Retirer la propriété eau",
-    "MarkersName": "PF1 Waters — Anneaux de surface",
-    "MarkersHint": "Affiche un repère sur les tokens visibles qui traversent une surface aquatique (sans modifier les couches Canvas).",
     "SelectSurface": "Sélectionnez au moins une tuile ou un dessin.",
     "NoRegions": "Créez d’abord une Region d’eau dans la scène.",
     "TileLinkTitle": "PF1 Waters — Surface d’eau (tuile)",
