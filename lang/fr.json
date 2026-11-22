@@ -15,6 +15,20 @@
     "ToolConfigure": "PF1 Waters — Corps d’eau",
     "ToolClear": "PF1 Waters — Retirer la propriété eau",
     "MarkersName": "PF1 Waters — Anneaux de surface",
-    "MarkersHint": "Affiche un repère sur les tokens visibles qui traversent une surface aquatique (sans modifier les couches Canvas)."
+    "MarkersHint": "Affiche un repère sur les tokens visibles qui traversent une surface aquatique (sans modifier les couches Canvas).",
+    "SelectSurface": "Sélectionnez au moins une tuile ou un dessin.",
+    "NoRegions": "Créez d’abord une Region d’eau dans la scène.",
+    "TileLinkTitle": "PF1 Waters — Surface d’eau (tuile)",
+    "DrawingLinkTitle": "PF1 Waters — Surface d’eau (dessin)",
+    "LinkHint": "Cet élément représente uniquement la surface visible. La Region définit tout le volume d’eau et sa profondeur.",
+    "LinkedRegion": "Region aquatique associée",
+    "AlignSurface": "Aligner automatiquement l’élévation sur la surface de la Region",
+    "LinkConfirm": "Associer à la surface d’eau",
+    "Linked": "surface(s) visuelle(s) associée(s).",
+    "Unlinked": "surface(s) visuelle(s) dissociée(s).",
+    "TileLinkTool": "Lier la tuile à la surface d’eau",
+    "TileUnlinkTool": "Dissocier la tuile de la surface d’eau",
+    "DrawingLinkTool": "Lier le dessin à la surface d’eau",
+    "DrawingUnlinkTool": "Dissocier le dessin de la surface d’eau"
   }
 }

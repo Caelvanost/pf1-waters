@@ -1,4 +1,4 @@
-# PF1 Waters — v1.0.0
+# PF1 Waters — v1.1.0
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -18,6 +18,23 @@ Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 5. L'outil « Retirer la propriété eau » désactive la Region aquatique.
 
 Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth }`.
+
+## Associer une tuile ou un dessin à la surface visuelle de l'eau
+
+La **Region** reste la seule définition du corps d'eau et de son volume : surface, profondeur, fond, collision géométrique, nage et trajectoires sous-marines.
+
+Une **tuile** (image de vagues, plan d'eau transparent, etc.) ou un **dessin** ne représente que l'apparence de la surface :
+
+1. Créer et configurer une Region d'eau sur la couche **Regions**.
+2. Placer une tuile ou un dessin où l'eau doit être **visible**.
+3. Sélectionner cet objet sur la couche **Tuiles** ou **Dessins**, puis choisir **Lier à la surface d’eau**.
+4. Choisir la Region aquatique correspondante dans la liste.
+5. Conserver l'option **Aligner l'élévation sur la Region** pour positionner automatiquement l'objet au niveau de surface configuré. La désactiver si la présentation de la scène exige une élévation différente.
+6. Utiliser **Dissocier la surface d’eau** pour retirer uniquement le lien visuel, sans toucher au corps d'eau.
+
+Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans modifier les règles. Les liens survivent à un déplacement/redimensionnement de leur objet. Lorsque la surface d'eau de la Region change, le module aligne les représentations liées qui ont cette option activée. Une Region supprimée ou désactivée laisse les liens inactifs, sans provoquer la création d'une nouvelle zone.
+
+Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. Le visuel est rendu par Foundry et ses modules de niveaux habituels ; PF1 Waters ne modifie ni l'ordre des couches, ni le découpage des tokens.
 
 ## Immersion, nage et mouvement
 
@@ -40,6 +57,11 @@ Utilisable après `init` via `game.modules.get("pf1-waters")?.api`.
 | Méthode | Rôle |
 |---|---|
 | `getWaterRegionData(region)` | Configuration d'une Region |
+| `getWaterSurfaceData(tileOrDrawing)` | Liaison visuelle (sans mécanique) |
+| `resolveWaterSurfaceRegion(tileOrDrawing)` | Region aquatique associée, ou null |
+| `getWaterSurfacesForRegion(region)` | Tuiles et dessins liés à une Region |
+| `configureSelectedWaterSurfaces(type)` | Liaison d'une sélection de Tiles ou Drawings |
+| `clearSelectedWaterSurfaces(type)` | Dissociation sans toucher au volume d'eau |
 | `getTokenWaterState(token)` | Source de vérité géométrique, avec région, surface, fond, base/sommet/hauteur, immersion, `standing`, `flying`, classification |
 | `isTokenUnderwater(token)` | Immersion complète réelle |
 | `getTokenPhysicalHeight(token)` | Hauteur physique |

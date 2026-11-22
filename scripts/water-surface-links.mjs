@@ -147,10 +147,10 @@ export function registerWaterSurfaceHooks() {
       void syncSceneWaterSurfaceElevations(region.parent);
     }
   });
-  for (const event of ["updateTile", "updateDrawing"]) {
+  for (const event of ["createTile", "updateTile", "createDrawing", "updateDrawing"]) {
     Hooks.on(event, (doc, changes) => {
       if (!isPrimaryGM() || !doc?.parent) return;
-      if (!("elevation" in (changes ?? {}) || "flags" in (changes ?? {}))) return;
+      if (event.startsWith("update") && !("elevation" in (changes ?? {}) || "flags" in (changes ?? {}))) return;
       void syncWaterSurfaceElevation(doc).catch((error) =>
         console.warn(MODULE_ID + " | Surface visuelle non synchronisée", error));
     });

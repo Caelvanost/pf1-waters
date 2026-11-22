@@ -1,3 +1,11 @@
+# 1.1.0 — Tuiles et dessins comme surfaces visuelles associées
+
+- Les tuiles et dessins peuvent être associés à une Region aquatique existante via des boutons de couche réservés au MJ.
+- Le flag `flags.pf1-waters.waterSurface` stocke le lien et l'option d'alignement d'élévation.
+- La Region demeure seule responsable du volume d'eau, de la profondeur et de toutes les mécaniques.
+- Synchronisation facultative de l'élévation des surfaces visuelles sur le niveau de la Region.
+- API publique de consultation des liens et tests de non-régression.
+
 # Changelog — PF1 Waters
 
 ## 1.0.0 — 2026-11-22
