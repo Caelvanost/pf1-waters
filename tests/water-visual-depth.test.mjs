@@ -4,7 +4,8 @@ import {
   calculateWaterVisualElevation, getTokenWaterVisualElevation,
   calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay,
   refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth,
-  surfaceContainsTokenCenter
+  surfaceContainsTokenCenter, hasExteriorWaterViewer,
+  canSeeWaterTokenFromExterior
 } from "../scripts/water-visual-depth.mjs";
 
 class Point{
@@ -40,7 +41,7 @@ function makeScene(){
  const region={id:"r1",parent:scene,name:"Lac",elevation:0,
    getFlag(ns,key){
      if(ns==="pf1-waters"&&key==="waterRegion")
-       return {enabled:true,surface:0,depth:10};
+       return {enabled:true,surface:0,depth:10,visibilityDepth:this.visibilityDepth??null};
      return undefined;
    },
    testPoint({x,y}){return x>=0&&x<200&&y>=0&&y<200;}
@@ -186,4 +187,95 @@ test("actual visual shape can reject a token inside bounding box",()=>{
  const token=makeToken(scene,-0.75);
  assert.equal(surfaceContainsTokenCenter(drawing,token),false);
  assert.equal(refreshTokenWaterVisualDepth(token),false);
+});
+
+test("Region visibility depth overrides multiple Tile and Drawing settings",()=>{
+ const {scene,region}=makeScene();region.visibilityDepth=1.2;
+ makeVisual(scene,"Tile",{visibilityDepth:5});
+ makeVisual(scene,"Drawing",{visibilityDepth:7});
+ const token=makeToken(scene,-2.5); // top = -1; inside Region limit
+ assert.equal(getTokenWaterVisualDisplay(token).maximumDepth,1.2);
+ assert.ok(getTokenWaterVisualDisplay(token).opacity>0);
+ token.document.elevation=-2.7; // top = -1.2, exactly hidden
+ assert.equal(getTokenWaterVisualDisplay(token).opacity,0);
+ token.document.elevation=-1;
+ assert.equal(getTokenWaterVisualDisplay(token).opacity,1);
+});
+test("exterior sailor sees emergent token via Foundry elevated LOS when base is invisible",()=>{
+ const {scene}=makeScene();makeVisual(scene);
+ const sailor={document:{id:"sailor",parent:scene,
+   elevation:5,height:1,width:1},losHeight:6,controlled:true};
+ const token=makeToken(scene,-0.75);
+ token.isVisible=false;token.visible=false;token.mesh.visible=false;
+ canvas.tokens.controlled=[sailor];
+ canvas.visibility={testVisibility(point,options){
+   assert.equal(point.x,60);
+   assert.ok(point.elevation>0,"probe above the waterline");
+   assert.equal(options.object,token);
+   return true;
+ }};
+ game.user.isGM=false;
+ assert.equal(hasExteriorWaterViewer(0),true);
+ assert.equal(canSeeWaterTokenFromExterior(token),true);
+ assert.equal(refreshTokenWaterVisualDepth(token),true);
+ assert.equal(token.visible,true);
+ assert.equal(token.mesh.visible,true);
+ assert.equal(token.mesh.alpha,0,"hide native behind emerged overlay");
+ const overlay=canvas.interface.children.at(-1).children.at(-1);
+ assert.equal(overlay.visible,true);
+ assert.equal(overlay.alpha,1);
+ token.document.elevation=-5; // below visibility limit
+ refreshTokenWaterVisualDepth(token);
+ assert.equal(token.visible,false,"must restore native visibility underwater");
+ assert.equal(token.mesh.visible,false);
+ assert.equal(token.mesh.alpha,1,"native alpha is restored");
+ game.user.isGM=true;
+ canvas.tokens.controlled=[];delete canvas.visibility;
+});
+test("submerged target is displayed beneath Tile if top is within Region range and LOS passes",()=>{
+ const {scene,region}=makeScene();region.visibilityDepth=2;makeVisual(scene);
+ const viewer={document:{parent:scene,elevation:3,height:1},losHeight:4};
+ const token=makeToken(scene,-2); // top -0.5 m
+ token.isVisible=false;token.visible=false;token.mesh.visible=false;
+ canvas.tokens.controlled=[viewer];
+ canvas.visibility={testVisibility(point){return point.elevation>0;}};
+ game.user.isGM=false;
+ assert.equal(getTokenWaterVisualDisplay(token).mode,"submerged");
+ assert.equal(canSeeWaterTokenFromExterior(token),true);
+ refreshTokenWaterVisualDepth(token);
+ assert.equal(token.visible,true);
+ assert.equal(token.mesh.visible,true);
+ assert.equal(token.mesh.alpha,1,"the native primary mesh stays beneath water");
+ assert.equal(canvas.interface.children.at(-1).children.length,0,
+   "fully submerged has no foreground copy");
+ token.document.elevation=-3.6; // top -2.1 m
+ refreshTokenWaterVisualDepth(token);
+ assert.equal(token.visible,false,"over-depth tokens never acquire exterior visibility");
+ assert.equal(token.mesh.visible,false);
+ game.user.isGM=true;
+ canvas.tokens.controlled=[];delete canvas.visibility;
+});
+test("an underwater observer or a blocked LOS cannot reveal a floating creature",()=>{
+ const {scene}=makeScene();makeVisual(scene);
+ const target=makeToken(scene,-0.75);
+ target.isVisible=false;target.visible=false;target.mesh.visible=false;
+ const viewer={document:{parent:scene,elevation:-4,height:1},losHeight:-3};
+ canvas.tokens.controlled=[viewer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ assert.equal(hasExteriorWaterViewer(0),false);
+ assert.equal(canSeeWaterTokenFromExterior(target),false);
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,false);
+ viewer.losHeight=5;
+ canvas.visibility={testVisibility(){return false;}}; // wall or darkness
+ assert.equal(hasExteriorWaterViewer(0),true);
+ assert.equal(canSeeWaterTokenFromExterior(target),false);
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,false);
+ target.document.hidden=true;
+ canvas.visibility={testVisibility(){return true;}};
+ assert.equal(canSeeWaterTokenFromExterior(target),false);
+ game.user.isGM=true;
+ canvas.tokens.controlled=[];delete canvas.visibility;
 });
