@@ -1,3 +1,11 @@
+# 1.3.1 — Visibilité de la tuile d’eau depuis le dessus
+
+- La tuile liée à une Region aquatique peut rester visible comme un plan d’eau, plutôt que s’estomper comme une toiture sous l’occlusion native de Foundry v13.
+- Option de liaison activée par défaut : `keepVisible`. Applique `CONST.OCCLUSION_MODES.NONE` au champ natif `TileDocument.occlusion.mode` ; restaure l’ancien mode quand la tuile est dissociée ou si l’option est désactivée.
+- Traitement rétrocompatible des tuiles déjà liées lors du chargement de la scène, sans modification des Drawings.
+- Conservation de `hidden`, `alpha`, de la vision et de l’éclairage natifs, des règles d’immersion/abri et des PNG transparents. Aucune création d’image hors brouillard de guerre.
+- Tests de régression : mode d’occlusion, restitution, anciens liens, absence de modification des Regions/Dessins et tuiles cachées.
+
 # 1.3.0 — Surface transparente, profondeur visuelle et remous PNG facultatifs
 
 - Suppression de tous les anneaux géométriques bleus générés automatiquement.

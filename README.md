@@ -1,4 +1,4 @@
-# PF1 Waters — v1.3.0
+# PF1 Waters — v1.3.1
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -32,9 +32,13 @@ Une **tuile** (image de vagues, plan d'eau transparent, etc.) ou un **dessin** n
 5. Conserver l'option **Aligner l'élévation sur la Region** pour positionner automatiquement l'objet au niveau de surface configuré. La désactiver si la présentation de la scène exige une élévation différente.
 6. Utiliser **Dissocier la surface d’eau** pour retirer uniquement le lien visuel, sans toucher au corps d'eau.
 
+**Visibilité depuis la surface (Foundry v13) :** la nouvelle option **Ne pas masquer la surface comme une toiture**, activée par défaut, empêche la tuile liée à l’eau de s’estomper comme un toit sous l’effet de l’occlusion native. Ainsi, un token dont le point de vue est au-dessus de l’eau peut voir la texture de surface lorsque sa vision et l’éclairage de la scène l’y autorisent. Le module utilise le mode officiel `CONST.OCCLUSION_MODES.NONE` de Foundry v13 : il ne modifie ni `hidden`, ni l’opacité `alpha`, ni les obstacles, ni le brouillard de guerre. **La tuile reste également visible depuis le dessous**, comme une surface translucide ; il ne s’agit pas d’une règle de visibilité directionnelle. Désactiver l’option ou dissocier la tuile restaure son ancien mode d’occlusion de toiture. Les dessins ne possèdent pas ce mode de toiture et ne sont pas modifiés.
+
+**Compatibilité Levels / Better Roofs :** si un autre module cache entièrement une tuile à certaines élévations indépendamment de l’occlusion native, PF1 Waters ne désactive pas ces restrictions externes. Il faut alors vérifier les paramètres de niveaux de la tuile dans ce module.
+
 Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans modifier les règles. Les liens survivent à un déplacement/redimensionnement de leur objet. Lorsque la surface d'eau de la Region change, le module aligne les représentations liées qui ont cette option activée. Une Region supprimée ou désactivée laisse les liens inactifs, sans provoquer la création d'une nouvelle zone.
 
-Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
+Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth, keepVisible, previousOcclusionMode }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
 
 ## Affichage des tokens et transparence des surfaces (v1.3.0)
 

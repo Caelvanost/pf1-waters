@@ -1,6 +1,6 @@
 import { MODULE_ID } from "./constants.mjs";
 import { registerWaterVisualDepthHooks, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
-import { registerWaterSurfaceHooks, registerWaterSurfaceSceneControls, syncSceneWaterSurfaceElevations } from "./water-surface-links.mjs";
+import { registerWaterSurfaceHooks, registerWaterSurfaceSceneControls, syncSceneWaterSurfaceElevations, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import { WATER_API } from "./api.mjs";
 import {
   migrateLegacyWaterRegions, registerWaterRegionHooks,
@@ -41,6 +41,7 @@ Hooks.once("ready", async () => {
     if (result.migrated) console.info(MODULE_ID + " | Regions migrées : " + result.migrated);
     await syncSceneUnderwaterFlags(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
+    await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);
     refreshSceneWaterVisualDepth();
     await refreshWaterSurfaceMarkers();
   } catch (error) {
