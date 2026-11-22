@@ -15,10 +15,11 @@
 import { MODULE_ID, EPSILON, finite } from "./constants.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterSurfaceData, getWaterSurfacesForRegion } from "./water-surface-links.mjs";
-import { tokenCenter } from "./water-regions.mjs";
+import { tokenCenter, getWaterRegionData } from "./water-regions.mjs";
 
 const overlaySprites = new Map();
 const alphaOverrides = new WeakMap();
+const nativeVisibilityOverrides = new WeakMap();
 const warnings = new Set();
 let layer = null;
 let ticker = null;
@@ -114,15 +115,113 @@ export function getTokenWaterVisualDisplay(token) {
   }
   if (!state.fullySubmerged) return null;
   // If two surface images cover this position, use the more permissive depth.
-  const maximumDepth = Math.max(...surfaces.map((surface) =>
-    getWaterSurfaceData(surface).visibilityDepth
-  ));
+  // A configured Region limit is authoritative for every linked surface.
+  // Older worlds without this field retain their per-Tile/Drawing settings.
+  const regionLimit = getWaterRegionData(state.region).visibilityDepth;
+  const maximumDepth = Number.isFinite(regionLimit) ? regionLimit :
+    Math.max(...surfaces.map((surface) =>
+      getWaterSurfaceData(surface).visibilityDepth
+    ));
   const depth = Math.max(0, state.surface - state.tokenTop);
   return {
     mode: "submerged",
     opacity: calculateUnderwaterVisualOpacity(depth, maximumDepth),
     depth, maximumDepth
   };
+}
+
+/**
+ * A user viewing from the ship's deck has a vision source above the water,
+ * even if the visible target TokenDocument's *base* is underwater.
+ * Read current local vision sources: only sources belonging to this client's
+ * active visibility context are considered (not arbitrary scene tokens).
+ */
+export function hasExteriorWaterViewer(surface, targetToken = null) {
+  const canvas = globalThis.canvas;
+  if (!Number.isFinite(surface) || !canvas) return false;
+  if (game.user?.isGM && !(canvas.tokens?.controlled?.length)) return true;
+  const observers = new Set(canvas.tokens?.controlled ?? []);
+  const collection = canvas.effects?.visionSources ?? canvas.visibility?.visionSources;
+  const sources = collection?.values?.() ?? (Array.isArray(collection) ? collection : []);
+  for (const source of sources) {
+    if (source?.active === false) continue;
+    const object = source?.object ?? source?.token ?? source?.data?.object;
+    if (object?.document) observers.add(object);
+  }
+  for (const source of observers) {
+    if (!source?.document || source.document.parent?.id !== canvas.scene?.id) continue;
+    // Native sight-height wins; on plain Foundry v13 use body top.
+    const sourceEye = Number.isFinite(source.losHeight) ? source.losHeight :
+      finite(source.document.elevation, 0) +
+      Math.max(0, finite(source.document.height, 1)) *
+      finite(canvas.scene?.grid?.distance, 0);
+    if (sourceEye >= surface - EPSILON) return true;
+  }
+  return false;
+}
+
+/**
+ * Only extend native Token visibility if an exterior source can actually
+ * see the waterline through Foundry's own LOS/detection test.
+ * Never bypass hidden tokens, token vision, walls, or detection modes.
+ */
+export function canSeeWaterTokenFromExterior(token, state = undefined) {
+  const placeable = token?.mesh ? token : (token?.document ?? token)?.object;
+  const doc = placeable?.document;
+  const water = state ?? (doc ? getTokenWaterState(doc) : null);
+  if (!doc || !water?.inWater || !Number.isFinite(water.surface) ||
+      (doc.hidden && !game.user?.isGM) ||
+      !hasExteriorWaterViewer(water.surface, placeable)) return false;
+  const visibility = globalThis.canvas?.visibility;
+  if (typeof visibility?.testVisibility !== "function") return false;
+  const center = tokenCenter(doc);
+  if (!Number.isFinite(center.x) || !Number.isFinite(center.y)) return false;
+  // From outside, test a point immediately on/above the transparent water.
+  // The actual submerged limit is still checked separately.
+  const sample = {
+    x: center.x, y: center.y,
+    elevation: Math.max(water.surface + EPSILON * 2,
+      finite(water.tokenTop, water.surface))
+  };
+  try {
+    return visibility.testVisibility(sample, {object: placeable}) === true;
+  } catch (error) {
+    warnOnce("Test de visibilité aquatique impossible", error);
+    return false;
+  }
+}
+
+/**
+ * Foundry's standard Token.isVisible remains the authoritative baseline.
+ * For a proven exterior LOS, allow its native primary mesh to render below
+ * transparent water as usual. Reset when water/vision conditions cease.
+ */
+function syncWaterTokenVisibility(placeable, canShow) {
+  if (!placeable?.document) return false;
+  const existing = nativeVisibilityOverrides.get(placeable);
+  const native = typeof placeable.isVisible === "boolean"
+    ? placeable.isVisible : (existing?.nativeVisible ?? placeable.visible !== false);
+  if (canShow && !native) {
+    if (!existing) nativeVisibilityOverrides.set(placeable, {
+      nativeVisible: placeable.visible !== false,
+      meshVisible: placeable.mesh?.visible !== false
+    });
+    const changed = placeable.visible !== true ||
+      (placeable.mesh && placeable.mesh.visible !== true);
+    placeable.visible = true;
+    if (placeable.mesh) placeable.mesh.visible = true;
+    return Boolean(changed);
+  }
+  if (existing) {
+    nativeVisibilityOverrides.delete(placeable);
+    const desired = typeof placeable.isVisible === "boolean"
+      ? native : existing.nativeVisible;
+    const changed = placeable.visible !== desired;
+    placeable.visible = desired;
+    if (placeable.mesh) placeable.mesh.visible = desired && existing.meshVisible;
+    return changed;
+  }
+  return false;
 }
 
 function ensureOverlayLayer() {
@@ -238,9 +337,14 @@ export function refreshTokenWaterVisualDepth(token) {
   const state = getTokenWaterVisualDisplay(doc);
   const enabled = game.settings?.get?.(MODULE_ID, "partialSurfaceDepth") !== false;
   const showEmerged = enabled && state?.mode === "emerged";
-  const allowed = placeable.visible !== false &&
+  const withinDepth = state?.mode === "submerged" && state.opacity > 0;
+  const originalAllowed = placeable.isVisible === true ||
+    (placeable.isVisible === undefined && placeable.visible !== false);
+  const exteriorAllowed = enabled && (showEmerged || withinDepth) &&
+    canSeeWaterTokenFromExterior(placeable);
+  let changed = syncWaterTokenVisibility(placeable, exteriorAllowed);
+  const allowed = (originalAllowed || exteriorAllowed) &&
     (!doc.hidden || Boolean(game.user?.isGM));
-  let changed = false;
 
   if (showEmerged && allowed) changed = ensureOverlay(placeable) || changed;
   else changed = removeOverlay(placeable) || changed;
@@ -304,6 +408,10 @@ export function registerWaterVisualDepthHooks() {
   Hooks.on("refreshToken", (token) => { refreshTokenWaterVisualDepth(token); });
   Hooks.on("drawToken", (token) => { refreshTokenWaterVisualDepth(token); });
   Hooks.on("canvasReady", refreshSceneWaterVisualDepth);
+  // Foundry may reset token visibility when any observer changes location,
+  // even when the water token itself does not move.
+  Hooks.on("sightRefresh", refreshSceneWaterVisualDepth);
+  Hooks.on("visibilityRefresh", refreshSceneWaterVisualDepth);
   for (const event of [
     "createToken", "updateToken", "deleteToken",
     "createRegion", "updateRegion", "deleteRegion",
@@ -314,6 +422,7 @@ export function registerWaterVisualDepthHooks() {
     detachTicker();
     for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
       if (token?.mesh) setNativeMeshOpacity(token.mesh, 1);
+      syncWaterTokenVisibility(token, false);
     }
     clearOverlays();
     refreshing = false;
