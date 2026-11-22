@@ -75,7 +75,15 @@ function localWaterViewers() {
   // Free-camera GMs see the unmodified Scene. A controlled GM token uses
   // the underwater viewpoint, as do a player's active vision sources.
   if (game.user?.isGM && !(canvas.tokens?.controlled?.length)) return [];
-  const tokens = new Set(canvas.tokens?.controlled ?? []);
+  const controlled = canvas.tokens?.controlled ?? [];
+  // The controlled token is the current point of view. Do not mix in other
+  // active sight sources (possibly on deck), which can lock the lighting at
+  // the shallower token's illumination even while the diver descends.
+  if (controlled.length) return controlled.filter(token =>
+    token?.document?.parent?.id === canvas.scene?.id &&
+    (!token.document.hidden || Boolean(game.user?.isGM))
+  );
+  const tokens = new Set();
   const vision = canvas.effects?.visionSources ?? canvas.visibility?.visionSources;
   const iterator = vision?.values?.() ?? (Array.isArray(vision) ? vision : []);
   for (const source of iterator) {

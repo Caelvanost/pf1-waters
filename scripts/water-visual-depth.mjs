@@ -157,7 +157,14 @@ export function getTokenWaterVisualDisplay(token) {
 function getLocalWaterObservers() {
   const canvas = globalThis.canvas;
   if (!canvas) return [];
-  const observers = new Set(canvas.tokens?.controlled ?? []);
+  const controlled = canvas.tokens?.controlled ?? [];
+  // An explicitly selected observer defines the current underwater view.
+  // Otherwise a separate surface-level vision source could override the
+  // selected diver's perspective and incorrectly bypass the depth rule.
+  if (controlled.length) return controlled.filter(token =>
+    token?.document && token.document.parent?.id === canvas.scene?.id
+  );
+  const observers = new Set();
   const sources = canvas.effects?.visionSources ?? canvas.visibility?.visionSources;
   const iterator = sources?.values?.() ??
     (Array.isArray(sources) ? sources : []);

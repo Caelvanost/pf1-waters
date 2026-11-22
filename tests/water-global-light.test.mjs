@@ -93,7 +93,7 @@ test("outside or no-global-light scenes show no underwater shading",()=>{
  const x=setup({light:false});
  assert.equal(getWaterRegionGlobalLightStates(x.sc,canvas.tokens.controlled).length,0);
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(canvas.interfaceGroup.children.length,0);
+ assert.equal(canvas.interface.children.length,0);
 });
 test("multiple active underwater viewers share the least dark view",()=>{
  const {sc,viewer,createViewer}=setup();
@@ -227,4 +227,14 @@ test("darkness layer is inserted below emerged foreground sprites",()=>{
  assert.equal(refreshWaterGlobalLighting(),1);
  assert.equal(interfaceGroup.children[0].name,"pf1-waters-underwater-global-light");
  assert.equal(interfaceGroup.children[1],overlay);
+});
+
+test("controlled diver has priority over separate shallow vision sources",()=>{
+ const {viewer,createViewer,interfaceGroup}=setup();
+ viewer.document.elevation=-37.5;
+ const sailor=createViewer(-1.5);
+ canvas.effects.visionSources.set("sailor",{object:sailor,active:true});
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.5,
+   "selected diver at 36m sees 50% light despite shallow sight source");
 });
