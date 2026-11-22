@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getTokenWaterState } from "../scripts/water-state.mjs";
 import {
   calculateWaterVisualElevation, getTokenWaterVisualElevation,
   calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay,
   refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth,
   surfaceContainsTokenCenter, hasExteriorWaterViewer,
-  canSeeWaterTokenFromExterior
+  canSeeWaterTokenFromExterior, hasInteriorWaterViewer,
+  canSeeWaterTokenFromInterior
 } from "../scripts/water-visual-depth.mjs";
 
 class Point{
@@ -346,4 +348,123 @@ test("an unset Region threshold uses 36m from the creature's TOP",()=>{
  state=getTokenWaterVisualDisplay(token);
  assert.equal(state.maximumDepth,36);
  assert.equal(state.opacity,0);
+});
+
+
+function underwaterViewer(scene, {x=10,y=10,elevation=-4}={}) {
+  return {
+    document:{
+      id:"underwater-observer",
+      parent:scene,x,y,width:1,height:1,elevation,
+      movementAction:"swim",getFlag(){return undefined;}
+    },
+    losHeight:elevation+1.1
+  };
+}
+function resetViewerTests(){
+  game.user.isGM=true;
+  canvas.tokens.controlled=[];
+  delete canvas.effects;
+  delete canvas.visibility;
+}
+
+test("two tokens in the same water Region remain fully visible at any depth",()=>{
+  const {scene,region}=makeScene();region.visibilityDepth=1.5;
+  makeVisual(scene,"Tile");
+  const token=makeToken(scene,-7);
+  token.isVisible=false;token.visible=false;token.mesh.visible=false;
+  canvas.tokens.controlled=[underwaterViewer(scene)];
+  canvas.visibility={testVisibility(point,{object}){
+    assert.equal(object,token);
+    assert.ok(point.elevation < 0, "test submerged target point, not the waterline");
+    return true;
+  }};
+  game.user.isGM=false;
+  const limit=getTokenWaterVisualDisplay(token);
+  assert.equal(limit.mode,"submerged");
+  assert.equal(limit.opacity,0,"an exterior observer is beyond its range");
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(token.document)),true);
+  assert.equal(canSeeWaterTokenFromInterior(token),true);
+  refreshTokenWaterVisualDepth(token);
+  assert.equal(token.visible,true);
+  assert.equal(token.mesh.visible,true);
+  assert.equal(token.mesh.alpha,1,"no artificial fade for interior viewer");
+  resetViewerTests();
+});
+
+test("switching from interior observer to exterior restores water depth limit",()=>{
+  const {scene,region}=makeScene();region.visibilityDepth=2;
+  makeVisual(scene);
+  const token=makeToken(scene,-6);
+  token.isVisible=false;token.visible=false;token.mesh.visible=false;
+  const viewer=underwaterViewer(scene);
+  canvas.tokens.controlled=[viewer];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  refreshTokenWaterVisualDepth(token);
+  assert.equal(token.mesh.alpha,1);
+  assert.equal(token.visible,true);
+  viewer.document.elevation=5;viewer.losHeight=6;
+  refreshSceneWaterVisualDepth();
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(token.document)),false);
+  assert.equal(token.mesh.alpha,0);
+  assert.equal(token.visible,false,
+    "an outside observer cannot see a deeply submerged token");
+  resetViewerTests();
+});
+
+test("interior visibility never bypasses walls, fog, or hidden-token rules",()=>{
+  const {scene,region}=makeScene();region.visibilityDepth=2;
+  makeVisual(scene);
+  const token=makeToken(scene,-6);
+  token.isVisible=false;token.visible=false;token.mesh.visible=false;
+  canvas.tokens.controlled=[underwaterViewer(scene)];
+  canvas.visibility={testVisibility(){return false;}};
+  game.user.isGM=false;
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(token.document)),true);
+  assert.equal(canSeeWaterTokenFromInterior(token),false);
+  refreshTokenWaterVisualDepth(token);
+  assert.equal(token.mesh.alpha,0);
+  assert.equal(token.visible,false);
+  token.document.hidden=true;
+  canvas.visibility={testVisibility(){return true;}};
+  assert.equal(canSeeWaterTokenFromInterior(token),false);
+  resetViewerTests();
+});
+
+test("being inside Region footprint above water never grants underwater vision",()=>{
+  const {scene,region}=makeScene();region.visibilityDepth=2;
+  makeVisual(scene);
+  const token=makeToken(scene,-6);
+  token.isVisible=false;token.visible=false;token.mesh.visible=false;
+  canvas.tokens.controlled=[underwaterViewer(scene,{elevation:5})];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(token.document)),false);
+  refreshTokenWaterVisualDepth(token);
+  assert.equal(token.mesh.alpha,0);
+  assert.equal(token.visible,false);
+  resetViewerTests();
+});
+
+test("underwater observer in a different water Region never bypasses range",()=>{
+  const {scene,region}=makeScene();region.visibilityDepth=2;
+  makeVisual(scene);
+  const other={id:"r2",parent:scene,elevation:0,
+    getFlag(ns,key){return ns==="pf1-waters"&&key==="waterRegion"
+      ?{enabled:true,surface:0,depth:10,visibilityDepth:2}:undefined;},
+    testPoint({x,y}){return x>=200&&x<400&&y>=0&&y<200;}
+  };
+  scene.regions.push(other);
+  const token=makeToken(scene,-6);
+  token.isVisible=false;token.visible=false;token.mesh.visible=false;
+  canvas.tokens.controlled=[underwaterViewer(scene,{x:250,y:10,elevation:-4})];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(token.document)),false);
+  assert.equal(canSeeWaterTokenFromInterior(token),false);
+  refreshTokenWaterVisualDepth(token);
+  assert.equal(token.mesh.alpha,0);
+  assert.equal(token.visible,false);
+  resetViewerTests();
 });
