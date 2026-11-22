@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { registerWaterSurfaceHooks, registerWaterSurfaceSceneControls, syncSceneWaterSurfaceElevations } from "./water-surface-links.mjs";
 import { WATER_API } from "./api.mjs";
 import {
   migrateLegacyWaterRegions, registerWaterRegionHooks,
@@ -19,11 +20,13 @@ Hooks.once("init", () => {
 
   registerWaterMovementHooks();
   registerWaterRenderingHooks();
+  registerWaterSurfaceHooks();
   registerWaterRegionHooks(async (scene) => {
     await syncSceneUnderwaterFlags(scene);
     refreshWaterSurfaceMarkers();
   });
   Hooks.on("getSceneControlButtons", registerWaterRegionSceneControls);
+  Hooks.on("getSceneControlButtons", registerWaterSurfaceSceneControls);
 });
 
 Hooks.once("ready", async () => {
@@ -35,6 +38,7 @@ Hooks.once("ready", async () => {
     const result = await migrateLegacyWaterRegions();
     if (result.migrated) console.info(MODULE_ID + " | Regions migrées : " + result.migrated);
     await syncSceneUnderwaterFlags(globalThis.canvas?.scene);
+    await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     refreshWaterSurfaceMarkers();
   } catch (error) {
     console.error(MODULE_ID + " | Initialisation aquatique impossible", error);

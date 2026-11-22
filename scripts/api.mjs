@@ -1,3 +1,4 @@
+import { getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion, configureSelectedWaterSurfaces, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations } from "./water-surface-links.mjs";
 import {
   getWaterRegionData, getWaterBottomElevation, isWaterRegion,
   configureSelectedWaterRegions, clearSelectedWaterRegions,
@@ -42,5 +43,8 @@ export const WATER_API = Object.freeze({
   measureProjectileWaterDistance, syncTokenUnderwaterFlag,
   syncSceneUnderwaterFlags, configureSelectedWaterRegions,
   clearSelectedWaterRegions, migrateLegacyWaterRegions,
-  refreshWaterSurfaceMarkers
+  refreshWaterSurfaceMarkers,
+  getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
+  configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
+  syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations
 });
