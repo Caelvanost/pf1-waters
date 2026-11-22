@@ -251,3 +251,50 @@ test("Region underwater visibility is configurable and independent of physical d
  assert.equal(getWaterRegionData(r).visibilityDepth,0);
  assert.equal(getWaterRegionData(r).depth,12);
 });
+
+test("floating means the creature intersects water surface, even without footing",async()=>{
+ const s=scene();region(s,{depth:8});
+ const d=token(s,{elevation:-0.75,movementAction:"swim"});
+ const state=getTokenWaterState(d);
+ assert.equal(state.floating,true);
+ assert.equal(state.hasFooting,false);
+ assert.equal(Object.hasOwn(state,"standing"),false);
+ await syncTokenWaterMovement(d);
+ assert.equal(d.getFlag("pf1-waters","waterMovement").floating,true);
+ assert.equal(d.getFlag("pf1-waters","waterMovement").hasFooting,false);
+ await syncTokenUnderwaterFlag(d);
+ assert.equal(d.getFlag("pf1-waters","floating"),true);
+ assert.equal(d.getFlag("pf1-waters","hasFooting"),false);
+ d.elevation=-2;
+ await syncTokenWaterMovement(d);
+ await syncTokenUnderwaterFlag(d);
+ assert.equal(d.getFlag("pf1-waters","floating"),false);
+ assert.equal(d.getFlag("pf1-waters","hasFooting"),false);
+ assert.equal(d.getFlag("world","underwater"),true);
+});
+test("shallow surface contact can be floating and have footing simultaneously",async()=>{
+ const s=scene();region(s,{depth:0.2});
+ const d=token(s,{elevation:-0.2,movementAction:"walk"});
+ const state=getTokenWaterState(d);
+ assert.equal(state.floating,true);
+ assert.equal(state.hasFooting,true);
+ await syncTokenWaterMovement(d);
+ await syncTokenUnderwaterFlag(d);
+ assert.deepEqual({
+   floating:d.getFlag("pf1-waters","floating"),
+   hasFooting:d.getFlag("pf1-waters","hasFooting")
+ },{floating:true,hasFooting:true});
+ d.x=1500;await syncTokenWaterMovement(d);await syncTokenUnderwaterFlag(d);
+ assert.equal(d.getFlag("pf1-waters","floating"),false);
+ assert.equal(d.getFlag("pf1-waters","hasFooting"),false);
+});
+test("legacy standing is replaced by hasFooting during movement sync",async()=>{
+ const s=scene();region(s,{depth:0.5});
+ const d=token(s,{elevation:-0.5});
+ await d.setFlag("pf1-waters","waterMovement",{standing:true,inWater:true});
+ await syncTokenWaterMovement(d);
+ const saved=d.getFlag("pf1-waters","waterMovement");
+ assert.equal(saved.hasFooting,true);
+ assert.equal(saved.floating,true);
+ assert.equal(Object.hasOwn(saved,"standing"),false);
+});

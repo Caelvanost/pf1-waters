@@ -74,7 +74,8 @@ export function getTokenWaterState(token) {
     surface: null, bottom: null, bottomElevation: null, depth: null,
     tokenBottom, tokenTop, tokenHeight, elevation, immersion: 0,
     intersectsSurface: false, fullySubmerged: false, aboveWater: false,
-    standing: false, flying, classification: WATER_CLASSIFICATION.OUTSIDE_WATER
+    floating: false, hasFooting: false, flying,
+    classification: WATER_CLASSIFICATION.OUTSIDE_WATER
   };
   if (!region) return empty;
 
@@ -100,7 +101,9 @@ export function getTokenWaterState(token) {
     surface: water.surface, bottom, bottomElevation: bottom, depth: water.depth,
     tokenBottom, tokenTop, tokenHeight, elevation, immersion,
     intersectsSurface, fullySubmerged, aboveWater,
-    standing: inWater && tokenHasFooting(doc, region), flying, classification
+    floating: intersectsSurface,
+    hasFooting: inWater && tokenHasFooting(doc, region),
+    flying, classification
   };
 }
 

@@ -94,7 +94,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
       if (wasInWater ||
           (oldCanonical === undefined &&
             doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
-        const cleared = { inWater: false };
+        const cleared = { inWater: false, floating: false, hasFooting: false };
         if (changed(oldCanonical, cleared)) {
           await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
         }
@@ -130,7 +130,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
       if (wasInWater ||
           (oldCanonical === undefined &&
             doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
-        const cleared = { inWater: false };
+        const cleared = { inWater: false, floating: false, hasFooting: false };
         if (changed(oldCanonical, cleared)) {
           await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
         }
@@ -140,12 +140,14 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
 
     const effectiveRegion = state.region ?? region;
     const water = getWaterRegionData(effectiveRegion);
-    const standing = tokenHasFooting(doc, effectiveRegion, effectiveElevation);
-    await setNativeSwimmingStatus(doc, !standing);
+    const hasFooting = tokenHasFooting(doc, effectiveRegion, effectiveElevation);
+    const floating = state.intersectsSurface;
+    await setNativeSwimmingStatus(doc, !hasFooting);
 
     const next = {
       inWater: true,
-      standing,
+      hasFooting,
+      floating,
       regionId: effectiveRegion.id,
       surface: water.surface,
       depth: water.depth,
@@ -155,7 +157,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     if (force || changed(oldCanonical, next)) {
       await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, next);
     }
-    return { ...state, standing, swimElevation: next.swimElevation };
+    return { ...state, hasFooting, floating, swimElevation: next.swimElevation };
   } finally {
     busy.delete(key);
   }
@@ -164,11 +166,20 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
 export async function syncTokenUnderwaterFlag(token, { force = false } = {}) {
   const doc = token?.document ?? token;
   if (!doc || !canWriteToken(doc)) return false;
-  const desired = getTokenWaterState(doc).fullySubmerged;
+  const state = getTokenWaterState(doc);
+  const desired = state.fullySubmerged;
   const canonical = doc.getFlag?.(MODULE_ID, UNDERWATER_FLAG);
   const legacy = doc.getFlag?.("world", UNDERWATER_FLAG);
   if (force || canonical !== desired) await doc.setFlag(MODULE_ID, UNDERWATER_FLAG, desired);
   if (force || legacy !== desired) await doc.setFlag("world", UNDERWATER_FLAG, desired);
+  // Public flags for spell/item Script Calls: current factual posture,
+  // never a persistent status effect. Recompute on every token movement.
+  for (const key of ["floating", "hasFooting"]) {
+    const value = Boolean(state[key]);
+    if (force || doc.getFlag?.(MODULE_ID, key) !== value) {
+      await doc.setFlag(MODULE_ID, key, value);
+    }
+  }
   return desired;
 }
 
