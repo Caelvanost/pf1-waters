@@ -195,7 +195,10 @@ export async function configureSelectedWaterRegions() {
       }
     },
     rejectClose: false,
-    modal: true
+    // FilePicker opens a separate ApplicationV2 window. A modal DialogV2
+    // traps focus and blocks clicking that window even when it is on top.
+    // Keep this region editor non-modal so Foundry's browser is interactive.
+    modal: false
   });
   if (result === null || result === undefined) return;
   for (const region of regions) {

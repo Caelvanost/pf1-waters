@@ -1,3 +1,9 @@
+# 1.4.4 — Sélecteur PNG cliquable dans la configuration de Region
+
+- Le dialogue « PF1 Waters — Corps d'eau » n'est plus modal : le navigateur de fichiers Foundry ouvert par `<file-picker>` reste accessible et peut prendre le focus.
+- Le formulaire garde ses valeurs tant que le MJ choisit son PNG ; aucune Region n'est modifiée avant la confirmation.
+- Test de régression vérifiant l'option `modal: false` et la présence du sélecteur natif PNG.
+
 # 1.4.3 — Correctif des tokens émergés derrière les tuiles transparentes
 
 - Le recouvrement d'une Tile liée à l'eau est basé sur son rectangle géométrique, et ne dépend plus d'un test alpha des pixels de son PNG.

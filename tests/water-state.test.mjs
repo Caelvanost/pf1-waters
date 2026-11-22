@@ -230,6 +230,8 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
  globalThis.foundry={utils:{escapeHTML:v=>String(v)},
   applications:{api:{DialogV2:{prompt:async(config)=>{
    assert.ok(config.content.includes('<file-picker type="image" name="ringPng"'));
+   assert.equal(config.modal,false,
+     "The native Foundry file browser must remain clickable outside the water Region dialog");
    return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png",visibilityDepth:2.25};
   }}}}};
  const notifications=[];ui.notifications.info=x=>notifications.push(x);
