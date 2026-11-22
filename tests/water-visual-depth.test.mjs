@@ -129,6 +129,55 @@ test("full immersion restores native image then fades it below transparent tile"
  assert.equal(refreshTokenWaterVisualDepth(token),true);
  assert.equal(token.mesh.alpha,1,"leaving linked Region restores opacity");
 });
+test("transparent Tile alpha hit-test never prevents a half-emerged token from appearing in front",()=>{
+ const {scene}=makeScene();
+ const tile=makeVisual(scene,"Tile");
+ tile.object={
+   mesh:{containsCanvasPoint(){return false;}},
+   bounds:{contains(){return false;}}
+ };
+ const token=makeToken(scene,-1.05);
+ assert.equal(token.document.elevation,-1.05);
+ const water=getTokenWaterVisualDisplay(token);
+ assert.equal(water.mode,"emerged","1.5m token extends 0.45m above 0m water");
+ assert.equal(surfaceContainsTokenCenter(tile,token),true,
+   "Water Tile footprint ignores transparent PNG pixel alpha");
+ assert.equal(refreshTokenWaterVisualDepth(token),true);
+ const sprite=canvas.interface.children.at(-1).children.at(-1);
+ assert.equal(sprite.alpha,1);
+ assert.equal(sprite.visible,true);
+ assert.equal(token.mesh.alpha,0,"no ghost behind the translucent Tile");
+ assert.equal(token.document.elevation,-1.05,"no gameplay elevation changes");
+});
+
+test("transparent Tile hit test cannot extend water surface beyond geometry",()=>{
+ const {scene}=makeScene();
+ const tile=makeVisual(scene,"Tile",{x:300,y:300,width:100,height:100});
+ tile.object={mesh:{containsCanvasPoint(){return true;}}};
+ const token=makeToken(scene,-1.05);
+ assert.equal(surfaceContainsTokenCenter(tile,token),false);
+ assert.equal(getTokenWaterVisualDisplay(token),null);
+ assert.equal(refreshTokenWaterVisualDepth(token),false);
+ assert.equal(token.mesh.alpha,1);
+});
+
+test("emerged overlay position accounts for distinct Canvas group transforms",()=>{
+ const {scene}=makeScene();makeVisual(scene);
+ const token=makeToken(scene,-1.05);
+ token.mesh.getGlobalPosition=()=>({x:920,y:720});
+ // canvas.interface is not always in the same space as the native mesh.
+ canvas.interface.toLocal=point=>({x:point.x-700,y:point.y-500});
+ assert.equal(refreshTokenWaterVisualDepth(token),true);
+ const overlay=canvas.interface.children.at(-1);
+ overlay.toLocal=canvas.interface.toLocal;
+ // A subsequent position refresh should take global coordinates.
+ refreshTokenWaterVisualDepth(token);
+ const sprite=overlay.children.at(-1);
+ assert.equal(sprite.position.x,220);
+ assert.equal(sprite.position.y,220);
+ assert.equal(sprite.alpha,1);
+});
+
 test("Drawing works like a linked Tile",()=>{
  const {scene}=makeScene();
  const drawing=makeVisual(scene,"Drawing");

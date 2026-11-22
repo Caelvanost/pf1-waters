@@ -43,16 +43,29 @@ function rectContains(doc, point) {
   return Math.abs(lx) <= Math.abs(w) / 2 && Math.abs(ly) <= Math.abs(h) / 2;
 }
 
-/** The linked image's actual 2D footprint is required. */
+/**
+ * A surface Tile is a geometric sheet of water, independent of the texture's
+ * alpha at the token centre. Foundry's PrimarySpriteMesh.containsCanvasPoint
+ * may test pixel transparency: it is unsuitable for translucent water images.
+ * Treat the Tile's full rotated rectangle as the linked water footprint.
+ *
+ * A Drawing still uses its authored shape, because it may be a polygon,
+ * ellipse or freehand contour; don't turn arbitrary Drawings into rectangles.
+ */
 export function surfaceContainsTokenCenter(surface, token) {
   const doc = surface?.document ?? surface;
   const tokenDoc = token?.document ?? token;
   if (!doc?.parent || doc.parent.id !== tokenDoc?.parent?.id) return false;
   const point = tokenCenter(tokenDoc);
-  const primary = doc.object?.mesh ?? doc.object?.shape;
-  if (typeof primary?.containsCanvasPoint === "function") {
-    try { return Boolean(primary.containsCanvasPoint(point)); }
-    catch (error) { warnOnce("Test visuel de surface indisponible", error); }
+  if (doc.documentName === "Tile") {
+    // Native TileDocument width/height describe the real tile geometry in px.
+    // The image alpha, transparency and texture-alpha hit-tests are ignored.
+    return rectContains(doc, point);
+  }
+  const shape = doc.object?.shape;
+  if (typeof shape?.containsCanvasPoint === "function") {
+    try { return Boolean(shape.containsCanvasPoint(point)); }
+    catch (error) { warnOnce("Test géométrique du dessin indisponible", error); }
   }
   const bounds = doc.object?.bounds;
   if (typeof bounds?.contains === "function" && finite(doc.rotation, 0) === 0) {
@@ -267,7 +280,25 @@ function syncOverlaySprite(token, sprite) {
   if (!mesh?.texture || !doc || sprite?.destroyed) return;
   if (sprite.texture !== mesh.texture) sprite.texture = mesh.texture;
   copyPoint(sprite.anchor, mesh.anchor, 0.5, 0.5);
-  copyPoint(sprite.position, mesh.position, finite(doc.x), finite(doc.y));
+  // Convert the native mesh's world transform into the overlay container's
+  // local coordinates. Different Foundry canvas groups can have distinct
+  // parent transforms; directly copying mesh.position may shift the replica.
+  let placed = false;
+  if (typeof mesh.getGlobalPosition === "function" &&
+      typeof sprite.parent?.toLocal === "function") {
+    try {
+      const world = mesh.getGlobalPosition();
+      const local = sprite.parent.toLocal(world);
+      if (Number.isFinite(local?.x) && Number.isFinite(local?.y)) {
+        copyPoint(sprite.position, local);
+        placed = true;
+      }
+    } catch (error) {
+      warnOnce("Conversion des coordonnées du token impossible", error);
+    }
+  }
+  if (!placed) copyPoint(sprite.position, mesh.position,
+    finite(doc.x), finite(doc.y));
   copyPoint(sprite.scale, mesh.scale, 1, 1);
   copyPoint(sprite.pivot, mesh.pivot, 0, 0);
   if (Number.isFinite(mesh.rotation)) sprite.rotation = mesh.rotation;
@@ -276,6 +307,7 @@ function syncOverlaySprite(token, sprite) {
   if (Number.isFinite(mesh.tint)) sprite.tint = mesh.tint;
   // Render ONLY tokens that Foundry already allows this client to see.
   sprite.visible = token.visible !== false && (!doc.hidden || Boolean(game.user?.isGM));
+  sprite.renderable = sprite.visible;
   // The copy uses normal native token transparency; not the underwater fade.
   const savedNativeAlpha = alphaOverrides.get(mesh)?.nativeAlpha;
   sprite.alpha = Math.max(0, Math.min(1,

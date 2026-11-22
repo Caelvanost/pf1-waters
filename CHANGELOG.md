@@ -1,3 +1,11 @@
+# 1.4.3 — Correctif des tokens émergés derrière les tuiles transparentes
+
+- Le recouvrement d'une Tile liée à l'eau est basé sur son rectangle géométrique, et ne dépend plus d'un test alpha des pixels de son PNG.
+- Un token dont la base est à −1,05 m et la hauteur à 1,50 m, sous une surface à 0 m, est bien reconnu comme émergé et son portrait s'affiche à pleine opacité devant la Tile.
+- Conversion des positions de la copie graphique entre groupes Canvas à partir des transformations mondiales lorsque ces API PIXI sont disponibles.
+- Les Drawings gardent leur géométrie réelle et leurs tests de forme ; aucune modification des profondeurs, de l'élévation des tokens ou des règles PF1AE.
+- Tests de non-régression : PNG transparent, limites de la Tile, sprite au premier plan et transformation des groupes Canvas.
+
 # 1.4.2 — Seuil par défaut de 120 pieds dans les scènes impériales
 
 - Les Regions aquatiques sans profondeur de visibilité configurée utilisent **120 pieds** si la scène est en `ft`, `feet`, `pieds`, etc., au lieu de la conversion exacte de 36 mètres (~118,11 pieds).

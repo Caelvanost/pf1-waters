@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.2
+# PF1 Waters — v1.4.3
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -60,6 +60,14 @@ La visibilité des créatures près de la surface tient désormais compte **du s
 Ces flags sont rafraîchis au déplacement, à la plongée et au chargement de scène. Les sorts peuvent continuer à employer `flags.world.waterwalk` ou `flags.pf1-waters.waterwalk`. Aucun bonus d'abri n'est appliqué ici : cela reste du ressort de **PF1AE**.
 
 **Limite technique :** les scènes complexes utilisant Levels ou Better Roofs doivent être vérifiées en jeu. La surimpression reste une représentation graphique ; elle ne change pas la vision native des autres tokens ni les calculs de distance ou d'attaque. La ligne de vue est testée au niveau visible de l'eau pour éviter qu'une base sous-marine ne rende automatiquement invisible une créature émergée.
+
+## Correction des tokens partiellement émergés (v1.4.3)
+
+Les **tuiles transparentes** liées à une Region d'eau sont reconnues selon leur **rectangle géométrique**, et non selon l'opacité du pixel situé sous le centre du token. Dans Foundry v13, une texture presque transparente pouvait faire échouer le test de point de la tuile : le module croyait alors qu'aucune surface visuelle ne recouvrait le token et ne créait pas de copie devant l'eau.
+
+La correction affiche désormais **le token normalement et entièrement devant la surface** lorsque son sommet dépasse réellement de la surface, même si sa base reste sous l'eau. Exemple : base à **−1,05 m**, hauteur physique **1,50 m**, surface **0 m** → sommet **+0,45 m** → **copie opaque devant la tuile**, image native cachée pour éviter un fantôme sous l'eau.
+
+Les Drawings conservent leurs tests de forme pour respecter polygones, ellipses et contours libres. Les coordonnées de la copie graphique sont converties entre groupes Canvas via les transformations PIXI lorsqu'elles sont disponibles, afin d'éviter un décalage de sprite. La vision normale de Foundry, les tokens cachés, le champ `physicalHeight`, le seuil de visibilité sous-marine, les flags `floating` et `hasFooting` et les bonus d'abri de PF1AE ne changent pas.
 
 ## Affichage des tokens et transparence des surfaces (v1.3.0)
 
