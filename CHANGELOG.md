@@ -1,3 +1,11 @@
+# 1.4.5 — État Nager permanent pour tout token immergé sans appui
+
+- Les tokens immergés sans `hasFooting` reçoivent le statut natif PF1 `Nager` indépendamment de `movementAction` et sans qu'ils aient besoin de bouger.
+- Les tokens volant dans le volume d'eau reçoivent également le statut Nager ; le vol conserve son exemption de collision avec le fond et l'absence de placement forcé à mi-hauteur.
+- Resynchronisation au chargement, sur modification de Region et en cas de suppression/altération de l'ActiveEffect natif Nager, avec protection contre les boucles de hooks.
+- Le statut est retiré quand le token prend pied ou quitte l'eau, sans supprimer les statuts Nager de personnages étrangers aux Regions aquatiques.
+- Tests de régression : immobilité, plusieurs modes de déplacement, vol immergé, suppression d'effet, entrée et sortie de Region, prise d'appui sans déplacement.
+
 # 1.4.4 — Sélecteur PNG cliquable dans la configuration de Region
 
 - Le dialogue « PF1 Waters — Corps d'eau » n'est plus modal : le navigateur de fichiers Foundry ouvert par `<file-picker>` reste accessible et peut prendre le focus.

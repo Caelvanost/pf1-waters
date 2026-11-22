@@ -4,7 +4,9 @@ import { getTokenWaterState, getTokenPhysicalHeight, getTokenSwimElevation,
   tokenHasFooting, hasWaterWalkFlag, WATER_CLASSIFICATION } from "../scripts/water-state.mjs";
 import { getWaterRegionData, getWaterBottomElevation,
   migrateLegacyWaterRegions } from "../scripts/water-regions.mjs";
-import { syncTokenWaterMovement, syncTokenUnderwaterFlag, hasWaterWalkFlagUpdate } from "../scripts/water-movement.mjs";
+import { syncTokenWaterMovement, syncTokenUnderwaterFlag, syncTokenSwimmingStatus,
+  isNativeSwimEffect, registerWaterMovementHooks, syncSceneUnderwaterFlags,
+  hasWaterWalkFlagUpdate } from "../scripts/water-movement.mjs";
 import { measureProjectileWaterDistance } from "../scripts/water-projectiles.mjs";
 
 globalThis.game = { user: { id: "GM", isGM: true }, users: { activeGM: { id: "GM" } },
@@ -319,4 +321,87 @@ test("feet Scenes default to 120ft; explicit values and zero take precedence",()
  assert.equal(getWaterRegionData(r).visibilityDepth,12);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=0;
  assert.equal(getWaterRegionData(r).visibilityDepth,0);
+});
+
+test("all stationary water tokens without footing retain native Nager regardless of action",async()=>{
+ for (const action of ["swim","walk","fly","climb","burrow",""]) {
+   const s=scene();region(s,{depth:12});
+   const d=token(s,{elevation:-2,movementAction:action});
+   await syncSceneUnderwaterFlags(s);
+   assert.equal(d.elevation,-2,"not moved solely to enable Nager");
+   assert.equal(d.actor.statuses.has("swim"),true,
+     "stationary aquatic token must have Nager for movementAction="+action);
+   assert.equal(d.getFlag("pf1-waters","waterMovement").inWater,true);
+   assert.equal(d.getFlag("pf1-waters","hasFooting"),false);
+ }
+});
+test("flying fully submerged is Nager even while flying, with no floor clamp",async()=>{
+ const s=scene();region(s,{depth:2});
+ const d=token(s,{elevation:-4,movementAction:"fly"});
+ await syncTokenWaterMovement(d);
+ // Completely beneath the limited water volume is OUTSIDE the water.
+ assert.equal(d.elevation,-4);
+ assert.equal(d.actor.statuses.has("swim"),false);
+ // But a flying token actually within the volume has the status.
+ d.elevation=-1;
+ await syncTokenWaterMovement(d);
+ assert.equal(d.elevation,-1);
+ assert.equal(d.actor.statuses.has("swim"),true);
+});
+test("idle water token re-acquires Nager if another effect clears it",async()=>{
+ const s=scene();region(s,{depth:12});
+ const d=token(s,{elevation:-2,movementAction:"walk"});
+ await syncSceneUnderwaterFlags(s);
+ assert.equal(d.actor.statuses.has("swim"),true);
+ // Simulate PF1/other module deleting Nager between movement updates.
+ d.actor.statuses.delete("swim");
+ assert.equal(await syncTokenSwimmingStatus(d),true);
+ assert.equal(d.actor.statuses.has("swim"),true);
+ assert.equal(await syncTokenSwimmingStatus(d),false,"no duplicate status");
+});
+test("Nager is removed when water becomes shallow enough for footing without movement",async()=>{
+ const s=scene();const r=region(s,{depth:6});
+ const d=token(s,{elevation:-2,movementAction:"swim"});
+ await syncSceneUnderwaterFlags(s);
+ assert.equal(d.actor.statuses.has("swim"),true);
+ r.flags["pf1-waters"].waterRegion.depth=2;
+ await syncSceneUnderwaterFlags(s);
+ assert.equal(d.elevation,-2);
+ assert.equal(d.actor.statuses.has("swim"),false);
+ assert.equal(d.getFlag("pf1-waters","hasFooting"),true);
+});
+test("Nager is removed when a stationary token exits water via Region change",async()=>{
+ const s=scene();const r=region(s,{depth:6});
+ const d=token(s,{elevation:-2,movementAction:"swim"});
+ await syncSceneUnderwaterFlags(s);
+ assert.equal(d.actor.statuses.has("swim"),true);
+ r.flags["pf1-waters"].waterRegion.enabled=false;
+ await syncSceneUnderwaterFlags(s);
+ assert.equal(d.actor.statuses.has("swim"),false);
+ assert.equal(d.getFlag("pf1-waters","waterMovement").inWater,false);
+});
+test("native Nager effect hooks are registered and detect removed effect",async()=>{
+ const hooks=new Map();
+ globalThis.Hooks={on(name,callback){hooks.set(name,callback);}};
+ globalThis.canvas={scene:null};
+ registerWaterMovementHooks();
+ for(const name of ["createActiveEffect","updateActiveEffect","deleteActiveEffect"])
+   assert.equal(typeof hooks.get(name),"function");
+ const s=scene();region(s,{depth:12});
+ const d=token(s,{elevation:-2,movementAction:"walk"});
+ canvas.scene=s;
+ await syncSceneUnderwaterFlags(s);
+ d.actor.statuses.delete("swim");
+ const effect={parent:d.actor,statuses:new Set(["swim"])};
+ assert.equal(isNativeSwimEffect(effect),true);
+ assert.equal(isNativeSwimEffect({parent:d.actor,statuses:new Set(["poisoned"])}),false);
+ hooks.get("deleteActiveEffect")(effect);
+ // The async hook performs its own guarded, idempotent state sync.
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(d.actor.statuses.has("swim"),true);
+ // Non-swim changes must not cause unrelated status updates.
+ d.actor.statuses.delete("swim");
+ hooks.get("updateActiveEffect")({parent:d.actor,statuses:new Set(["blinded"])});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(d.actor.statuses.has("swim"),false);
 });

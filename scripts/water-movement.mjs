@@ -38,13 +38,60 @@ function actorHasStatus(actor, statusId) {
   return effects.some((effect) => !effect.disabled && effect.statuses?.has?.(statusId));
 }
 
+// Avoid recursively toggling the same Actor's PF1 effect when its
+// create/delete hook is fired from toggleStatusEffect itself.
+const swimStatusSyncBusy = new WeakSet();
+
 async function setNativeSwimmingStatus(doc, active) {
   const actor = doc?.actor;
   const statusId = findNativeSwimStatus();
   if (!actor || !statusId || typeof actor.toggleStatusEffect !== "function") return false;
-  if (actorHasStatus(actor, statusId) === active) return false;
-  await actor.toggleStatusEffect(statusId, { active, overlay: false, interaction: false });
-  return true;
+  if (swimStatusSyncBusy.has(actor) || actorHasStatus(actor, statusId) === active) return false;
+  swimStatusSyncBusy.add(actor);
+  try {
+    await actor.toggleStatusEffect(statusId, { active, overlay: false, interaction: false });
+    return true;
+  } finally {
+    swimStatusSyncBusy.delete(actor);
+  }
+}
+
+/**
+ * Native PF1 "Nager" is a continuous water posture, not an action:
+ * inWater && !hasFooting, regardless of movementAction or token movement.
+ * Do not remove unrelated manually applied swim effects on dry tokens that
+ * PF1 Waters has never classified as being in water.
+ */
+export async function syncTokenSwimmingStatus(token) {
+  const doc = token?.document ?? token;
+  if (!doc || !canWriteToken(doc)) return false;
+  const state = getTokenWaterState(doc);
+  const previouslyInWater = Boolean(movementStored(doc)?.inWater);
+  if (!state.inWater && !previouslyInWater) return false;
+  return setNativeSwimmingStatus(doc, state.inWater && !state.hasFooting);
+}
+
+export function isNativeSwimEffect(effect) {
+  const statusId = findNativeSwimStatus();
+  if (!effect || !statusId) return false;
+  const ids = effect.statuses ?? effect._source?.statuses;
+  return Boolean(ids?.has?.(statusId) ||
+    (Array.isArray(ids) && ids.includes(statusId)) ||
+    effect.flags?.core?.statusId === statusId);
+}
+
+async function resyncActorSwimmingStatus(effect) {
+  if (!isNativeSwimEffect(effect)) return;
+  const actor = effect?.parent;
+  if (!actor) return;
+  // Reassert only for tokens of this Actor in the active Scene. Inactive
+  // Scenes are reconciled through the existing canvasReady hook.
+  for (const doc of globalThis.canvas?.scene?.tokens ?? []) {
+    if (doc.actor !== actor &&
+        (!doc.actor?.uuid || doc.actor.uuid !== actor.uuid)) continue;
+    if (!canWriteToken(doc)) continue;
+    await syncTokenSwimmingStatus(doc);
+  }
 }
 
 function changed(a, b) { return JSON.stringify(a) !== JSON.stringify(b); }
@@ -53,8 +100,10 @@ function changed(a, b) { return JSON.stringify(a) !== JSON.stringify(b); }
  * Only a walking token whose base is exactly at the water surface enters
  * the automatic half-height swimming posture. In particular, a token above
  * the water, already submerged, or using another movement type is not moved
- * toward that posture. A waterwalk flag prevents this initial drop; the
- * physical bottom remains a hard lower boundary for submerged tokens.
+ * toward that posture. A waterwalk flag prevents this initial drop.
+ * Independently, ALL immersed tokens without footing have the native
+ * "Nager" condition, even while idle or with another movementAction.
+ * Flying only exempts tokens from bottom collision, not from immersion.
  */
 export async function syncTokenWaterMovement(token, { force = false } = {}) {
   const doc = token?.document ?? token;
@@ -89,7 +138,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const region = surfaceEntry ?? occupiedRegion ?? candidates[0] ?? null;
     const flying = isFlyingMovement(doc);
 
-    if (flying || !region) {
+    if (!region) {
       if (wasInWater) await setNativeSwimmingStatus(doc, false);
       if (wasInWater ||
           (oldCanonical === undefined &&
@@ -105,9 +154,9 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const bottom = getWaterBottomElevation(region);
     let effectiveElevation = elevation;
 
-    // The bottom is a physical collision limit regardless of movement mode,
-    // except for flying tokens (handled above).
-    if (bottom !== null && effectiveElevation < bottom - EPSILON) {
+    // Flying tokens do not collide with the floor, but if they are physically
+    // in the water they still have the "Nager" condition until they have footing.
+    if (!flying && bottom !== null && effectiveElevation < bottom - EPSILON) {
       effectiveElevation = bottom;
     }
 
@@ -167,6 +216,9 @@ export async function syncTokenUnderwaterFlag(token, { force = false } = {}) {
   const doc = token?.document ?? token;
   if (!doc || !canWriteToken(doc)) return false;
   const state = getTokenWaterState(doc);
+  // This also reconciles an idle token if another PF1 component has removed
+  // its native Nager effect since the previous movement update.
+  await syncTokenSwimmingStatus(doc);
   const desired = state.fullySubmerged;
   const canonical = doc.getFlag?.(MODULE_ID, UNDERWATER_FLAG);
   const legacy = doc.getFlag?.("world", UNDERWATER_FLAG);
@@ -237,5 +289,17 @@ export function registerWaterMovementHooks() {
       } catch (error) { console.warn(MODULE_ID + " | Initialisation du token impossible", error); }
     })();
   });
+  // Reassert/remove Nager when the PF1 Actor's native ActiveEffect changes.
+  // A GM can place a token in water and leave it idle indefinitely; another
+  // module must not silently remove its swim condition at turn boundaries.
+  for (const event of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
+    Hooks.on(event, (effect) => {
+      if (!isNativeSwimEffect(effect)) return;
+      void Promise.resolve().then(() => resyncActorSwimmingStatus(effect))
+        .catch((error) => console.warn(
+          MODULE_ID + " | Synchronisation du statut Nager impossible", error
+        ));
+    });
+  }
   Hooks.on("canvasReady", () => void syncSceneUnderwaterFlags(globalThis.canvas?.scene));
 }

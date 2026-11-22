@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.4
+# PF1 Waters — v1.4.5
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -41,6 +41,18 @@ Une **tuile** (image de vagues, plan d'eau transparent, etc.) ou un **dessin** n
 Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans modifier les règles. Les liens survivent à un déplacement/redimensionnement de leur objet. Lorsque la surface d'eau de la Region change, le module aligne les représentations liées qui ont cette option activée. Une Region supprimée ou désactivée laisse les liens inactifs, sans provoquer la création d'une nouvelle zone.
 
 Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth, keepVisible, previousOcclusionMode }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
+
+## État Nager permanent en immersion (v1.4.5)
+
+Un token **dans l'eau** qui **n'a pas pied** reçoit et conserve l'effet d'état natif PF1 **Nager** (`swim`), même s'il reste immobile ou que son action de déplacement n'est pas `swim` : marche, escalade, vol, fouissage ou mouvement non renseigné. Le déplacement et la nage sont deux informations distinctes :
+
+- L'option `movementAction` détermine toujours le mouvement et les règles de placement automatique à mi-hauteur lors de l'entrée en marchant, inchangées.
+- L'état **Nager** se base exclusivement sur l'immersion réelle (`getTokenWaterState(token).inWater`) et l'appui physique sur le fond (`hasFooting`).
+- Le statut est retiré quand le token prend pied ou quitte l'eau ; un token volant *dans* le volume d'eau reste considéré en train de nager, mais n'est pas plaqué sur le fond.
+- Au chargement d'une scène, à l'ajout d'une Region ou à ses modifications, tous les tokens concernés sont resynchronisés même sans mouvement. La suppression ou modification de l'effet natif Nager déclenche également une resynchronisation de l'acteur pour ses tokens présents sur la scène.
+- Les effets Nager appliqués à des personnages qui n'ont **jamais** été dans l'eau ne sont pas supprimés automatiquement par PF1 Waters, afin de ne pas interférer avec d'autres sources.
+
+Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting` et `waterwalk`, ni l'altitude réelle du token.
 
 ## Visibilité extérieure et états aquatiques (v1.4.0)
 
