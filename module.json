@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters: Regions aquatiques, immersion et nage, tuile/dessin de surface translucide, visibilité en profondeur et PNG de remous facultatif par Region.",
+  "description": "PF1 Waters v1.3 : corps d’eau PF1, tuiles transparentes, visibilité immergée avec profondeur configurable et PNG de remous optionnel sur chaque Region.",
   "version": "1.3.0",
   "authors": [
     {

@@ -93,7 +93,7 @@ export function calculateUnderwaterVisualOpacity(topDepth, maxDepth) {
   if (maxDepth <= 0) return 0;
   const depth = Math.max(0, topDepth);
   const start = maxDepth * 0.7;
-  if (depth <= start) return 1;
+  if (depth <= start + EPSILON) return 1;
   return Math.max(0, Math.min(1, (maxDepth - depth) / (maxDepth - start)));
 }
 
@@ -195,6 +195,8 @@ function ensureOverlay(token) {
     parent.addChild(sprite);
     overlaySprites.set(token, sprite);
     syncOverlaySprite(token, sprite);
+    // refreshToken may fire without a preceding scene-wide refresh.
+    attachTicker();
     return true;
   }
   syncOverlaySprite(token, sprite);
