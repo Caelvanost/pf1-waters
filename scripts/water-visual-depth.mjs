@@ -178,7 +178,9 @@ function syncOverlaySprite(token, sprite) {
   // Render ONLY tokens that Foundry already allows this client to see.
   sprite.visible = token.visible !== false && (!doc.hidden || Boolean(game.user?.isGM));
   // The copy uses normal native token transparency; not the underwater fade.
-  sprite.alpha = Math.max(0, Math.min(1, finite(mesh.alpha, finite(doc.alpha, 1))));
+  const savedNativeAlpha = alphaOverrides.get(mesh)?.nativeAlpha;
+  sprite.alpha = Math.max(0, Math.min(1,
+    finite(savedNativeAlpha, finite(mesh.alpha, finite(doc.alpha, 1)))));
 }
 
 function ensureOverlay(token) {
@@ -241,7 +243,10 @@ export function refreshTokenWaterVisualDepth(token) {
   if (showEmerged && allowed) changed = ensureOverlay(placeable) || changed;
   else changed = removeOverlay(placeable) || changed;
 
-  const opacity = state?.mode === "submerged" ? state.opacity : 1;
+  // When the image copy exists above the tile, hide the original primary
+  // sprite to avoid a duplicated translucent token behind the water image.
+  const isCopied = showEmerged && allowed && overlaySprites.has(placeable);
+  const opacity = isCopied ? 0 : state?.mode === "submerged" ? state.opacity : 1;
   changed = setNativeMeshOpacity(mesh, opacity) || changed;
   return changed;
 }
@@ -305,6 +310,9 @@ export function registerWaterVisualDepthHooks() {
   ]) Hooks.on(event, refreshSceneWaterVisualDepth);
   Hooks.on("canvasTearDown", () => {
     detachTicker();
+    for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+      if (token?.mesh) setNativeMeshOpacity(token.mesh, 1);
+    }
     clearOverlays();
     refreshing = false;
   });
