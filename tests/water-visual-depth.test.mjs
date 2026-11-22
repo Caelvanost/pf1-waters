@@ -228,7 +228,10 @@ test("exterior sailor sees emergent token via Foundry elevated LOS when base is 
  refreshTokenWaterVisualDepth(token);
  assert.equal(token.visible,false,"must restore native visibility underwater");
  assert.equal(token.mesh.visible,false);
- assert.equal(token.mesh.alpha,1,"native alpha is restored");
+ assert.equal(token.mesh.alpha,0,"too deep to see: native sprite is correctly faded out");
+ token.document.x=400;token.center={x:450,y:60};
+ refreshTokenWaterVisualDepth(token);
+ assert.equal(token.mesh.alpha,1,"leaving Region restores native alpha");
  game.user.isGM=true;
  canvas.tokens.controlled=[];delete canvas.visibility;
 });
@@ -246,8 +249,9 @@ test("submerged target is displayed beneath Tile if top is within Region range a
  assert.equal(token.visible,true);
  assert.equal(token.mesh.visible,true);
  assert.equal(token.mesh.alpha,1,"the native primary mesh stays beneath water");
- assert.equal(canvas.interface.children.at(-1).children.length,0,
-   "fully submerged has no foreground copy");
+ assert.equal(canvas.interface.children.at(-1).children.filter(
+   sprite=>!sprite.destroyed && sprite.texture===token.mesh.texture
+ ).length,0,"fully submerged target has no foreground copy");
  token.document.elevation=-3.6; // top -2.1 m
  refreshTokenWaterVisualDepth(token);
  assert.equal(token.visible,false,"over-depth tokens never acquire exterior visibility");

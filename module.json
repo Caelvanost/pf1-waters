@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters : nage PF1, visibilité par le sommet des créatures, profondeur visible par Region, surfaces translucides et flags floating/hasFooting.",
+  "description": "PF1 Waters v1.4.0 : visibilité depuis les ponts et berges, profondeur sous-marine par Region, indicateurs floating et hasFooting ; natif Foundry v13.",
   "version": "1.4.0",
   "authors": [
     {
