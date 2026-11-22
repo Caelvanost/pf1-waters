@@ -1,0 +1,20 @@
+{
+  "PF1W": {
+    "OnlyGM": "Seul le MJ peut modifier les corps d’eau.",
+    "SelectRegion": "Sélectionnez au moins une Region dans la couche Regions.",
+    "DialogTitle": "PF1 Waters — Corps d’eau",
+    "DialogHint": "La surface et la profondeur utilisent les unités de la grille de la scène.",
+    "Surface": "Élévation de la surface",
+    "Depth": "Profondeur (facultative)",
+    "NoBottom": "Fond non défini",
+    "InvalidSurface": "La surface doit être un nombre.",
+    "InvalidDepth": "La profondeur doit être positive ou nulle.",
+    "Confirm": "Définir comme corps d’eau",
+    "Configured": "corps d’eau configuré(s).",
+    "Cleared": "corps d’eau désactivé(s).",
+    "ToolConfigure": "PF1 Waters — Corps d’eau",
+    "ToolClear": "PF1 Waters — Retirer la propriété eau",
+    "MarkersName": "PF1 Waters — Anneaux de surface",
+    "MarkersHint": "Affiche un repère sur les tokens visibles qui traversent une surface aquatique (sans modifier les couches Canvas)."
+  }
+}
