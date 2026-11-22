@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { registerWaterVisualDepthHooks, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
 import { registerWaterSurfaceHooks, registerWaterSurfaceSceneControls, syncSceneWaterSurfaceElevations } from "./water-surface-links.mjs";
 import { WATER_API } from "./api.mjs";
 import {
@@ -15,11 +16,18 @@ Hooks.once("init", () => {
     scope: "world", config: true, type: Boolean, default: true,
     onChange: () => refreshWaterSurfaceMarkers()
   });
+  game.settings.register(MODULE_ID, "partialSurfaceDepth", {
+    name: "PF1W.VisualDepthName",
+    hint: "PF1W.VisualDepthHint",
+    scope: "world", config: true, type: Boolean, default: true,
+    onChange: () => refreshSceneWaterVisualDepth()
+  });
   const module = game.modules.get(MODULE_ID);
   if (module) module.api = WATER_API;
 
   registerWaterMovementHooks();
   registerWaterRenderingHooks();
+  registerWaterVisualDepthHooks();
   registerWaterSurfaceHooks();
   registerWaterRegionHooks(async (scene) => {
     await syncSceneUnderwaterFlags(scene);
@@ -40,6 +48,7 @@ Hooks.once("ready", async () => {
     await syncSceneUnderwaterFlags(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     refreshWaterSurfaceMarkers();
+    refreshSceneWaterVisualDepth();
   } catch (error) {
     console.error(MODULE_ID + " | Initialisation aquatique impossible", error);
   }
