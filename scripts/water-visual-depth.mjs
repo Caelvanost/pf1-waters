@@ -246,7 +246,7 @@ export function refreshTokenWaterVisualDepth(token) {
   // When the image copy exists above the tile, hide the original primary
   // sprite to avoid a duplicated translucent token behind the water image.
   const isCopied = showEmerged && allowed && overlaySprites.has(placeable);
-  const opacity = isCopied ? 0 : state?.mode === "submerged" ? state.opacity : 1;
+  const opacity = isCopied ? 0 : enabled && state?.mode === "submerged" ? state.opacity : 1;
   changed = setNativeMeshOpacity(mesh, opacity) || changed;
   return changed;
 }

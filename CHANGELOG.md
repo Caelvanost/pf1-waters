@@ -1,3 +1,13 @@
+# 1.3.0 — Surface transparente, profondeur visuelle et remous PNG facultatifs
+
+- Suppression de tous les anneaux géométriques bleus générés automatiquement.
+- Ajout dans le dialogue d'une Region d'eau d'un sélecteur de ressource **PNG des remous** ; champ vide par défaut, aucun effet dessiné sans PNG choisi.
+- Le PNG facultatif suit la position animée du token qui traverse la surface et disparaît lorsqu'il s'immerge totalement ou sort de l'eau.
+- Les tokens émergents disposent d'une copie graphique non interactive au-dessus des tuiles/dessins de surface ; l'image principale est masquée pendant la superposition pour éviter un double affichage.
+- Les tokens entièrement immergés restent visibles sous les textures transparentes jusqu'à une profondeur configurable par tuile/dessin, avec atténuation progressive sur les derniers 30 %.
+- Préservation du volume de la Region, des élévations réelles, du flag `waterwalk`, des mouvements, des règles de PF1AE et des anciens liens de surfaces.
+- Tests automatiques de configuration PNG, absence d'ellipse, déplacement suivi et atténuation graphique.
+
 # 1.2.2 — Exception waterwalk pour les sorts et capacités
 
 - Une créature avec `flags.world.waterwalk === true` ou `flags.pf1-waters.waterwalk === true` n'est pas ajustée à mi-hauteur quand elle marche à l'élévation de la surface.

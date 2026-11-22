@@ -223,3 +223,20 @@ test("optional custom ring PNG resides only in the Region flag",()=>{
  assert.equal(getWaterRegionData(r).ringPng,"worlds/my-world/assets/ripples.png");
  assert.equal(getWaterRegionData(r).surface,0);
 });
+
+test("water Region dialog accepts a Foundry resource PNG without changing physics",async()=>{
+ const s=scene(),r=region(s,{depth:6});
+ globalThis.canvas={scene:s,regions:{controlled:[{document:r}]}};
+ globalThis.foundry={utils:{escapeHTML:v=>String(v)},
+  applications:{api:{DialogV2:{prompt:async(config)=>{
+   assert.ok(config.content.includes('<file-picker type="image" name="ringPng"'));
+   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png"};
+  }}}}};
+ const notifications=[];ui.notifications.info=x=>notifications.push(x);
+ const {configureSelectedWaterRegions}=await import("../scripts/water-regions.mjs");
+ await configureSelectedWaterRegions();
+ assert.equal(r.getFlag("pf1-waters","waterRegion").ringPng,
+   "worlds/pirates/images/remous.png");
+ assert.equal(getWaterRegionData(r).depth,6);
+ assert.equal(notifications.length,1);
+});

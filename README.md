@@ -1,4 +1,4 @@
-# PF1 Waters — v1.2.2
+# PF1 Waters — v1.3.0
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -17,7 +17,7 @@ Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 4. Le **fond** est automatiquement égal à surface − profondeur. Une profondeur vide signifie « fond non limité ».
 5. L'outil « Retirer la propriété eau » désactive la Region aquatique.
 
-Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth }`.
+Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, ringPng }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
 
 ## Associer une tuile ou un dessin à la surface visuelle de l'eau
 
@@ -34,19 +34,27 @@ Une **tuile** (image de vagues, plan d'eau transparent, etc.) ou un **dessin** n
 
 Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans modifier les règles. Les liens survivent à un déplacement/redimensionnement de leur objet. Lorsque la surface d'eau de la Region change, le module aligne les représentations liées qui ont cette option activée. Une Region supprimée ou désactivée laisse les liens inactifs, sans provoquer la création d'une nouvelle zone.
 
-Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. Le visuel est rendu par Foundry et ses modules de niveaux habituels ; PF1 Waters ne modifie ni l'ordre des couches, ni le découpage des tokens.
+Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
 
-## Profondeur visuelle des tokens (v1.2.0)
+## Affichage des tokens et transparence des surfaces (v1.3.0)
 
-**Option activée par défaut :** paramètres du module, **PF1 Waters — Tri de rendu des tokens partiellement immergés**.
+- **Token émergé :** lorsque la base du token est sous l'eau, mais que son sommet dépasse, PF1 Waters affiche **une copie graphique non interactive du token devant la surface**, même si Foundry ou un module de niveaux classe la tuile au premier plan. L'image native du token est temporairement masquée pour éviter un double rendu. Son altitude réelle, ses actions, ses collisions et son statut de nage ne changent pas.
+- **Token entièrement immergé :** il demeure sous la texture de surface transparente. Son opacité reste normale près de la surface, puis diminue progressivement dans les derniers **30 %** de la distance de visibilité, jusqu'à disparaître lorsque son **sommet** atteint la limite configurée.
+- **Distance de visibilité :** sélectionner la tuile ou le dessin sur sa couche, choisir **Lier à la surface d'eau**, puis régler **Profondeur maximale de visibilité sous l’eau**. Valeur par défaut : **deux distances de grille** (3 m si la grille mesure 1,5 m, 10 ft si elle mesure 5 ft). La valeur `0` masque immédiatement les tokens entièrement immergés.
+- **Retrait / déplacement :** la copie graphique disparaît dès qu'un token quitte l'eau, replonge complètement, devient invisible pour le client ou change de scène. L'opacité originale est restaurée.
 
-Lorsque la **base** d'un token est sous la surface d'une Region et que son **sommet** dépasse encore cette surface, il est affiché **devant** une tuile ou un dessin lié à cette même Region, à condition que le centre du token se situe sur ce visuel. À immersion complète, il repasse derrière. En quittant la Region ou en passant en vol, son tri natif est rétabli.
+**Aucun anneau bleu automatique n'est créé.** Les anneaux décoratifs sont désormais des PNG facultatifs, choisis par Region.
 
-- Formule : profondeur immergée `d = surface - token.elevation`, hauteur physique `h = getTokenPhysicalHeight(token)`. La priorité de rendu est appliquée si `0 < d < h`.
-- Foundry v13 trie ses sprites de token, tuiles et formes de dessin dans le groupe primaire. Le module modifie **uniquement l'élévation graphique de `Token.mesh` sur le client**, jamais `TokenDocument.elevation` ni les propriétés de la tuile/dessin.
-- La modification est temporaire et se recalcule quand le token bouge/plonge, quand les surfaces changent, ou au chargement de scène. Aucun autre token n'est déplacé.
-- La règle ne s'applique pas en l'absence de surface visuelle liée, ni si cette surface est hors de l'emprise du token. Plusieurs visuels d'une même Region sont pris en charge.
-- **Limite :** il s'agit d'un tri complet du sprite, pas d'un masque pixel par pixel de la partie immergée. Des modules personnalisant la profondeur, la visibilité, les effets graphiques ou les couches Canvas (notamment Levels/Better Roofs) peuvent imposer un rendu différent : valider en jeu.
+### PNG de remous facultatif par Region
+
+1. Ouvrir la couche **Regions**, sélectionner la Region d'eau et cliquer sur **PF1 Waters — Corps d'eau**.
+2. Dans **Image PNG des remous (facultatif)**, cliquer sur le sélecteur de fichier intégré à Foundry et choisir son PNG transparent dans les ressources du monde ou d'un module.
+3. Enregistrer. Le PNG apparaît autour de tout token visible qui **traverse la surface** de cette Region, suit ses déplacements et disparaît dès qu'il sort de l'eau ou s'immerge complètement.
+4. Laisser le champ vide pour ne jamais afficher cet effet. Il n'existe aucun anneau géométrique de secours.
+
+Le chemin du PNG est sauvegardé sur la Region dans `flags.pf1-waters.waterRegion.ringPng`. L'image est une décoration purement graphique, sans effet sur les bonus d'abri gérés par PF1AE. Aucun fichier PNG n'est imposé ou généré par le module ; tu peux sélectionner ton propre visuel.
+
+**Compatibilité :** l'affichage est conçu pour le Canvas Foundry v13. Certains effets de Levels, Better Roofs ou d'autres modules de rendu peuvent imposer un ordre d'affichage différent : vérifier en partie. Un PNG de remous n'affecte jamais la visibilité intrinsèque du token ni sa détection.
 
 ## Immersion, nage et mouvement
 
