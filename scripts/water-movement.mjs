@@ -3,7 +3,7 @@ import {
   EPSILON, finite, canWriteToken
 } from "./constants.mjs";
 import { getWaterRegionData, getWaterBottomElevation, getWaterRegionsAtToken2D } from "./water-regions.mjs";
-import { getTokenPhysicalHeight, getTokenSwimElevation, getTokenWaterState, isFlyingMovement, tokenHasFooting } from "./water-state.mjs";
+import { getTokenPhysicalHeight, getTokenSwimElevation, getTokenWaterState, isFlyingMovement, tokenHasFooting, hasWaterWalkFlag } from "./water-state.mjs";
 
 const busy = new Set();
 const keyOf = (doc) => doc?.uuid ?? (doc?.parent?.id + "." + doc?.id);
@@ -53,7 +53,8 @@ function changed(a, b) { return JSON.stringify(a) !== JSON.stringify(b); }
  * Only a walking token whose base is exactly at the water surface enters
  * the automatic half-height swimming posture. In particular, a token above
  * the water, already submerged, or using another movement type is not moved
- * toward that posture. The physical bottom remains a hard lower boundary.
+ * toward that posture. A waterwalk flag prevents this initial drop; the
+ * physical bottom remains a hard lower boundary for submerged tokens.
  */
 export async function syncTokenWaterMovement(token, { force = false } = {}) {
   const doc = token?.document ?? token;
@@ -67,7 +68,10 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const wasInWater = Boolean(old?.inWater);
     const elevation = finite(doc.elevation);
     const tokenHeight = getTokenPhysicalHeight(doc);
-    const walking = String(doc.movementAction ?? "").trim().toLowerCase() === "walk";
+    // A Water Walk effect prevents the automatic fall from the surface.
+    // It does NOT teleport an already submerged token out of the water.
+    const walking = String(doc.movementAction ?? "").trim().toLowerCase() === "walk" &&
+      !hasWaterWalkFlag(doc);
     const candidates = getWaterRegionsAtToken2D(doc);
 
     // Surface entry must be resolved before the ordinary immersed-region
@@ -180,11 +184,31 @@ export async function syncSceneUnderwaterFlags(scene = globalThis.canvas?.scene)
   }
 }
 
+/**
+ * Detect only waterwalk changes. Other PF1 Waters flags (waterMovement,
+ * underwater) are updated during synchronization and must not re-trigger it.
+ * Support Foundry expanded and dotted update paths, including unsetFlag.
+ */
+export function hasWaterWalkFlagUpdate(changes) {
+  const owns = (value, key) => Object.prototype.hasOwnProperty.call(value ?? {}, key);
+  for (const scope of ["world", MODULE_ID]) {
+    if (owns(changes, `flags.${scope}.waterwalk`) ||
+        owns(changes, `flags.${scope}.-=waterwalk`)) return true;
+    const flags = changes?.flags;
+    if (owns(flags, `${scope}.waterwalk`) ||
+        owns(flags, `${scope}.-=waterwalk`)) return true;
+    const scoped = flags?.[scope] ?? changes?.[`flags.${scope}`];
+    if (owns(scoped, "waterwalk") || owns(scoped, "-=waterwalk")) return true;
+  }
+  return false;
+}
+
 export function registerWaterMovementHooks() {
   Hooks.on("updateToken", (token, changes) => {
     if (busy.has(keyOf(token))) return;
     const keys = ["x", "y", "elevation", "width", "height", "movementAction"];
-    if (!keys.some((key) => Object.prototype.hasOwnProperty.call(changes ?? {}, key))) return;
+    if (!keys.some((key) => Object.prototype.hasOwnProperty.call(changes ?? {}, key)) &&
+        !hasWaterWalkFlagUpdate(changes)) return;
     void (async () => {
       try {
         await syncTokenWaterMovement(token);

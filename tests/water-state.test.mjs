@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getTokenWaterState, getTokenPhysicalHeight, getTokenSwimElevation,
-  tokenHasFooting, WATER_CLASSIFICATION } from "../scripts/water-state.mjs";
+  tokenHasFooting, hasWaterWalkFlag, WATER_CLASSIFICATION } from "../scripts/water-state.mjs";
 import { getWaterRegionData, getWaterBottomElevation,
   migrateLegacyWaterRegions } from "../scripts/water-regions.mjs";
-import { syncTokenWaterMovement, syncTokenUnderwaterFlag } from "../scripts/water-movement.mjs";
+import { syncTokenWaterMovement, syncTokenUnderwaterFlag, hasWaterWalkFlagUpdate } from "../scripts/water-movement.mjs";
 import { measureProjectileWaterDistance } from "../scripts/water-projectiles.mjs";
 
 globalThis.game = { user: { id: "GM", isGM: true }, users: { activeGM: { id: "GM" } },
@@ -64,6 +64,74 @@ test("walk at the exact surface starts half-height swimming",async()=>{
   assert.equal(d.elevation,-0.75);
   assert.equal(d.actor.statuses.has("swim"),true);
   assert.equal(d.getFlag("pf1-waters","waterMovement").inWater,true);
+});
+test("world waterwalk true prevents the initial surface drop while walking",async()=>{
+  const s=scene();region(s,{depth:6});
+  const d=token(s,{elevation:0,movementAction:"walk"});
+  await d.setFlag("world","waterwalk",true);
+  assert.equal(hasWaterWalkFlag(d),true);
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,0);
+  assert.equal(d.actor.statuses.has("swim"),false);
+  assert.equal(getTokenWaterState(d).inWater,false);
+  assert.equal(d.getFlag("pf1-waters","waterMovement"),undefined);
+});
+test("module namespace waterwalk also prevents the surface drop",async()=>{
+  const s=scene();region(s,{depth:6});
+  const d=token(s,{elevation:0,movementAction:"walk"});
+  await d.setFlag("pf1-waters","waterwalk",true);
+  assert.equal(hasWaterWalkFlag(d),true);
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,0);
+  assert.equal(d.actor.statuses.has("swim"),false);
+});
+test("waterwalk is only enabled by boolean true, not a string or false",async()=>{
+  const s=scene();region(s,{depth:6});
+  for(const value of [false,"true",1,null]){
+    const d=token(s,{elevation:0,movementAction:"walk"});
+    await d.setFlag("world","waterwalk",value);
+    assert.equal(hasWaterWalkFlag(d),false);
+    await syncTokenWaterMovement(d);
+    assert.equal(d.elevation,-0.75);
+  }
+});
+test("removing waterwalk at surface restores the ordinary half-height snap",async()=>{
+  const s=scene();region(s,{depth:6});
+  const d=token(s,{elevation:0,movementAction:"walk"});
+  await d.setFlag("world","waterwalk",true);
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,0);
+  await d.setFlag("world","waterwalk",false);
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,-0.75);
+});
+test("waterwalk applied underwater never teleports a token back to the surface",async()=>{
+  const s=scene();region(s,{depth:6});
+  const d=token(s,{elevation:-2,movementAction:"walk"});
+  await d.setFlag("world","waterwalk",true);
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,-2);
+  assert.equal(d.actor.statuses.has("swim"),true);
+  // It remains subject to the physical bottom.
+  d.elevation=-10;
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,-6);
+});
+test("waterwalk flag updates trigger synchronization without feedback loops",()=>{
+  for(const update of [
+    {flags:{world:{waterwalk:true}}},
+    {flags:{world:{"-=waterwalk":null}}},
+    {flags:{"pf1-waters":{waterwalk:false}}},
+    {"flags.world.waterwalk":true},
+    {"flags.pf1-waters.-=waterwalk":null},
+    {"flags.world":{waterwalk:true}},
+    {flags:{"world.waterwalk":true}}
+  ])assert.equal(hasWaterWalkFlagUpdate(update),true);
+  for(const update of [
+    {x:100}, {flags:{world:{underwater:true}}},
+    {flags:{"pf1-waters":{waterMovement:{inWater:true}}}},
+    {flags:{"pf1-waters":{underwater:false}}}
+  ])assert.equal(hasWaterWalkFlagUpdate(update),false);
 });
 test("walking higher than the surface does not snap or enter swimming",async()=>{
   const s=scene();region(s,{depth:6});

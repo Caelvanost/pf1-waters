@@ -1,3 +1,10 @@
+# 1.2.2 — Exception waterwalk pour les sorts et capacités
+
+- Une créature avec `flags.world.waterwalk === true` ou `flags.pf1-waters.waterwalk === true` n'est pas ajustée à mi-hauteur quand elle marche à l'élévation de la surface.
+- La marche sur l'eau n'annule pas les règles de nage ou de fond si le token est déjà immergé ; elle ne téléporte pas les tokens vers le haut.
+- La pose et la suppression du flag sur le TokenDocument déclenchent la resynchronisation, sans boucle sur les flags aquatiques existants.
+- API `hasWaterWalkFlag(token)`, documentation des scripts et tests de non-régression.
+
 # 1.2.1 — Repositionnement à mi-hauteur uniquement à pied sur la surface
 
 - Le placement automatique `surface − hauteur/2` est désormais limité aux tokens en mode `walk`, dont l'élévation est exactement celle de la surface de leur Region d'eau (tolérance numérique de 0,000001).

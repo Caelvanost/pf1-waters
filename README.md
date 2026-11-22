@@ -1,4 +1,4 @@
-# PF1 Waters — v1.2.1
+# PF1 Waters — v1.2.2
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -54,6 +54,29 @@ La hauteur physique vaut par défaut `max(token.width, token.height) × scene.gr
 
 **La posture de nage à mi-hauteur est appliquée uniquement si le token est en mode de mouvement natif `walk` (Marche) et si la base du token se trouve exactement à l'élévation de surface de la Region aquatique** (`abs(token.elevation − surface) ≤ 0,000001` unité de scène). À cet instant, sa base est placée à `surface − hauteur/2`, sans dépasser le fond. Un token plus haut que la surface n'est jamais happé vers l'eau ; un token déjà immergé, en nage (`swim`) ou dans un autre mode de mouvement ne subit aucun rabattement vers la mi-hauteur. Une créature qui nage peut remonter ou descendre librement tant qu'elle ne traverse pas le fond physique. Le module ne modifie **jamais directement** `TokenDocument.movementAction` : il respecte le système PF1 et les automatismes tiers. Le statut PF1 natif **Nager** est activé tant que la créature nage sans avoir pied ; il est retiré à la sortie, sur le fond et en vol (si disponible). Le vol (`movementAction = "fly"`) ignore le repositionnement vertical automatique.
 
+### Exception `waterwalk` (marche sur l'eau)
+
+Un sort ou une capacité peut rendre un token insensible au placement automatique dans l'eau en posant **le booléen `true`** sur l'un des flags de **TokenDocument** suivants :
+
+- `flags.world.waterwalk` — conseillé pour les scripts externes et les sorts.
+- `flags.pf1-waters.waterwalk` — alias spécifique au module.
+
+Si l'un des deux flags est exactement `true`, un token en mode **Marche** et à l'élévation de la surface **ne descend pas à mi-hauteur**. Il demeure à la surface et ne gagne pas le statut **Nager**. Un token déjà immergé n'est pas téléporté hors de l'eau : il garde sa profondeur et les règles normales de nage et de fond. Une mise à jour du flag est détectée automatiquement par le hook `updateToken`.
+
+Pour activer la marche sur l'eau sur un token, un script externe peut utiliser :
+
+```js
+await token.document.setFlag("world", "waterwalk", true);
+```
+
+Pour la désactiver :
+
+```js
+await token.document.unsetFlag("world", "waterwalk");
+```
+
+Dans ces exemples, `token` désigne le Token placé sur le Canvas. Après désactivation, si le token est encore en **Marche**, exactement au niveau de la surface, il rejoint normalement sa posture à mi-hauteur. Les valeurs `false`, `"true"` (chaîne) et les autres valeurs ne confèrent pas l'exception.
+
 L'état géométrique distingue :
 - `ABOVE_WATER` : base du token au niveau de la surface ou au-dessus ;
 - `INTERSECTING_SURFACE` : la surface traverse son volume ;
@@ -80,6 +103,7 @@ Utilisable après `init` via `game.modules.get("pf1-waters")?.api`.
 | `getTokenWaterState(token)` | Source de vérité géométrique, avec région, surface, fond, base/sommet/hauteur, immersion, `standing`, `flying`, classification |
 | `isTokenUnderwater(token)` | Immersion complète réelle |
 | `getTokenPhysicalHeight(token)` | Hauteur physique |
+| `hasWaterWalkFlag(token)` | Exception marche sur l’eau (flags du token) |
 | `getWaterBottomElevation(region)` | Fond ou null |
 | `getTokenSwimElevation(token, region)` | Hauteur de nage |
 | `tokenHasFooting(token, region, elevation?)` | Pied sur le fond |

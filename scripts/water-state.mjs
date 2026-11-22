@@ -11,6 +11,18 @@ export const WATER_CLASSIFICATION = Object.freeze({
 
 function docOf(token) { return token?.document ?? token; }
 
+/**
+ * Optional Water Walk flag on the TOKEN (not the Actor). Spells and abilities
+ * may use either the shared world flag or this module's namespaced flag.
+ * Only the Boolean true enables the exemption.
+ */
+export function hasWaterWalkFlag(token) {
+  const doc = docOf(token);
+  return doc?.getFlag?.("world", "waterwalk") === true ||
+    doc?.getFlag?.(MODULE_ID, "waterwalk") === true;
+}
+
+
 export function getTokenPhysicalHeight(token) {
   const doc = docOf(token);
   const override = doc?.getFlag?.(MODULE_ID, "physicalHeight");

@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "Corps d'eau PF1 pour Foundry v13 : Regions, nage et immersion, surfaces visuelles liées aux tuiles et dessins ; placement à mi-hauteur seulement en marche au niveau de la surface.",
-  "version": "1.2.1",
+  "description": "Corps d'eau PF1 Foundry v13 : nage, immersion, surfaces visuelles de tuiles et dessins, et exception waterwalk pour sorts et capacités.",
+  "version": "1.2.2",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.2.1/pf1-waters-v1.2.1.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.2.2/pf1-waters-v1.2.2.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

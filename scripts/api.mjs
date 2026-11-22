@@ -7,10 +7,10 @@ import {
 } from "./water-regions.mjs";
 import {
   getTokenWaterState, isTokenUnderwater, getTokenPhysicalHeight,
-  getTokenSwimElevation, tokenHasFooting, WATER_CLASSIFICATION
+  getTokenSwimElevation, tokenHasFooting, hasWaterWalkFlag, WATER_CLASSIFICATION
 } from "./water-state.mjs";
 import {
-  getNativeSwimmingStatusId, syncTokenWaterMovement,
+  getNativeSwimmingStatusId, syncTokenWaterMovement, hasWaterWalkFlagUpdate,
   syncTokenUnderwaterFlag, syncSceneUnderwaterFlags
 } from "./water-movement.mjs";
 import { measureProjectileWaterDistance } from "./water-projectiles.mjs";
@@ -25,6 +25,7 @@ export const WATER_AUTOMATION = Object.freeze({
   getBottomElevation: getWaterBottomElevation,
   getSwimElevation: getTokenSwimElevation,
   hasFooting: tokenHasFooting,
+  hasWaterWalkFlag,
   getNativeSwimmingStatusId,
   syncMovement: syncTokenWaterMovement,
   measureProjectileWaterDistance,
@@ -40,6 +41,7 @@ export const WATER_API = Object.freeze({
   getWaterRegionData, isWaterRegion, getTokenWaterState,
   isTokenUnderwater, getTokenPhysicalHeight,
   getWaterBottomElevation, getTokenSwimElevation, tokenHasFooting,
+  hasWaterWalkFlag, hasWaterWalkFlagUpdate,
   getNativeSwimmingStatusId, syncTokenWaterMovement,
   measureProjectileWaterDistance, syncTokenUnderwaterFlag,
   syncSceneUnderwaterFlags, configureSelectedWaterRegions,
