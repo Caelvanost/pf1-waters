@@ -1,3 +1,10 @@
+# 1.4.2 — Seuil par défaut de 120 pieds dans les scènes impériales
+
+- Les Regions aquatiques sans profondeur de visibilité configurée utilisent **120 pieds** si la scène est en `ft`, `feet`, `pieds`, etc., au lieu de la conversion exacte de 36 mètres (~118,11 pieds).
+- La valeur par défaut métrique reste **36 mètres**. Il s'agit d'une convention d'arrondi pour Pathfinder, et non d'une équivalence physique exacte.
+- Toutes les valeurs définies par le MJ, y compris `0`, restent inchangées.
+- Aide du formulaire, documentation et tests de régression actualisés.
+
 # 1.4.1 — Profondeur de visibilité par défaut de 36 mètres
 
 - Une Region d'eau sans seuil `visibilityDepth` défini par le MJ utilise **36 mètres** de visibilité sous la surface, mesurés à partir du sommet des tokens.

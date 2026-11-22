@@ -8,14 +8,15 @@ function readRegionFlag(region, scope) {
 }
 
 /**
- * Default underwater sight limit: 36 metres in Scene elevation units.
- * No rounding to 120 ft: the configured distance is exactly 36 m.
+ * Game-friendly default underwater sight limits:
+ * 36 m for metric Scenes; 120 ft for Scenes measured in feet.
+ * These are deliberately rounded alternatives, not an exact unit conversion.
  */
 export function getDefaultWaterVisibilityDepth(scene) {
   const unit = String(scene?.grid?.units ?? "m").trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (["ft", "ft.", "foot", "feet", "pied", "pieds", "pi"].includes(unit)) {
-    return 36 / 0.3048;
+    return 120;
   }
   if (["km", "kilometre", "kilometres"].includes(unit)) return 0.036;
   if (["cm", "centimetre", "centimetres"].includes(unit)) return 3600;
@@ -35,7 +36,7 @@ function parseRegionFlag(raw, scene) {
     depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
     // Optional ring image provided by the GM; no default geometric rings.
     ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : "",
-    // A null/missing/invalid value means 36 m, converted to scene units.
+    // A null/missing/invalid value means 36 m (metric) or 120 ft (imperial).
     // Explicit zero is valid; it means no subsurface image visibility.
     visibilityDepth: typeof raw?.visibilityDepth === "number" &&
       Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0

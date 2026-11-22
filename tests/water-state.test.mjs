@@ -307,12 +307,12 @@ test("unconfigured visibility is exactly 36m in a metric Scene",()=>{
  delete r.flags["pf1-waters"].waterRegion.visibilityDepth;
  assert.equal(getWaterRegionData(r).visibilityDepth,36);
 });
-test("36m convert correctly to feet, preserving explicit numbers and zero",()=>{
+test("feet Scenes default to 120ft; explicit values and zero take precedence",()=>{
  const s=scene();s.grid.units="ft";s.grid.distance=5;
  const r=region(s,{depth:200});
- assert.ok(Math.abs(getWaterRegionData(r).visibilityDepth - 36/0.3048)<1e-10);
+ assert.equal(getWaterRegionData(r).visibilityDepth,120);
  s.grid.units="pieds";
- assert.ok(Math.abs(getWaterRegionData(r).visibilityDepth - 36/0.3048)<1e-10);
+ assert.equal(getWaterRegionData(r).visibilityDepth,120);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
  assert.equal(getWaterRegionData(r).visibilityDepth,12);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=0;

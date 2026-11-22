@@ -39,6 +39,6 @@
     "KeepWaterVisible": "Ne pas masquer la surface comme une toiture",
     "KeepWaterVisibleHint": "La surface d’eau reste visible pour les tokens qui la regardent depuis le dessus, selon leur vision normale. Désactive l’occlusion de toiture de cette tuile et mémorise le réglage antérieur.",
     "RegionVisibilityDepth": "Profondeur maximale de visibilité sous la surface",
-    "RegionVisibilityDepthHint": "Par défaut 36 m (≈ 118,11 pieds pour une scène en pieds). Seuil appliqué au sommet du token dans les unités de la scène. Le MJ peut régler une autre valeur, y compris 0."
+    "RegionVisibilityDepthHint": "Valeur par défaut : 36 m en unités métriques ou 120 pieds dans les scènes en pieds. Le seuil concerne le sommet du token. Le MJ peut définir toute autre valeur, y compris 0."
   }
 }

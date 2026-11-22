@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.1
+# PF1 Waters — v1.4.2
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -49,7 +49,7 @@ La visibilité des créatures près de la surface tient désormais compte **du s
 - **Sommet à une profondeur supérieure ou égale au seuil** : l'image du token disparaît pour cette représentation sous-marine. La vision normale, les autres capacités de détection et les droits de MJ restent gérés par Foundry ; cette fonction ne modifie pas les états mécaniques.
 - **Protection de la visibilité** : l'affichage supplémentaire dépend du test officiel `canvas.visibility.testVisibility({x, y, elevation}, {object: token})` et de la présence d'une source de vision extérieure active. Si le mur, la portée ou les modes de détection empêchent l'observation de la surface, PF1 Waters ne force pas l'apparition du token. Les tokens cachés aux joueurs ne sont pas révélés.
 
-**Configurer la profondeur visible :** couche **Regions** → sélectionner le corps d'eau → **PF1 Waters — Corps d'eau** → **Profondeur maximale de visibilité sous la surface**. La valeur est exprimée en unités de scène. **Par défaut, toute Region sans valeur explicitement définie utilise 36 m** (≈ **118,11 ft** si la scène est en pieds). Ce seuil s'applique aussi aux anciennes Regions non configurées : leurs anciens seuils de tuile/dessin ne le remplacent plus. Un seuil explicitement choisi par le MJ, y compris `0`, reste prioritaire. La valeur est stockée dans `flags.pf1-waters.waterRegion.visibilityDepth`.
+**Configurer la profondeur visible :** couche **Regions** → sélectionner le corps d'eau → **PF1 Waters — Corps d'eau** → **Profondeur maximale de visibilité sous la surface**. La valeur est exprimée en unités de scène. **Par défaut, toute Region sans valeur explicitement définie utilise 36 m dans une scène métrique ou 120 pieds dans une scène en pieds.** Ces valeurs sont des arrondis de jeu, et non une conversion physique strictement exacte. Ce seuil s'applique aussi aux anciennes Regions non configurées : leurs anciens seuils de tuile/dessin ne le remplacent plus. Un seuil explicitement choisi par le MJ, y compris `0`, reste prioritaire. La valeur est stockée dans `flags.pf1-waters.waterRegion.visibilityDepth`.
 
 **Nouveaux indicateurs booléens sur le TokenDocument :**
 
@@ -65,7 +65,7 @@ Ces flags sont rafraîchis au déplacement, à la plongée et au chargement de s
 
 - **Token émergé :** lorsque la base du token est sous l'eau, mais que son sommet dépasse, PF1 Waters affiche **une copie graphique non interactive du token devant la surface**, même si Foundry ou un module de niveaux classe la tuile au premier plan. L'image native du token est temporairement masquée pour éviter un double rendu. Son altitude réelle, ses actions, ses collisions et son statut de nage ne changent pas.
 - **Token entièrement immergé :** il demeure sous la texture de surface transparente. Son opacité reste normale près de la surface, puis diminue progressivement dans les derniers **30 %** de la distance de visibilité, jusqu'à disparaître lorsque son **sommet** atteint la limite configurée.
-- **Distance de visibilité (Regions déjà configurées) :** choisir désormais **PF1 Waters — Corps d'eau** sur la Region. Les anciennes valeurs des tuiles ne remplacent plus le défaut de 36 mètres d'une Region non configurée. Valeur par défaut : **36 mètres** (conversion en pieds si nécessaire) (3 m si la grille mesure 1,5 m, 10 ft si elle mesure 5 ft). La valeur `0` masque immédiatement les tokens entièrement immergés.
+- **Distance de visibilité (Regions déjà configurées) :** choisir désormais **PF1 Waters — Corps d'eau** sur la Region. Les anciennes valeurs des tuiles ne remplacent plus le défaut de 36 mètres d'une Region non configurée. Valeur par défaut : **36 mètres** pour les scènes en mètres, ou **120 pieds** pour les scènes en pieds. La valeur `0` masque immédiatement les tokens entièrement immergés.
 - **Retrait / déplacement :** la copie graphique disparaît dès qu'un token quitte l'eau, replonge complètement, devient invisible pour le client ou change de scène. L'opacité originale est restaurée.
 
 **Aucun anneau bleu automatique n'est créé.** Les anneaux décoratifs sont désormais des PNG facultatifs, choisis par Region.

@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters 1.4.1 : visibilité sous-marine de 36 mètres par défaut (conversion en pieds), réglage MJ prioritaire, nage PF1.",
-  "version": "1.4.1",
+  "description": "PF1 Waters v1.4.2 : visibilité par défaut 36 m ou 120 pieds selon les unités de la scène, profondeur configurable par Region.",
+  "version": "1.4.2",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.1/pf1-waters-v1.4.1.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.2/pf1-waters-v1.4.2.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"
