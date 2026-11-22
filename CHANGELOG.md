@@ -1,3 +1,12 @@
+# 1.2.0 — Rendu des tokens partiellement immergés
+
+- Les tokens dont `0 < surface - base < hauteur` passent devant les tuiles/dessins liés à la Region d'eau.
+- À immersion complète, sortie de l'eau ou vol, le tri natif du token est restauré.
+- Modification purement graphique du sprite local `Token.mesh`, sans toucher à l'élévation de jeu ou aux flags aquatiques.
+- Vérification d'appartenance à l'emprise du visuel, plusieurs surfaces liées prises en charge.
+- Option de réglage activée par défaut, API de diagnostic et tests Node de non-régression.
+- Aucune modification dans Skull & Shackles ni PF1 Automation Engine.
+
 # 1.1.0 — Tuiles et dessins comme surfaces visuelles associées
 
 - Les tuiles et dessins peuvent être associés à une Region aquatique existante via des boutons de couche réservés au MJ.

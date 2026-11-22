@@ -12,7 +12,6 @@ import { getWaterSurfacesForRegion } from "./water-surface-links.mjs";
 import { tokenCenter } from "./water-regions.mjs";
 
 const overridden = new WeakMap();
-const activeTokens = new Set();
 const warned = new Set();
 let refreshing = false;
 
