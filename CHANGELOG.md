@@ -1,3 +1,11 @@
+# 1.4.6 — PNG de remous autour et sous les tokens
+
+- Redimensionnement à une case supplémentaire de chaque côté : 1×1 → 3×3, 2×2 → 4×4, y compris tokens non carrés.
+- Même centre et suivi de la position animée du token.
+- Calque des remous derrière les copies de tokens émergés ; masque PIXI pour rendre transparent le rectangle occupé par le token.
+- Le masque et l'image sont détruits ensemble à la sortie de l'eau ; le PNG reste facultatif, sans ellipse automatique.
+- Tests de géométrie, position, ordre des calques et nettoyage des masques.
+
 # 1.4.5 — État Nager permanent pour tout token immergé sans appui
 
 - Les tokens immergés sans `hasFooting` reçoivent le statut natif PF1 `Nager` indépendamment de `movementAction` et sans qu'ils aient besoin de bouger.

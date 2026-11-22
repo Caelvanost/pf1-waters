@@ -40,7 +40,11 @@ function ensureLayer() {
   layer.name = MODULE_ID + "-custom-surface-ripples";
   layer.eventMode = "none";
   layer.interactiveChildren = false;
-  canvas.interface.addChild(layer);
+  // Rings render below emerged token replicas in the interface group.
+  layer.zIndex = -10000;
+  if (typeof canvas.interface.addChildAt === "function") {
+    canvas.interface.addChildAt(layer, 0);
+  } else canvas.interface.addChild(layer);
   return layer;
 }
 
@@ -58,20 +62,70 @@ function removeRing(token) {
   const old = sprites.get(token);
   if (!old) return false;
   sprites.delete(token);
+  old.sprite.mask = null;
   old.sprite.destroy({children:false,texture:false,baseTexture:false});
+  old.mask?.destroy?.({children:false});
   return true;
 }
-function syncPosition(token, sprite) {
+/** One extra square around each side; 1×1 token produces 3×3 image. */
+export function getWaterRingFootprint(token) {
+  const doc = token?.document ?? token;
+  const square = Math.max(1, finite(doc?.parent?.grid?.size, 100));
+  const width = Math.max(0, finite(doc?.width, 1)) * square;
+  const height = Math.max(0, finite(doc?.height, 1)) * square;
+  return {
+    width: width + 2*square,
+    height: height + 2*square,
+    tokenWidth: width,
+    tokenHeight: height,
+    square
+  };
+}
+
+/**
+ * Masks out the token footprint, leaving the PNG on surrounding squares.
+ * The Graphics object is an invisible PIXI stencil, not a rendered ring.
+ * This protects native tokens that are below the interface canvas group.
+ */
+function updateRingMask(entry, footprint) {
+  const mask = entry.mask;
+  if (!mask?.clear) return;
+  const {width:w,height:h,tokenWidth:tw,tokenHeight:th} = footprint;
+  const signature = [w,h,tw,th].join(":");
+  if (entry.maskSize === signature) return;
+  entry.maskSize = signature;
+  mask.clear();
+  const rects = [
+    [-w/2,-h/2,w,(h-th)/2],
+    [-w/2,th/2,w,(h-th)/2],
+    [-w/2,-th/2,(w-tw)/2,th],
+    [tw/2,-th/2,(w-tw)/2,th]
+  ].filter((r)=>r[2]>0&&r[3]>0);
+  // PIXI v8 (Foundry v13), with legacy Graphics fallback.
+  if (typeof mask.rect === "function" && typeof mask.fill === "function") {
+    for (const [x,y,width,height] of rects) {
+      mask.rect(x,y,width,height).fill({color:0xffffff});
+    }
+  } else if (typeof mask.beginFill === "function" &&
+             typeof mask.drawRect === "function") {
+    mask.beginFill(0xffffff);
+    for(const r of rects) mask.drawRect(...r);
+    mask.endFill?.();
+  }
+}
+function syncPosition(token, entry) {
   const center = token?.center ?? tokenCenter(token?.document);
   if (!Number.isFinite(center?.x) || !Number.isFinite(center?.y)) return;
-  sprite.position.set(center.x, center.y);
-  const gridSize = finite(token?.document?.parent?.grid?.size, 100);
-  const nativeW = finite(token?.w, finite(token?.document?.width,1)*gridSize);
-  const nativeH = finite(token?.h, finite(token?.document?.height,1)*gridSize);
-  // Elliptic transparent artwork supplied by the GM, not drawn by us.
-  sprite.width = Math.max(4, nativeW*1.25);
-  sprite.height = Math.max(4, nativeH*0.48);
-  sprite.alpha = Math.max(0, Math.min(1, finite(token?.document?.alpha,1)));
+  const {sprite, mask} = entry;
+  const size = getWaterRingFootprint(token);
+  sprite.position.set(center.x,center.y);
+  sprite.width = size.width;
+  sprite.height = size.height;
+  if (mask) {
+    mask.position.set(center.x,center.y);
+    updateRingMask(entry,size);
+  }
+  sprite.alpha = Math.max(0,Math.min(1,finite(token?.document?.alpha,1)));
   sprite.visible = isAllowed(token);
 }
 
@@ -83,7 +137,7 @@ function followTokenRings() {
       removeRing(token);
       continue;
     }
-    syncPosition(token, entry.sprite);
+    syncPosition(token, entry);
   }
   if (!sprites.size) stopTicker();
 }
@@ -119,7 +173,7 @@ async function refreshRingForToken(token) {
     return removeRing(token);
   }
   if (current?.src === src) {
-    syncPosition(token,current.sprite);
+    syncPosition(token,current);
     return false;
   }
   if (current) removeRing(token);
@@ -140,9 +194,18 @@ async function refreshRingForToken(token) {
     sprite.eventMode = "none";
     sprite.interactive = false;
     sprite.anchor?.set?.(0.5);
+    const mask = typeof globalThis.PIXI?.Graphics === "function"
+      ? new PIXI.Graphics() : null;
+    if (mask) {
+      mask.name = sprite.name + "-stencil";
+      mask.eventMode = "none";
+      parent.addChild(mask);
+      sprite.mask = mask;
+    }
     parent.addChild(sprite);
-    sprites.set(token,{sprite,src});
-    syncPosition(token,sprite);
+    const entry = {sprite,src,mask,maskSize:null};
+    sprites.set(token,entry);
+    syncPosition(token,entry);
     startTicker();
     return true;
   })().finally(() => {
