@@ -17,7 +17,12 @@ function parseRegionFlag(raw) {
     surface,
     depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
     // Optional ring image provided by the GM; no default geometric rings.
-    ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : ""
+    ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : "",
+    // A null value preserves visibility ranges on existing linked Tiles.
+    // Once configured, the Region becomes the sole source of this limit.
+    visibilityDepth: typeof raw?.visibilityDepth === "number" &&
+      Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
+      ? raw.visibilityDepth : null
   };
 }
 
@@ -121,6 +126,8 @@ export async function configureSelectedWaterRegions() {
   const regions = selectedWaterRegionDocuments();
   if (!regions.length) return ui.notifications.warn(t("SelectRegion", "Sélectionnez une Region sur la couche Regions."));
   const first = getWaterRegionData(regions[0]);
+  const gridDistance = Math.max(0, finite(globalThis.canvas?.scene?.grid?.distance, 1.5));
+  const visibilityDepth = first.visibilityDepth ?? gridDistance * 2;
   const units = foundry.utils.escapeHTML(globalThis.canvas?.scene?.grid?.units ?? "");
   const result = await foundry.applications.api.DialogV2.prompt({
     window: { title: t("DialogTitle", "PF1 Waters — Corps d'eau") },
@@ -133,6 +140,11 @@ export async function configureSelectedWaterRegions() {
       '<div class="form-fields"><input name="depth" type="number" step="any" min="0" value="' +
       (first.depth ?? "") + '" placeholder="' + t("NoBottom", "Fond illimité") +
       '"><span class="units">' + units + '</span></div></div>' +
+      '<div class="form-group"><label>' + t("RegionVisibilityDepth", "Profondeur de visibilité sous la surface") +
+      '</label><div class="form-fields"><input name="visibilityDepth" type="number" min="0" step="any" value="' +
+      visibilityDepth + '"><span class="units">' + units + '</span></div></div><p class="hint">' +
+      t("RegionVisibilityDepthHint", "Seuil appliqué au sommet des créatures immergées. Leurs images restent sous la tuile transparente.") +
+      '</p>' +
       '<div class="form-group"><label>' +
       t("RingPng", "Image PNG des remous (facultatif)") +
       '</label><div class="form-fields"><file-picker type="image" name="ringPng" value="' +
@@ -147,6 +159,8 @@ export async function configureSelectedWaterRegions() {
         const surfaceRaw = button.form.elements.surface.value;
         const depthRaw = String(button.form.elements.depth.value ?? "").trim();
         const ringPng = String(button.form.elements.ringPng?.value ?? "").trim();
+        const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
+        const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
         const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -154,10 +168,13 @@ export async function configureSelectedWaterRegions() {
         if (depth !== null && (!Number.isFinite(depth) || depth < 0)) {
           throw new Error(t("InvalidDepth", "La profondeur doit être positive ou nulle."));
         }
+        if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
+          throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
+        }
         if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
-        return { surface, depth, ringPng };
+        return { surface, depth, ringPng, visibilityDepth };
       }
     },
     rejectClose: false,
@@ -167,7 +184,8 @@ export async function configureSelectedWaterRegions() {
   for (const region of regions) {
     await region.setFlag(MODULE_ID, WATER_REGION_FLAG, {
       enabled: true, surface: result.surface, depth: result.depth,
-      ringPng: result.ringPng ?? ""
+      ringPng: result.ringPng ?? "", visibilityDepth:
+        Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth
     });
   }
   ui.notifications.info(regions.length + " " + t("Configured", "corps d'eau configuré(s)."));

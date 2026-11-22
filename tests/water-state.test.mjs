@@ -197,9 +197,9 @@ test("leaving Region clears status and mirrored flags",async()=>{
 });
 test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
   const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:""});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:null});
   game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:""});
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:null});
   assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
   r.flags["pf1-waters"].waterRegion.enabled=false;
   assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
@@ -230,7 +230,7 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
  globalThis.foundry={utils:{escapeHTML:v=>String(v)},
   applications:{api:{DialogV2:{prompt:async(config)=>{
    assert.ok(config.content.includes('<file-picker type="image" name="ringPng"'));
-   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png"};
+   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png",visibilityDepth:2.25};
   }}}}};
  const notifications=[];ui.notifications.info=x=>notifications.push(x);
  const {configureSelectedWaterRegions}=await import("../scripts/water-regions.mjs");
@@ -238,5 +238,16 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
  assert.equal(r.getFlag("pf1-waters","waterRegion").ringPng,
    "worlds/pirates/images/remous.png");
  assert.equal(getWaterRegionData(r).depth,6);
+ assert.equal(getWaterRegionData(r).visibilityDepth,2.25);
  assert.equal(notifications.length,1);
+});
+
+test("Region underwater visibility is configurable and independent of physical depth",()=>{
+ const s=scene(),r=region(s,{depth:12});
+ assert.equal(getWaterRegionData(r).visibilityDepth,null);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=2.25;
+ assert.equal(getWaterRegionData(r).visibilityDepth,2.25);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=0;
+ assert.equal(getWaterRegionData(r).visibilityDepth,0);
+ assert.equal(getWaterRegionData(r).depth,12);
 });
