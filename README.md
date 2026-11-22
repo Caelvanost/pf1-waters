@@ -1,4 +1,4 @@
-# PF1 Waters — v1.2.0
+# PF1 Waters — v1.2.1
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -52,7 +52,7 @@ Lorsque la **base** d'un token est sous la surface d'une Region et que son **som
 
 La hauteur physique vaut par défaut `max(token.width, token.height) × scene.grid.distance`. Il est possible de la personnaliser par `flags.pf1-waters.physicalHeight`, un nombre positif dans les unités de grille. Le module n'utilise pas obligatoirement Wall Height.
 
-Une créature non volante entrant dans un corps d'eau descend à `surface − hauteur/2`, sans franchir le fond. Plus profonde, elle conserve son altitude. La tentative de remontée au-dessus de cette posture de nage est limitée. Le module ne modifie **jamais directement** `TokenDocument.movementAction` : il respecte le système PF1 et les automatismes tiers. Le statut PF1 natif **Nager** est activé tant que la créature nage sans avoir pied ; il est retiré à la sortie, sur le fond et en vol (si disponible). Le vol (`movementAction = "fly"`) ignore le repositionnement vertical automatique.
+**La posture de nage à mi-hauteur est appliquée uniquement si le token est en mode de mouvement natif `walk` (Marche) et si la base du token se trouve exactement à l'élévation de surface de la Region aquatique** (`abs(token.elevation − surface) ≤ 0,000001` unité de scène). À cet instant, sa base est placée à `surface − hauteur/2`, sans dépasser le fond. Un token plus haut que la surface n'est jamais happé vers l'eau ; un token déjà immergé, en nage (`swim`) ou dans un autre mode de mouvement ne subit aucun rabattement vers la mi-hauteur. Une créature qui nage peut remonter ou descendre librement tant qu'elle ne traverse pas le fond physique. Le module ne modifie **jamais directement** `TokenDocument.movementAction` : il respecte le système PF1 et les automatismes tiers. Le statut PF1 natif **Nager** est activé tant que la créature nage sans avoir pied ; il est retiré à la sortie, sur le fond et en vol (si disponible). Le vol (`movementAction = "fly"`) ignore le repositionnement vertical automatique.
 
 L'état géométrique distingue :
 - `ABOVE_WATER` : base du token au niveau de la surface ou au-dessus ;

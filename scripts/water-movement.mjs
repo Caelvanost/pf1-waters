@@ -3,7 +3,7 @@ import {
   EPSILON, finite, canWriteToken
 } from "./constants.mjs";
 import { getWaterRegionData, getWaterBottomElevation, getWaterRegionsAtToken2D } from "./water-regions.mjs";
-import { getTokenSwimElevation, getTokenWaterState, isFlyingMovement, tokenHasFooting } from "./water-state.mjs";
+import { getTokenPhysicalHeight, getTokenSwimElevation, getTokenWaterState, isFlyingMovement, tokenHasFooting } from "./water-state.mjs";
 
 const busy = new Set();
 const keyOf = (doc) => doc?.uuid ?? (doc?.parent?.id + "." + doc?.id);
@@ -49,6 +49,12 @@ async function setNativeSwimmingStatus(doc, active) {
 
 function changed(a, b) { return JSON.stringify(a) !== JSON.stringify(b); }
 
+/**
+ * Only a walking token whose base is exactly at the water surface enters
+ * the automatic half-height swimming posture. In particular, a token above
+ * the water, already submerged, or using another movement type is not moved
+ * toward that posture. The physical bottom remains a hard lower boundary.
+ */
 export async function syncTokenWaterMovement(token, { force = false } = {}) {
   const doc = token?.document ?? token;
   if (!doc || !canWriteToken(doc)) return null;
@@ -59,51 +65,93 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const old = movementStored(doc);
     const oldCanonical = doc.getFlag?.(MODULE_ID, WATER_MOVEMENT_FLAG);
     const wasInWater = Boolean(old?.inWater);
-    const region = getWaterRegionsAtToken2D(doc).find((candidate) => {
-      const floor = getWaterBottomElevation(candidate);
-      // Choose the water volume that contains the token, if applicable.
-      return finite(doc.elevation) < getWaterRegionData(candidate).surface &&
-        (floor === null || finite(doc.elevation) + getTokenWaterState(doc).tokenHeight > floor);
-    }) ?? getWaterRegionsAtToken2D(doc)[0] ?? null;
+    const elevation = finite(doc.elevation);
+    const tokenHeight = getTokenPhysicalHeight(doc);
+    const walking = String(doc.movementAction ?? "").trim().toLowerCase() === "walk";
+    const candidates = getWaterRegionsAtToken2D(doc);
+
+    // Surface entry must be resolved before the ordinary immersed-region
+    // selection, notably when multiple Regions overlap in 2D.
+    const surfaceEntry = walking
+      ? candidates.find((candidate) =>
+          Math.abs(elevation - getWaterRegionData(candidate).surface) <= EPSILON)
+      : null;
+    const occupiedRegion = candidates.find((candidate) => {
+      const water = getWaterRegionData(candidate);
+      const bottom = getWaterBottomElevation(candidate);
+      return elevation < water.surface - EPSILON &&
+        (bottom === null || elevation + tokenHeight > bottom + EPSILON);
+    });
+    const region = surfaceEntry ?? occupiedRegion ?? candidates[0] ?? null;
     const flying = isFlyingMovement(doc);
 
     if (flying || !region) {
       if (wasInWater) await setNativeSwimmingStatus(doc, false);
-      if (wasInWater || oldCanonical === undefined && doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined) {
+      if (wasInWater ||
+          (oldCanonical === undefined &&
+            doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
         const cleared = { inWater: false };
-        if (changed(oldCanonical, cleared)) await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
+        if (changed(oldCanonical, cleared)) {
+          await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
+        }
       }
       return { ...getTokenWaterState(doc), flying };
     }
 
-    const water = getWaterRegionData(region);
-    const swimElevation = getTokenSwimElevation(doc, region);
     const bottom = getWaterBottomElevation(region);
-    const surfacePosture = bottom === null ? swimElevation : Math.max(swimElevation, bottom);
-    const original = finite(doc.elevation);
-    let effective = original;
+    let effectiveElevation = elevation;
 
-    // Existing deeper immersion stays unchanged. A non-flyer may not rise
-    // above the half-immersed posture, nor sink below a defined physical floor.
-    if (bottom !== null && effective < bottom - EPSILON) effective = bottom;
-    if (effective > surfacePosture + EPSILON) effective = surfacePosture;
-
-    if (Math.abs(original - effective) > EPSILON) {
-      await doc.update({ elevation: effective });
+    // The bottom is a physical collision limit regardless of movement mode,
+    // except for flying tokens (handled above).
+    if (bottom !== null && effectiveElevation < bottom - EPSILON) {
+      effectiveElevation = bottom;
     }
 
-    const standing = tokenHasFooting(doc, region, effective);
+    // This is the ONLY half-height snap. Walking from higher elevations,
+    // moving while swimming, or already submerged never triggers it.
+    if (surfaceEntry === region) {
+      const swimElevation = getTokenSwimElevation(doc, region);
+      effectiveElevation = bottom === null
+        ? swimElevation
+        : Math.max(swimElevation, bottom);
+    }
+
+    if (Math.abs(elevation - effectiveElevation) > EPSILON) {
+      await doc.update({ elevation: effectiveElevation });
+    }
+
+    const state = getTokenWaterState(doc);
+    if (!state.inWater) {
+      if (wasInWater) await setNativeSwimmingStatus(doc, false);
+      if (wasInWater ||
+          (oldCanonical === undefined &&
+            doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
+        const cleared = { inWater: false };
+        if (changed(oldCanonical, cleared)) {
+          await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
+        }
+      }
+      return state;
+    }
+
+    const effectiveRegion = state.region ?? region;
+    const water = getWaterRegionData(effectiveRegion);
+    const standing = tokenHasFooting(doc, effectiveRegion, effectiveElevation);
     await setNativeSwimmingStatus(doc, !standing);
 
     const next = {
-      inWater: true, standing, regionId: region.id,
-      surface: water.surface, depth: water.depth,
-      bottomElevation: bottom, swimElevation
+      inWater: true,
+      standing,
+      regionId: effectiveRegion.id,
+      surface: water.surface,
+      depth: water.depth,
+      bottomElevation: getWaterBottomElevation(effectiveRegion),
+      swimElevation: getTokenSwimElevation(doc, effectiveRegion)
     };
     if (force || changed(oldCanonical, next)) {
       await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, next);
     }
-    return { ...getTokenWaterState(doc), standing, swimElevation };
+    return { ...state, standing, swimElevation: next.swimElevation };
   } finally {
     busy.delete(key);
   }

@@ -58,13 +58,57 @@ test("bottom calculation, footing and overlapping Regions",()=>{
   assert.equal(getWaterBottomElevation(high),-2);
   d.elevation=-2;assert.equal(tokenHasFooting(d,high),true);
 });
-test("entry from bridge, deep dive and rise limit",async()=>{
-  const s=scene();region(s,{depth:6});const d=token(s,{elevation:4});
-  await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.75);
+test("walk at the exact surface starts half-height swimming",async()=>{
+  const s=scene();region(s,{depth:6});const d=token(s,{elevation:0,movementAction:"walk"});
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,-0.75);
   assert.equal(d.actor.statuses.has("swim"),true);
-  d.elevation=-2;await syncTokenWaterMovement(d);assert.equal(d.elevation,-2);
-  d.elevation=-0.2;await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.75);
+  assert.equal(d.getFlag("pf1-waters","waterMovement").inWater,true);
 });
+test("walking higher than the surface does not snap or enter swimming",async()=>{
+  const s=scene();region(s,{depth:6});
+  for(const elevation of [4,0.2]){
+    const d=token(s,{elevation,movementAction:"walk"});
+    await syncTokenWaterMovement(d);
+    assert.equal(d.elevation,elevation);
+    assert.equal(d.actor.statuses.has("swim"),false);
+    assert.equal(d.getFlag("pf1-waters","waterMovement"),undefined);
+  }
+});
+test("already submerged token keeps its chosen depth regardless of walking",async()=>{
+  const s=scene();region(s,{depth:6});
+  for(const elevation of [-0.2,-2]){
+    const d=token(s,{elevation,movementAction:"walk"});
+    await syncTokenWaterMovement(d);
+    assert.equal(d.elevation,elevation);
+    assert.equal(d.actor.statuses.has("swim"),true);
+  }
+});
+test("swimming or non-walking at the surface does not snap",async()=>{
+  const s=scene();region(s,{depth:6});
+  for(const action of ["swim","climb","burrow",""]){
+    const d=token(s,{elevation:0,movementAction:action});
+    await syncTokenWaterMovement(d);
+    assert.equal(d.elevation,0);
+    assert.equal(d.actor.statuses.has("swim"),false);
+  }
+});
+test("an existing swimmer can rise to shallower immersion without being snapped back",async()=>{
+  const s=scene();region(s,{depth:6});const d=token(s,{elevation:0,movementAction:"walk"});
+  await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.75);
+  d.movementAction="swim";d.elevation=-2;
+  await syncTokenWaterMovement(d);assert.equal(d.elevation,-2);
+  d.elevation=-0.2;
+  await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.2);
+});
+test("very shallow water sets a walking entrant on the bottom, not through it",async()=>{
+  const s=scene();region(s,{depth:0.2});
+  const d=token(s,{elevation:0,movementAction:"walk"});
+  await syncTokenWaterMovement(d);
+  assert.equal(d.elevation,-0.2);
+  assert.equal(d.actor.statuses.has("swim"),false);
+});
+
 test("flying token is not snapped; bottom clamp removes Nager",async()=>{
   const s=scene();region(s,{depth:1});
   const flying=token(s,{elevation:7,movementAction:"fly"});
