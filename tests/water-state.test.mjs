@@ -1,0 +1,105 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { getTokenWaterState, getTokenPhysicalHeight, getTokenSwimElevation,
+  tokenHasFooting, WATER_CLASSIFICATION } from "../scripts/water-state.mjs";
+import { getWaterRegionData, getWaterBottomElevation,
+  migrateLegacyWaterRegions } from "../scripts/water-regions.mjs";
+import { syncTokenWaterMovement, syncTokenUnderwaterFlag } from "../scripts/water-movement.mjs";
+import { measureProjectileWaterDistance } from "../scripts/water-projectiles.mjs";
+
+globalThis.game = { user: { id: "GM", isGM: true }, users: { activeGM: { id: "GM" } },
+  scenes: [], i18n: { localize: x => x } };
+globalThis.CONFIG = { statusEffects: [{ id: "swim", name: "Nager" }] };
+globalThis.ui = { notifications: { info() {}, warn() {} } };
+
+function scene() { return { id: "scene", grid: { size: 100, distance: 1.5, units: "m" }, regions: [], tokens: [] }; }
+function region(s, {id="r1",surface=0,depth=null,minX=0,maxX=1000,legacy=false}={}) {
+  const namespace = legacy ? "pf1-skull-and-shackles" : "pf1-waters";
+  const r = { id, name:id, parent:s, elevation:0,
+    flags: { [namespace]: { waterRegion: { enabled:true, surface, depth } } },
+    getFlag(ns,k) { return this.flags[ns]?.[k]; },
+    async setFlag(ns,k,v) { this.flags[ns] ??= {}; this.flags[ns][k] = v; },
+    testPoint({x,y}) { return x>=minX && x<=maxX && y>=0 && y<=1000; } };
+  s.regions.push(r); return r;
+}
+function token(s,props={}) {
+  const actor = { statuses:new Set(),effects:[],async toggleStatusEffect(id,{active}) {
+    if(active)this.statuses.add(id);else this.statuses.delete(id);
+  }};
+  const d = { id:"t"+(s.tokens.length+1),parent:s,x:0,y:0,width:1,height:1,
+    elevation:0,movementAction:"walk",flags:{},isOwner:true,actor,...props,
+    getFlag(ns,k) {return this.flags[ns]?.[k];},
+    async setFlag(ns,k,v) {this.flags[ns]??={};this.flags[ns][k]=v;},
+    async update(c) {Object.assign(this,c);} };
+  d.uuid="Scene.scene.Token."+d.id;s.tokens.push(d);return d;
+}
+test("1x1 at surface -0.75 is half submerged, not underwater",()=>{
+  const s=scene();const r=region(s);const d=token(s,{elevation:-0.75});
+  const w=getTokenWaterState(d);
+  assert.equal(getTokenPhysicalHeight(d),1.5);
+  assert.equal(w.tokenTop,0.75);assert.equal(w.immersion,0.5);
+  assert.equal(w.classification,WATER_CLASSIFICATION.INTERSECTING_SURFACE);
+  assert.equal(w.underwater,false);assert.equal(getTokenSwimElevation(d,r),-0.75);
+});
+test("above and underwater classification and custom physical height",()=>{
+  const s=scene();region(s);const d=token(s,{elevation:0});
+  assert.equal(getTokenWaterState(d).classification,WATER_CLASSIFICATION.ABOVE_WATER);
+  d.elevation=-1.5;
+  assert.equal(getTokenWaterState(d).classification,WATER_CLASSIFICATION.UNDERWATER);
+  d.width=2;d.height=2;assert.equal(getTokenPhysicalHeight(d),3);
+  d.flags["pf1-waters"]={physicalHeight:2.1};
+  assert.equal(getTokenPhysicalHeight(d),2.1);
+});
+test("bottom calculation, footing and overlapping Regions",()=>{
+  const s=scene();const high=region(s,{id:"high",surface:0,depth:2});
+  region(s,{id:"low",surface:-5,depth:5});
+  const d=token(s,{elevation:-7});
+  assert.equal(getTokenWaterState(d).regionId,"low");
+  assert.equal(getWaterBottomElevation(high),-2);
+  d.elevation=-2;assert.equal(tokenHasFooting(d,high),true);
+});
+test("entry from bridge, deep dive and rise limit",async()=>{
+  const s=scene();region(s,{depth:6});const d=token(s,{elevation:4});
+  await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.75);
+  assert.equal(d.actor.statuses.has("swim"),true);
+  d.elevation=-2;await syncTokenWaterMovement(d);assert.equal(d.elevation,-2);
+  d.elevation=-0.2;await syncTokenWaterMovement(d);assert.equal(d.elevation,-0.75);
+});
+test("flying token is not snapped; bottom clamp removes Nager",async()=>{
+  const s=scene();region(s,{depth:1});
+  const flying=token(s,{elevation:7,movementAction:"fly"});
+  await syncTokenWaterMovement(flying);assert.equal(flying.elevation,7);
+  const swimmer=token(s,{elevation:-9});
+  swimmer.actor.statuses.add("swim");
+  await syncTokenWaterMovement(swimmer);assert.equal(swimmer.elevation,-1);
+  assert.equal(swimmer.actor.statuses.has("swim"),false);
+});
+test("leaving Region clears status and mirrored flags",async()=>{
+  const s=scene();region(s);const d=token(s,{elevation:-2});
+  await syncTokenWaterMovement(d);await syncTokenUnderwaterFlag(d);
+  assert.equal(d.getFlag("world","underwater"),true);
+  assert.equal(d.getFlag("pf1-waters","underwater"),true);
+  d.x=1500;await syncTokenWaterMovement(d);await syncTokenUnderwaterFlag(d);
+  assert.equal(d.actor.statuses.has("swim"),false);
+  assert.equal(d.getFlag("world","underwater"),false);
+});
+test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
+  const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8});
+  game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8});
+  assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
+  r.flags["pf1-waters"].waterRegion.enabled=false;
+  assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
+});
+test("projectile partially crossing water measures an immersed fraction",()=>{
+  const s=scene();region(s,{depth:20});
+  const a=token(s,{x:0,elevation:1}),b=token(s,{x:500,elevation:-3});
+  const m=measureProjectileWaterDistance({source:a,target:b,samplesPerGrid:80});
+  assert.ok(m.fraction>0.7&&m.fraction<0.8);
+  assert.ok(m.distance>0&&m.distance<m.totalDistance);
+  assert.deepEqual(m.touchedRegionIds,["r1"]);
+});
+test("works without Levels or Wall Height",()=>{
+  const s=scene();region(s);assert.equal(getTokenWaterState(token(s,{elevation:-0.75})).inWater,true);
+});
