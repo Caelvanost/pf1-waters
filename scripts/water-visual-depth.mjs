@@ -1,26 +1,34 @@
 /**
- * PF1 Waters v1.2 — visually sort a partially submerged Token above a
- * linked Tile/Drawing surface without altering TokenDocument.elevation.
+ * PF1 Waters — visual compositing around linked water surfaces (Foundry v13).
  *
- * Foundry v13 puts Tokens, Tiles and primary Drawing shapes in the same
- * elevation-sorted PrimaryCanvasGroup. We affect ONLY the token's primary
- * sprite mesh, NEVER its document or the actual water geometry.
+ * A partially emerged token gets a non-interactive replica in the interface
+ * canvas group. It is ABOVE the linked Tile/Drawing even when a roof/Levels
+ * module defeats primary-mesh elevation sorting. No TokenDocument is mutated.
+ *
+ * A fully submerged token remains in its native PrimaryCanvasGroup (BEHIND
+ * translucent surface artwork). Its image fades in the final part of a
+ * per-surface visibility-depth interval, and disappears at the limit.
+ *
+ * The overlay must never bypass token visibility/permissions. Gameplay
+ * immersion, PF1AE cover and movement are untouched.
  */
 import { MODULE_ID, EPSILON, finite } from "./constants.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
-import { getWaterSurfacesForRegion } from "./water-surface-links.mjs";
+import { getWaterSurfaceData, getWaterSurfacesForRegion } from "./water-surface-links.mjs";
 import { tokenCenter } from "./water-regions.mjs";
 
-const overridden = new WeakMap();
-const warned = new Set();
+const overlaySprites = new Map();
+const alphaOverrides = new WeakMap();
+const warnings = new Set();
+let layer = null;
+let ticker = null;
 let refreshing = false;
 
-function noticeOnce(message, error) {
-  if (warned.has(message)) return;
-  warned.add(message);
+function warnOnce(message, error) {
+  if (warnings.has(message)) return;
+  warnings.add(message);
   console.warn(MODULE_ID + " | " + message, error ?? "");
 }
-
 function rectContains(doc, point) {
   const x = finite(doc?.x, NaN), y = finite(doc?.y, NaN);
   const w = Number(doc?.width ?? doc?.shape?.width);
@@ -34,11 +42,7 @@ function rectContains(doc, point) {
   return Math.abs(lx) <= Math.abs(w) / 2 && Math.abs(ly) <= Math.abs(h) / 2;
 }
 
-/**
- * Only affect a Token if its center is inside the visual footprint.
- * Prefer Foundry's actual primary hit geometry (including masked tiles).
- * The rectangle is a conservative fallback during initialization.
- */
+/** The linked image's actual 2D footprint is required. */
 export function surfaceContainsTokenCenter(surface, token) {
   const doc = surface?.document ?? surface;
   const tokenDoc = token?.document ?? token;
@@ -47,7 +51,7 @@ export function surfaceContainsTokenCenter(surface, token) {
   const primary = doc.object?.mesh ?? doc.object?.shape;
   if (typeof primary?.containsCanvasPoint === "function") {
     try { return Boolean(primary.containsCanvasPoint(point)); }
-    catch (error) { noticeOnce("Test visuel de surface indisponible", error); }
+    catch (error) { warnOnce("Test visuel de surface indisponible", error); }
   }
   const bounds = doc.object?.bounds;
   if (typeof bounds?.contains === "function" && finite(doc.rotation, 0) === 0) {
@@ -56,70 +60,216 @@ export function surfaceContainsTokenCenter(surface, token) {
   return rectContains(doc, point);
 }
 
-/** A pure, independently testable decision based on the water-state geometry. */
+/** Legacy public diagnostic: sorting elevation needed in the primary group. */
 export function calculateWaterVisualElevation(state, visualElevations = []) {
   if (!state?.inWater || !state.intersectsSurface || state.flying) return null;
-  if (!(state.tokenBottom < state.surface - EPSILON
-    && state.tokenTop > state.surface + EPSILON)) return null;
+  if (!(state.tokenBottom < state.surface - EPSILON &&
+        state.tokenTop > state.surface + EPSILON)) return null;
   const elevations = visualElevations.map(Number).filter(Number.isFinite);
-  if (!elevations.length) return null;
-  // The token is shown in front of the linked visual(s), not moved in 3D.
-  return Math.max(state.surface, ...elevations) + 0.001;
+  return elevations.length
+    ? Math.max(state.surface, ...elevations) + 0.001 : null;
 }
 
 export function getTokenWaterVisualElevation(token) {
   const doc = token?.document ?? token;
   const state = getTokenWaterState(doc);
   if (!state.region || !state.intersectsSurface) return null;
-  const visuals = getWaterSurfacesForRegion(state.region).filter((surface) =>
+  const surfaces = getWaterSurfacesForRegion(state.region).filter((surface) =>
     surfaceContainsTokenCenter(surface, doc)
   );
-  return calculateWaterVisualElevation(state, visuals.map((surface) =>
+  return calculateWaterVisualElevation(state, surfaces.map((surface) =>
     finite(surface.elevation, state.surface)
   ));
 }
 
 /**
- * Returns true only if the mesh's sorting elevation actually changed.
- * On exit, restoring the current native doc.elevation avoids stale values
- * when the token has moved underwater while the override was in force.
+ * Fully submerged visibility: top-of-token depth (NOT base depth) from the
+ * actual water surface. The first 70% of the range remains fully visible;
+ * the final 30% fades smoothly, reaching 0 at maximum depth.
  */
+export function calculateUnderwaterVisualOpacity(topDepth, maxDepth) {
+  if (!Number.isFinite(topDepth) || !Number.isFinite(maxDepth)) return 1;
+  if (topDepth < -EPSILON) return 1;
+  if (maxDepth <= 0) return 0;
+  const depth = Math.max(0, topDepth);
+  const start = maxDepth * 0.7;
+  if (depth <= start) return 1;
+  return Math.max(0, Math.min(1, (maxDepth - depth) / (maxDepth - start)));
+}
+
+/**
+ * "emerged": renderer-independent overlay above linked water art.
+ * "submerged": native token stays under the transparent art, with local fade.
+ */
+export function getTokenWaterVisualDisplay(token) {
+  const doc = token?.document ?? token;
+  const state = getTokenWaterState(doc);
+  if (!state.region || !state.inWater) return null;
+  const surfaces = getWaterSurfacesForRegion(state.region).filter((surface) =>
+    surfaceContainsTokenCenter(surface, doc)
+  );
+  if (!surfaces.length) return null;
+  if (state.intersectsSurface && state.tokenTop > state.surface + EPSILON) {
+    return { mode: "emerged", opacity: 1, depth: 0, maximumDepth: 0 };
+  }
+  if (!state.fullySubmerged) return null;
+  // If two surface images cover this position, use the more permissive depth.
+  const maximumDepth = Math.max(...surfaces.map((surface) =>
+    getWaterSurfaceData(surface).visibilityDepth
+  ));
+  const depth = Math.max(0, state.surface - state.tokenTop);
+  return {
+    mode: "submerged",
+    opacity: calculateUnderwaterVisualOpacity(depth, maximumDepth),
+    depth, maximumDepth
+  };
+}
+
+function ensureOverlayLayer() {
+  const canvas = globalThis.canvas;
+  if (!canvas?.ready || !canvas.interface ||
+      !globalThis.PIXI?.Container || !globalThis.PIXI?.Sprite) return null;
+  if (layer?.parent === canvas.interface && !layer.destroyed) return layer;
+  clearOverlays();
+  layer = new PIXI.Container();
+  layer.name = MODULE_ID + "-emerged-token-overlays";
+  layer.eventMode = "none";
+  layer.interactiveChildren = false;
+  canvas.interface.addChild(layer);
+  return layer;
+}
+
+function removeOverlay(token) {
+  const sprite = overlaySprites.get(token);
+  if (!sprite) return false;
+  overlaySprites.delete(token);
+  // Texture belongs to Foundry's TokenMesh; never destroy shared textures.
+  sprite.destroy({ children: false, texture: false, baseTexture: false });
+  return true;
+}
+
+function clearOverlays() {
+  for (const token of [...overlaySprites.keys()]) removeOverlay(token);
+  if (layer) {
+    layer.destroy({ children: false });
+    layer = null;
+  }
+}
+
+function copyPoint(to, from, fallbackX = 0, fallbackY = 0) {
+  if (!to || typeof to.set !== "function") return;
+  to.set(finite(from?.x, fallbackX), finite(from?.y, fallbackY));
+}
+
+/** Keep the visual copy synchronized with the native sprite, without input. */
+function syncOverlaySprite(token, sprite) {
+  const mesh = token?.mesh;
+  const doc = token?.document;
+  if (!mesh?.texture || !doc || sprite?.destroyed) return;
+  if (sprite.texture !== mesh.texture) sprite.texture = mesh.texture;
+  copyPoint(sprite.anchor, mesh.anchor, 0.5, 0.5);
+  copyPoint(sprite.position, mesh.position, finite(doc.x), finite(doc.y));
+  copyPoint(sprite.scale, mesh.scale, 1, 1);
+  copyPoint(sprite.pivot, mesh.pivot, 0, 0);
+  if (Number.isFinite(mesh.rotation)) sprite.rotation = mesh.rotation;
+  if (Number.isFinite(mesh.width) && mesh.width > 0) sprite.width = mesh.width;
+  if (Number.isFinite(mesh.height) && mesh.height > 0) sprite.height = mesh.height;
+  if (Number.isFinite(mesh.tint)) sprite.tint = mesh.tint;
+  // Render ONLY tokens that Foundry already allows this client to see.
+  sprite.visible = token.visible !== false && (!doc.hidden || Boolean(game.user?.isGM));
+  // The copy uses normal native token transparency; not the underwater fade.
+  sprite.alpha = Math.max(0, Math.min(1, finite(mesh.alpha, finite(doc.alpha, 1))));
+}
+
+function ensureOverlay(token) {
+  const parent = ensureOverlayLayer();
+  if (!parent || !token?.mesh?.texture) return false;
+  let sprite = overlaySprites.get(token);
+  if (!sprite) {
+    sprite = new PIXI.Sprite(token.mesh.texture);
+    sprite.name = MODULE_ID + "-emerged-" + (token.document?.id ?? "token");
+    sprite.eventMode = "none";
+    sprite.interactive = false;
+    parent.addChild(sprite);
+    overlaySprites.set(token, sprite);
+    syncOverlaySprite(token, sprite);
+    return true;
+  }
+  syncOverlaySprite(token, sprite);
+  return false;
+}
+
+function setNativeMeshOpacity(mesh, factor) {
+  if (!mesh || !Number.isFinite(mesh.alpha)) return false;
+  const existing = alphaOverrides.get(mesh);
+  if (factor >= 1 && !existing) return false;
+  const record = existing ?? { nativeAlpha: mesh.alpha, applied: null };
+  // Foundry may reset token alpha for visibility/hidden status when redrawn.
+  if (record.applied !== null &&
+      Math.abs(mesh.alpha - record.applied) > 1e-5) {
+    record.nativeAlpha = mesh.alpha;
+  }
+  const desired = factor >= 1
+    ? record.nativeAlpha
+    : record.nativeAlpha * Math.max(0, factor);
+  const changed = Math.abs(mesh.alpha - desired) > 1e-5;
+  if (changed) mesh.alpha = desired;
+  if (factor >= 1) alphaOverrides.delete(mesh);
+  else {
+    record.applied = desired;
+    alphaOverrides.set(mesh, record);
+  }
+  if (changed && globalThis.canvas?.primary) {
+    globalThis.canvas.primary.renderDirty = true;
+  }
+  return changed;
+}
+
 export function refreshTokenWaterVisualDepth(token) {
   const placeable = token?.mesh ? token : (token?.document ?? token)?.object;
   const doc = placeable?.document;
   const mesh = placeable?.mesh;
   if (!doc || !mesh || !globalThis.canvas?.ready) return false;
 
+  const state = getTokenWaterVisualDisplay(doc);
   const enabled = game.settings?.get?.(MODULE_ID, "partialSurfaceDepth") !== false;
-  const target = enabled ? getTokenWaterVisualElevation(doc) : null;
-  const wasOverridden = overridden.has(mesh);
-  if (target === null && !wasOverridden) return false;
-  const desired = target ?? finite(doc.elevation, 0);
-  if (!Number.isFinite(desired) || Math.abs(Number(mesh.elevation) - desired) <= 1e-7) {
-    if (target === null && wasOverridden) overridden.delete(mesh);
-    return false;
-  }
+  const showEmerged = enabled && state?.mode === "emerged";
+  const allowed = placeable.visible !== false &&
+    (!doc.hidden || Boolean(game.user?.isGM));
+  let changed = false;
 
-  // Guard: if the primary mesh does not support an elevation setter,
-  // skip rather than mutating the Token's gameplay elevation or scene data.
-  try {
-    mesh.elevation = desired;
-    if (Math.abs(Number(mesh.elevation) - desired) > 1e-7) {
-      noticeOnce("Le sprite de token ne permet pas le tri par élévation.");
-      return false;
+  if (showEmerged && allowed) changed = ensureOverlay(placeable) || changed;
+  else changed = removeOverlay(placeable) || changed;
+
+  const opacity = state?.mode === "submerged" ? state.opacity : 1;
+  changed = setNativeMeshOpacity(mesh, opacity) || changed;
+  return changed;
+}
+
+function tickOverlaySprites() {
+  if (!globalThis.canvas?.ready || !layer?.parent) return;
+  for (const [token, sprite] of overlaySprites) {
+    if (!token?.mesh || !token?.document) {
+      removeOverlay(token);
+      continue;
     }
-  } catch (error) {
-    noticeOnce("Modification du tri d'élévation impossible", error);
-    return false;
+    syncOverlaySprite(token, sprite);
   }
-  if (target !== null) overridden.set(mesh, true);
-  else overridden.delete(mesh);
+}
 
-  // The primary group owns z-sort; never reparent placeables or patch PIXI.
-  const primary = globalThis.canvas?.primary;
-  if (typeof primary?.sortChildren === "function") primary.sortChildren();
-  if (primary && "renderDirty" in primary) primary.renderDirty = true;
-  return true;
+function attachTicker() {
+  const next = globalThis.canvas?.app?.ticker;
+  if (!next || typeof next.add !== "function") return;
+  if (ticker === next) return;
+  detachTicker();
+  next.add(tickOverlaySprites);
+  ticker = next;
+}
+function detachTicker() {
+  if (ticker && typeof ticker.remove === "function") {
+    ticker.remove(tickOverlaySprites);
+  }
+  ticker = null;
 }
 
 export function refreshSceneWaterVisualDepth() {
@@ -127,10 +277,16 @@ export function refreshSceneWaterVisualDepth() {
   if (!canvas?.ready || refreshing) return 0;
   refreshing = true;
   try {
+    const tokens = canvas.tokens?.placeables ?? [];
+    const current = new Set(tokens);
+    for (const token of [...overlaySprites.keys()]) {
+      if (!current.has(token)) removeOverlay(token);
+    }
     let changed = 0;
-    for (const token of canvas.tokens?.placeables ?? []) {
+    for (const token of tokens) {
       if (refreshTokenWaterVisualDepth(token)) changed++;
     }
+    attachTicker();
     return changed;
   } finally {
     refreshing = false;
@@ -138,20 +294,18 @@ export function refreshSceneWaterVisualDepth() {
 }
 
 export function registerWaterVisualDepthHooks() {
-  Hooks.on("refreshToken", (token) => { void refreshTokenWaterVisualDepth(token); });
-  Hooks.on("drawToken", (token) => { void refreshTokenWaterVisualDepth(token); });
+  Hooks.on("refreshToken", (token) => { refreshTokenWaterVisualDepth(token); });
+  Hooks.on("drawToken", (token) => { refreshTokenWaterVisualDepth(token); });
   Hooks.on("canvasReady", refreshSceneWaterVisualDepth);
-
-  // Re-evaluate on changes to geometry, links and visual transforms.
   for (const event of [
     "createToken", "updateToken", "deleteToken",
     "createRegion", "updateRegion", "deleteRegion",
     "createTile", "updateTile", "deleteTile",
     "createDrawing", "updateDrawing", "deleteDrawing"
-  ]) {
-    Hooks.on(event, () => { void refreshSceneWaterVisualDepth(); });
-  }
+  ]) Hooks.on(event, refreshSceneWaterVisualDepth);
   Hooks.on("canvasTearDown", () => {
+    detachTicker();
+    clearOverlays();
     refreshing = false;
   });
 }
