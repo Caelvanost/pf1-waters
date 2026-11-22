@@ -1,4 +1,4 @@
-# PF1 Waters — v1.3.1
+# PF1 Waters — v1.4.0
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -17,7 +17,7 @@ Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 4. Le **fond** est automatiquement égal à surface − profondeur. Une profondeur vide signifie « fond non limité ».
 5. L'outil « Retirer la propriété eau » désactive la Region aquatique.
 
-Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, ringPng }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
+Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, visibilityDepth, ringPng }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
 
 ## Associer une tuile ou un dessin à la surface visuelle de l'eau
 
@@ -40,11 +40,32 @@ Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans mo
 
 Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth, keepVisible, previousOcclusionMode }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
 
+## Visibilité extérieure et états aquatiques (v1.4.0)
+
+La visibilité des créatures près de la surface tient désormais compte **du sommet réel du token**, même si sa base est sous l'eau. L'évaluation graphique est individuelle pour chaque utilisateur, selon les sources de vision actives de son client.
+
+- **Sommet strictement au-dessus de la surface** : le token est représenté entièrement devant la tuile/dessin d'eau, sans atténuation liée à l'immersion. Un observateur **à l'extérieur, avec un point de vue au niveau de la surface ou au-dessus**, peut le voir depuis un pont ou une berge si le moteur de visibilité de Foundry confirme une ligne de vue vers la surface. L'élévation réelle de la base du token n'est pas modifiée.
+- **Sommet entièrement sous la surface** : si sa distance sous la surface est **inférieure** à la profondeur visible configurée dans la Region, le token peut rester visible **derrière** la texture PNG translucide de la tuile. Son opacité diminue progressivement dans les derniers 30 % de cette distance, jusqu'à zéro au seuil.
+- **Sommet à une profondeur supérieure ou égale au seuil** : l'image du token disparaît pour cette représentation sous-marine. La vision normale, les autres capacités de détection et les droits de MJ restent gérés par Foundry ; cette fonction ne modifie pas les états mécaniques.
+- **Protection de la visibilité** : l'affichage supplémentaire dépend du test officiel `canvas.visibility.testVisibility({x, y, elevation}, {object: token})` et de la présence d'une source de vision extérieure active. Si le mur, la portée ou les modes de détection empêchent l'observation de la surface, PF1 Waters ne force pas l'apparition du token. Les tokens cachés aux joueurs ne sont pas révélés.
+
+**Configurer la profondeur visible :** couche **Regions** → sélectionner le corps d'eau → **PF1 Waters — Corps d'eau** → **Profondeur maximale de visibilité sous la surface**. La valeur est en mètres/pieds selon la scène, par défaut deux distances de grille lors de sa première configuration. Elle est conservée dans `flags.pf1-waters.waterRegion.visibilityDepth`. Pour les Regions plus anciennes qui n'ont pas encore été reconfigurées, les anciens réglages par tuile ou dessin restent effectifs.
+
+**Nouveaux indicateurs booléens sur le TokenDocument :**
+
+- `flags.pf1-waters.floating` : `true` quand le volume physique du token **traverse réellement la surface** (`base < surface < sommet`). Ce n'est pas une capacité de lévitation ou de vol.
+- `flags.pf1-waters.hasFooting` : `true` quand le token immergé **prend appui sur le fond**. En eau peu profonde, `floating` et `hasFooting` peuvent tous deux être vrais.
+- `flags.pf1-waters.waterMovement` stocke les mêmes informations dans `floating` et `hasFooting` ; l'ancien champ `standing` n'est plus émis après synchronisation. Les états calculés sont également disponibles via `api.getTokenWaterState(token)`.
+
+Ces flags sont rafraîchis au déplacement, à la plongée et au chargement de scène. Les sorts peuvent continuer à employer `flags.world.waterwalk` ou `flags.pf1-waters.waterwalk`. Aucun bonus d'abri n'est appliqué ici : cela reste du ressort de **PF1AE**.
+
+**Limite technique :** les scènes complexes utilisant Levels ou Better Roofs doivent être vérifiées en jeu. La surimpression reste une représentation graphique ; elle ne change pas la vision native des autres tokens ni les calculs de distance ou d'attaque. La ligne de vue est testée au niveau visible de l'eau pour éviter qu'une base sous-marine ne rende automatiquement invisible une créature émergée.
+
 ## Affichage des tokens et transparence des surfaces (v1.3.0)
 
 - **Token émergé :** lorsque la base du token est sous l'eau, mais que son sommet dépasse, PF1 Waters affiche **une copie graphique non interactive du token devant la surface**, même si Foundry ou un module de niveaux classe la tuile au premier plan. L'image native du token est temporairement masquée pour éviter un double rendu. Son altitude réelle, ses actions, ses collisions et son statut de nage ne changent pas.
 - **Token entièrement immergé :** il demeure sous la texture de surface transparente. Son opacité reste normale près de la surface, puis diminue progressivement dans les derniers **30 %** de la distance de visibilité, jusqu'à disparaître lorsque son **sommet** atteint la limite configurée.
-- **Distance de visibilité :** sélectionner la tuile ou le dessin sur sa couche, choisir **Lier à la surface d'eau**, puis régler **Profondeur maximale de visibilité sous l’eau**. Valeur par défaut : **deux distances de grille** (3 m si la grille mesure 1,5 m, 10 ft si elle mesure 5 ft). La valeur `0` masque immédiatement les tokens entièrement immergés.
+- **Distance de visibilité (Regions déjà configurées) :** choisir désormais **PF1 Waters — Corps d'eau** sur la Region. Les anciennes surfaces liées conservent provisoirement leur profondeur tant qu'aucune valeur n'a été enregistrée sur la Region. Valeur initiale conseillée : **deux distances de grille** (3 m si la grille mesure 1,5 m, 10 ft si elle mesure 5 ft). La valeur `0` masque immédiatement les tokens entièrement immergés.
 - **Retrait / déplacement :** la copie graphique disparaît dès qu'un token quitte l'eau, replonge complètement, devient invisible pour le client ou change de scène. L'opacité originale est restaurée.
 
 **Aucun anneau bleu automatique n'est créé.** Les anneaux décoratifs sont désormais des PNG facultatifs, choisis par Region.

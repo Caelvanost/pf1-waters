@@ -1,3 +1,13 @@
+# 1.4.0 — Visibilité par sommet, limites de Region, floating et hasFooting
+
+- Profondeur maximale de visibilité sous-marine configurable au niveau de chaque Region d'eau ; les réglages des tuiles/dessins anciens sont conservés en repli.
+- Le sommet du token, et non sa base seule, détermine si sa silhouette reste visible au travers d'une surface translucide. Le token entièrement immergé demeure sous la tuile avec atténuation progressive dans les derniers 30 % de profondeur.
+- Un token qui dépasse de l'eau peut être vu depuis un poste d'observation extérieur plus haut (ex. pont du navire), sous réserve d'une source de vision active et d'un test de ligne de vue par le moteur Foundry v13 au niveau de la surface.
+- Nouveau flag token booléen `flags.pf1-waters.floating` lors de la traversée physique de la surface ; renommage de `standing` en `hasFooting` (fond sous les pieds) sur les états et flags aquatiques.
+- Rafraîchissement des flags au déplacement, des visuels lors des rafraîchissements de vision et rétablissement de la visibilité native lorsque les conditions cessent.
+- Aucun changement d'élévation, d'attributs de combat ou de bonus d'abri PF1AE ; pas de contournement délibéré des murs ou des tokens cachés.
+- Tests des seuils par Region, de la vue extérieure, des obstacles, du fond et des flags.
+
 # 1.3.1 — Visibilité de la tuile d’eau depuis le dessus
 
 - La tuile liée à une Region aquatique peut rester visible comme un plan d’eau, plutôt que s’estomper comme une toiture sous l’occlusion native de Foundry v13.
