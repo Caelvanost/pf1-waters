@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters : visibilité sous-marine de 36 m par défaut par Region, vue depuis les ponts, nage PF1, floating et hasFooting.",
+  "description": "PF1 Waters 1.4.1 : visibilité sous-marine de 36 mètres par défaut (conversion en pieds), réglage MJ prioritaire, nage PF1.",
   "version": "1.4.1",
   "authors": [
     {

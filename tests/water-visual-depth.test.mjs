@@ -202,7 +202,7 @@ test("Region visibility depth overrides multiple Tile and Drawing settings",()=>
  assert.equal(getTokenWaterVisualDisplay(token).opacity,1);
 });
 test("exterior sailor sees emergent token via Foundry elevated LOS when base is invisible",()=>{
- const {scene}=makeScene();makeVisual(scene);
+ const {scene,region}=makeScene();region.visibilityDepth=3;makeVisual(scene);
  const sailor={document:{id:"sailor",parent:scene,
    elevation:5,height:1,width:1},losHeight:6,controlled:true};
  const token=makeToken(scene,-0.75);
