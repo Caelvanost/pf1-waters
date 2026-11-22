@@ -197,9 +197,9 @@ test("leaving Region clears status and mirrored flags",async()=>{
 });
 test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
   const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:null});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:36});
   game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:null});
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:36});
   assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
   r.flags["pf1-waters"].waterRegion.enabled=false;
   assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
@@ -244,7 +244,7 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
 
 test("Region underwater visibility is configurable and independent of physical depth",()=>{
  const s=scene(),r=region(s,{depth:12});
- assert.equal(getWaterRegionData(r).visibilityDepth,null);
+ assert.equal(getWaterRegionData(r).visibilityDepth,36);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=2.25;
  assert.equal(getWaterRegionData(r).visibilityDepth,2.25);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=0;
@@ -297,4 +297,24 @@ test("legacy standing is replaced by hasFooting during movement sync",async()=>{
  assert.equal(saved.hasFooting,true);
  assert.equal(saved.floating,true);
  assert.equal(Object.hasOwn(saved,"standing"),false);
+});
+
+test("unconfigured visibility is exactly 36m in a metric Scene",()=>{
+ const s=scene(),r=region(s,{depth:200});
+ assert.equal(getWaterRegionData(r).visibilityDepth,36);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=null;
+ assert.equal(getWaterRegionData(r).visibilityDepth,36);
+ delete r.flags["pf1-waters"].waterRegion.visibilityDepth;
+ assert.equal(getWaterRegionData(r).visibilityDepth,36);
+});
+test("36m convert correctly to feet, preserving explicit numbers and zero",()=>{
+ const s=scene();s.grid.units="ft";s.grid.distance=5;
+ const r=region(s,{depth:200});
+ assert.ok(Math.abs(getWaterRegionData(r).visibilityDepth - 36/0.3048)<1e-10);
+ s.grid.units="pieds";
+ assert.ok(Math.abs(getWaterRegionData(r).visibilityDepth - 36/0.3048)<1e-10);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
+ assert.equal(getWaterRegionData(r).visibilityDepth,12);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=0;
+ assert.equal(getWaterRegionData(r).visibilityDepth,0);
 });

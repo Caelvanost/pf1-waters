@@ -1,3 +1,11 @@
+# 1.4.1 — Profondeur de visibilité par défaut de 36 mètres
+
+- Une Region d'eau sans seuil `visibilityDepth` défini par le MJ utilise **36 mètres** de visibilité sous la surface, mesurés à partir du sommet des tokens.
+- Conversion cohérente avec les unités de la scène : `36 m ≈ 118,11 pieds`, sans arrondir la distance métrique.
+- Les valeurs explicitement choisies par le MJ, notamment `0`, sont conservées.
+- Ce défaut est appliqué aussi aux anciennes Regions, plutôt que d'hériter des anciens seuils de visibilité des tuiles ou dessins.
+- Configuration, aide française et tests de non-régression métriques, impériaux et de profondeur maximale mis à jour.
+
 # 1.4.0 — Visibilité par sommet, limites de Region, floating et hasFooting
 
 - Profondeur maximale de visibilité sous-marine configurable au niveau de chaque Region d'eau ; les réglages des tuiles/dessins anciens sont conservés en repli.

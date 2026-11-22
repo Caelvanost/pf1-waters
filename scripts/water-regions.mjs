@@ -7,7 +7,24 @@ function readRegionFlag(region, scope) {
   catch (_) { return undefined; }
 }
 
-function parseRegionFlag(raw) {
+/**
+ * Default underwater sight limit: 36 metres in Scene elevation units.
+ * No rounding to 120 ft: the configured distance is exactly 36 m.
+ */
+export function getDefaultWaterVisibilityDepth(scene) {
+  const unit = String(scene?.grid?.units ?? "m").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (["ft", "ft.", "foot", "feet", "pied", "pieds", "pi"].includes(unit)) {
+    return 36 / 0.3048;
+  }
+  if (["km", "kilometre", "kilometres"].includes(unit)) return 0.036;
+  if (["cm", "centimetre", "centimetres"].includes(unit)) return 3600;
+  if (["mm", "millimetre", "millimetres"].includes(unit)) return 36000;
+  if (["mi", "mile", "miles"].includes(unit)) return 36 / 1609.344;
+  return 36;
+}
+
+function parseRegionFlag(raw, scene) {
   const surface = finite(raw?.surface, 0);
   const depthRaw = raw?.depth;
   const parsedDepth = depthRaw === "" || depthRaw === null || depthRaw === undefined
@@ -18,11 +35,11 @@ function parseRegionFlag(raw) {
     depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
     // Optional ring image provided by the GM; no default geometric rings.
     ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : "",
-    // A null value preserves visibility ranges on existing linked Tiles.
-    // Once configured, the Region becomes the sole source of this limit.
+    // A null/missing/invalid value means 36 m, converted to scene units.
+    // Explicit zero is valid; it means no subsurface image visibility.
     visibilityDepth: typeof raw?.visibilityDepth === "number" &&
       Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
-      ? raw.visibilityDepth : null
+      ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene)
   };
 }
 
@@ -30,7 +47,7 @@ export function getWaterRegionData(region) {
   const canonical = readRegionFlag(region, MODULE_ID);
   // An explicit canonical disabled value overrides any old enabled value.
   const raw = canonical !== undefined ? canonical : readRegionFlag(region, LEGACY_MODULE_ID);
-  return parseRegionFlag(raw);
+  return parseRegionFlag(raw, region?.parent);
 }
 
 export function getWaterBottomElevation(region) {
@@ -92,7 +109,7 @@ export async function migrateLegacyWaterRegions() {
       const legacy = readRegionFlag(region, LEGACY_MODULE_ID);
       if (legacy === undefined || readRegionFlag(region, MODULE_ID) !== undefined) continue;
       try {
-        await region.setFlag(MODULE_ID, WATER_REGION_FLAG, parseRegionFlag(legacy));
+        await region.setFlag(MODULE_ID, WATER_REGION_FLAG, parseRegionFlag(legacy, scene));
         migrated++;
       } catch (error) {
         errors++;
@@ -126,8 +143,7 @@ export async function configureSelectedWaterRegions() {
   const regions = selectedWaterRegionDocuments();
   if (!regions.length) return ui.notifications.warn(t("SelectRegion", "Sélectionnez une Region sur la couche Regions."));
   const first = getWaterRegionData(regions[0]);
-  const gridDistance = Math.max(0, finite(globalThis.canvas?.scene?.grid?.distance, 1.5));
-  const visibilityDepth = first.visibilityDepth ?? gridDistance * 2;
+  const visibilityDepth = first.visibilityDepth;
   const units = foundry.utils.escapeHTML(globalThis.canvas?.scene?.grid?.units ?? "");
   const result = await foundry.applications.api.DialogV2.prompt({
     window: { title: t("DialogTitle", "PF1 Waters — Corps d'eau") },

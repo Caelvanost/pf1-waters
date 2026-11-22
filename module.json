@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.0 : visibilité depuis les ponts et berges, profondeur sous-marine par Region, indicateurs floating et hasFooting ; natif Foundry v13.",
-  "version": "1.4.0",
+  "description": "PF1 Waters : visibilité sous-marine de 36 m par défaut par Region, vue depuis les ponts, nage PF1, floating et hasFooting.",
+  "version": "1.4.1",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.0/pf1-waters-v1.4.0.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.1/pf1-waters-v1.4.1.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

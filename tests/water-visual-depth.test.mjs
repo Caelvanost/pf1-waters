@@ -115,7 +115,7 @@ test("emerged token has one opaque image copy above linked water and no ghost",(
  assert.equal(refreshTokenWaterVisualDepth(token),false);
 });
 test("full immersion restores native image then fades it below transparent tile",()=>{
- const {scene}=makeScene();makeVisual(scene);
+ const {scene,region}=makeScene();region.visibilityDepth=3;makeVisual(scene);
  const token=makeToken(scene,-0.75);
  refreshTokenWaterVisualDepth(token);
  token.document.elevation=-1.5;
@@ -152,14 +152,14 @@ test("wrong visual footprint does not alter token depth rendering",()=>{
  assert.equal(getTokenWaterVisualDisplay(token),null);
  assert.equal(refreshTokenWaterVisualDepth(token),false);
 });
-test("highest of several linked opacity ranges takes precedence",()=>{
+test("default 36m Region depth takes precedence over old surface depth limits",()=>{
  const {scene}=makeScene();
  makeVisual(scene,"Tile",{visibilityDepth:1});
  makeVisual(scene,"Drawing",{visibilityDepth:5});
  const token=makeToken(scene,-2);
  const state=getTokenWaterVisualDisplay(token);
  assert.equal(state.mode,"submerged");
- assert.equal(state.maximumDepth,5);
+ assert.equal(state.maximumDepth,36);
  assert.equal(state.opacity,1);
 });
 test("disabling copy restores native image and keeps token's gameplay Z",()=>{
@@ -282,4 +282,19 @@ test("an underwater observer or a blocked LOS cannot reveal a floating creature"
  assert.equal(canSeeWaterTokenFromExterior(target),false);
  game.user.isGM=true;
  canvas.tokens.controlled=[];delete canvas.visibility;
+});
+
+test("an unset Region threshold uses 36m from the creature's TOP",()=>{
+ const {scene,region}=makeScene();
+ region.getFlag=(_ns,key)=>key==="waterRegion"?
+   {enabled:true,surface:0,depth:200}:undefined;
+ makeVisual(scene,"Tile",{visibilityDepth:3});
+ const token=makeToken(scene,-37);
+ let state=getTokenWaterVisualDisplay(token);
+ assert.equal(state.maximumDepth,36);
+ assert.ok(state.opacity>0&&state.opacity<1);
+ token.document.elevation=-37.5;
+ state=getTokenWaterVisualDisplay(token);
+ assert.equal(state.maximumDepth,36);
+ assert.equal(state.opacity,0);
 });
