@@ -1,3 +1,12 @@
+# 1.4.7 — Ratio de taille des remous par Region d’eau
+
+- Champ « Ratio de taille des remous » dans la configuration de la Region, enregistré dans `flags.pf1-waters.waterRegion.ringScale`.
+- **Valeur par défaut 1,5**, rétrocompatible pour les anciennes Regions sans coefficient explicite.
+- Le PNG est centré sur le token ; ses dimensions suivent `largeur × ratio` et `hauteur × ratio`. Exemples : token 1×1 → image 1,5×1,5 ; token 2×2 → image 3×3.
+- L'affichage reste derrière les tokens émergés ; le masque central évite que l'image superposée au groupe de premier plan couvre un token natif.
+- Mise à jour dynamique quand le MJ change le ratio, sans toucher aux positions des tokens ni aux états aquatiques.
+- Tests pour le défaut 1,5, la configuration, les proportions rectangulaires et les changements à chaud.
+
 # 1.4.6 — PNG de remous autour et sous les tokens
 
 - Redimensionnement à une case supplémentaire de chaque côté : 1×1 → 3×3, 2×2 → 4×4, y compris tokens non carrés.

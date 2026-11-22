@@ -199,9 +199,9 @@ test("leaving Region clears status and mirrored flags",async()=>{
 });
 test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
   const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:36});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36});
   game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",visibilityDepth:36});
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36});
   assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
   r.flags["pf1-waters"].waterRegion.enabled=false;
   assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
@@ -232,9 +232,11 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
  globalThis.foundry={utils:{escapeHTML:v=>String(v)},
   applications:{api:{DialogV2:{prompt:async(config)=>{
    assert.ok(config.content.includes('<file-picker type="image" name="ringPng"'));
+   assert.ok(config.content.includes('name="ringScale"'));
+   assert.ok(config.content.includes('value="1.5"'));
    assert.equal(config.modal,false,
      "The native Foundry file browser must remain clickable outside the water Region dialog");
-   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png",visibilityDepth:2.25};
+   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png",ringScale:2.25,visibilityDepth:2.25};
   }}}}};
  const notifications=[];ui.notifications.info=x=>notifications.push(x);
  const {configureSelectedWaterRegions}=await import("../scripts/water-regions.mjs");
@@ -243,6 +245,7 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
    "worlds/pirates/images/remous.png");
  assert.equal(getWaterRegionData(r).depth,6);
  assert.equal(getWaterRegionData(r).visibilityDepth,2.25);
+ assert.equal(getWaterRegionData(r).ringScale,2.25);
  assert.equal(notifications.length,1);
 });
 
@@ -404,4 +407,17 @@ test("native Nager effect hooks are registered and detect removed effect",async(
  hooks.get("updateActiveEffect")({parent:d.actor,statuses:new Set(["blinded"])});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(d.actor.statuses.has("swim"),false);
+});
+
+test("ripple scale defaults to 1.5, and existing Regions preserve explicit values",()=>{
+ const s=scene(),r=region(s,{depth:6});
+ assert.equal(getWaterRegionData(r).ringScale,1.5);
+ r.flags["pf1-waters"].waterRegion.ringScale=2;
+ assert.equal(getWaterRegionData(r).ringScale,2);
+ r.flags["pf1-waters"].waterRegion.ringScale=0.7;
+ assert.equal(getWaterRegionData(r).ringScale,0.7);
+ for(const bad of [0,-2,NaN,null,"2.5",undefined]){
+   r.flags["pf1-waters"].waterRegion.ringScale=bad;
+   assert.equal(getWaterRegionData(r).ringScale,1.5);
+ }
 });

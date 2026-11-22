@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.6
+# PF1 Waters — v1.4.7
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -17,7 +17,7 @@ Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 4. Le **fond** est automatiquement égal à surface − profondeur. Une profondeur vide signifie « fond non limité ».
 5. L'outil « Retirer la propriété eau » désactive la Region aquatique.
 
-Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, visibilityDepth, ringPng }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
+Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, visibilityDepth, ringPng, ringScale }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
 
 Le formulaire **PF1 Waters — Corps d'eau** est désormais **non modal** : lorsque le MJ sélectionne **Image PNG des remous**, le navigateur natif de fichiers Foundry peut être placé au premier plan et reste cliquable. La Region n'est enregistrée qu'après confirmation du formulaire. Le choix du fichier et le champ facultatif `ringPng` ne changent pas.
 
@@ -83,11 +83,11 @@ La correction affiche désormais **le token normalement et entièrement devant l
 
 Les Drawings conservent leurs tests de forme pour respecter polygones, ellipses et contours libres. Les coordonnées de la copie graphique sont converties entre groupes Canvas via les transformations PIXI lorsqu'elles sont disponibles, afin d'éviter un décalage de sprite. La vision normale de Foundry, les tokens cachés, le champ `physicalHeight`, le seuil de visibilité sous-marine, les flags `floating` et `hasFooting` et les bonus d'abri de PF1AE ne changent pas.
 
-## PNG de remous autour des tokens (v1.4.6)
+## PNG de remous à ratio configurable (v1.4.7)
 
-Le PNG de remous facultatif configuré sur la Region s'étend **sur une case de plus de chaque côté** du token : 1×1 → 3×3 cases ; 2×2 → 4×4 cases ; 2×1 → 4×3 cases. Son centre suit celui du token pendant le mouvement.
+Le PNG de remous facultatif configuré sur la Region est dimensionné par le **ratio de taille des remous**, ajustable dans **Régions → PF1 Waters — Corps d'eau**. Sa valeur par défaut est **1,5**, et l'image garde toujours le centre du token pendant ses déplacements : 1×1 → 1,5×1,5 case ; 2×2 → 3×3 cases ; 2×1 → 3×1,5 case. La dimension de l'image est égale à la taille du token multipliée par le ratio.
 
-Un masque PIXI découpe le rectangle central correspondant à l'emprise du token : même si le PNG n'est pas transparent au centre, les remous ne se superposent pas au portrait. La couche des remous est placée sous les représentations des créatures émergées. Aucun anneau géométrique bleu n'est généré.
+Un masque PIXI protège le rectangle central du token : même si le PNG n'est pas transparent au centre, les remous ne recouvrent pas le portrait. Le ratio peut être modifié sans recharger la scène ; une valeur inférieure ou égale à 1 masque pratiquement tout l'effet sous le token. La couche des remous est placée sous les représentations des créatures émergées. Aucun anneau géométrique bleu n'est généré.
 
 Ce rendu est purement visuel. Les flags de nage, les distances, les actions et les bonus d'abri de PF1AE restent inchangés.
 

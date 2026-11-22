@@ -84,11 +84,11 @@ test("selected transparent PNG follows the actual animated token position",async
  assert.equal(sprite.mask,mask);
  assert.equal(sprite.texture.src,"assets/ripples.png");
  assert.equal(sprite.position.x,50);
- assert.equal(sprite.width,300);
- assert.equal(sprite.height,300);
+ assert.equal(sprite.width,150);
+ assert.equal(sprite.height,150);
  assert.deepEqual(mask.rectangles,[
-  [-150,-150,300,100],[-150,50,300,100],
-  [-150,-50,100,100],[50,-50,100,100]
+  [-75,-75,150,25],[-75,50,150,25],
+  [-75,-50,25,100],[50,-50,25,100]
  ]);
  token.center={x:230,y:150};
  ticker.fn();
@@ -113,7 +113,7 @@ test("ring disappears on immersion, loss of PNG or token leaving surface",async(
  assert.equal(ellipseCalls,0);
 });
 
-test("2x2 token gets 4x4 squares of PNG, with the central 2x2 masked",async()=>{
+test("2x2 token defaults to 3x3 ripple image, with centre protected",async()=>{
  const {doc,region,token}=scene();
  region.flags["pf1-waters"].waterRegion.ringPng="assets/ripples.png";
  doc.width=2;doc.height=2;token.w=200;token.h=200;
@@ -122,10 +122,10 @@ test("2x2 token gets 4x4 squares of PNG, with the central 2x2 masked",async()=>{
  const holder=canvas.interface.children.at(-1);
  const sprite=holder.children.find(c=>c.texture);
  const mask=holder.children.find(c=>c instanceof Graphics);
- assert.equal(sprite.width,400);assert.equal(sprite.height,400);
+ assert.equal(sprite.width,300);assert.equal(sprite.height,300);
  assert.deepEqual(mask.rectangles,[
-  [-200,-200,400,100],[-200,100,400,100],
-  [-200,-100,100,200],[100,-100,100,200]
+  [-150,-150,300,50],[-150,100,300,50],
+  [-150,-100,50,200],[100,-100,50,200]
  ]);
 });
 test("ripple layer lies beneath the water foreground token overlay",async()=>{
@@ -154,4 +154,48 @@ test("ripple mask follows token while moving and is removed on exit",async()=>{
  await refreshWaterSurfaceMarkers();
  assert.equal(sprite.destroyed,true);
  assert.equal(mask.destroyed,true);
+});
+
+test("a Region-defined ratio updates ripple size live, for a non-square token",async()=>{
+ const {doc,region,token,ticker}=scene();
+ region.flags["pf1-waters"].waterRegion.ringPng="assets/ripples.png";
+ region.flags["pf1-waters"].waterRegion.ringScale=2.4;
+ doc.width=2;doc.height=1;token.w=200;token.h=100;
+ token.center={x:100,y:50};
+ await refreshWaterSurfaceMarkers();
+ const holder=canvas.interface.children.at(-1);
+ const sprite=holder.children.find(c=>c.texture);
+ assert.equal(sprite.width,480);
+ assert.equal(sprite.height,240);
+ assert.equal(sprite.position.x,100);
+ assert.equal(sprite.position.y,50);
+ region.flags["pf1-waters"].waterRegion.ringScale=1.5;
+ ticker.fn();
+ assert.equal(sprite.width,300);
+ assert.equal(sprite.height,150);
+ assert.equal(sprite.position.x,100);
+ assert.equal(sprite.position.y,50);
+});
+test("invalid or unspecified ripple ratio is 1.5, and no PNG means no sprite",async()=>{
+ const {region,token}=scene();
+ region.flags["pf1-waters"].waterRegion.ringScale=-1;
+ assert.equal(await refreshWaterSurfaceMarkers(),0);
+ assert.equal(canvas.interface.children.length,0);
+ region.flags["pf1-waters"].waterRegion.ringPng="assets/ripples.png";
+ assert.equal(await refreshWaterSurfaceMarkers(),1);
+ const sprite=canvas.interface.children.at(-1).children.find(c=>c.texture);
+ assert.equal(sprite.width,150);
+ assert.equal(sprite.height,150);
+});
+test("small ratios place ripple beneath rather than over the portrait",async()=>{
+ const {region}=scene();
+ region.flags["pf1-waters"].waterRegion.ringPng="assets/ripples.png";
+ region.flags["pf1-waters"].waterRegion.ringScale=0.9;
+ await refreshWaterSurfaceMarkers();
+ const group=canvas.interface.children.at(-1);
+ const sprite=group.children.find(c=>c.texture);
+ assert.equal(sprite.width,90);
+ assert.equal(sprite.height,90);
+ assert.equal(sprite.mask.rectangles.length,0,
+   "a ripple wholly under the token remains obscured by the portrait mask");
 });

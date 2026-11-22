@@ -41,6 +41,7 @@ function ensureLayer() {
   layer.eventMode = "none";
   layer.interactiveChildren = false;
   // Rings render below emerged token replicas in the interface group.
+  // A centre cutout protects native token portraits in the Primary group.
   layer.zIndex = -10000;
   if (typeof canvas.interface.addChildAt === "function") {
     canvas.interface.addChildAt(layer, 0);
@@ -67,25 +68,36 @@ function removeRing(token) {
   old.mask?.destroy?.({children:false});
   return true;
 }
-/** One extra square around each side; 1×1 token produces 3×3 image. */
+/**
+ * Token-centred ripple dimensions, controlled by its water Region.
+ * Default ratio is 1.5: 1×1→1.5×1.5, 2×2→3×3, 2×1→3×1.5.
+ * The Region's CURRENT value is read during every Canvas refresh/tick,
+ * so changing the ratio does not require reloading token textures.
+ */
 export function getWaterRingFootprint(token) {
   const doc = token?.document ?? token;
+  const state = getTokenWaterState(doc);
+  const region = state?.region;
+  const configured = region ? getWaterRegionData(region).ringScale : 1.5;
+  const ratio = Number.isFinite(configured) && configured > 0 ? configured : 1.5;
   const square = Math.max(1, finite(doc?.parent?.grid?.size, 100));
   const width = Math.max(0, finite(doc?.width, 1)) * square;
   const height = Math.max(0, finite(doc?.height, 1)) * square;
   return {
-    width: width + 2*square,
-    height: height + 2*square,
+    width: width * ratio,
+    height: height * ratio,
     tokenWidth: width,
     tokenHeight: height,
-    square
+    square,
+    ratio
   };
 }
 
 /**
- * Masks out the token footprint, leaving the PNG on surrounding squares.
- * The Graphics object is an invisible PIXI stencil, not a rendered ring.
- * This protects native tokens that are below the interface canvas group.
+ * Visually keeps the ripple BELOW the token portrait. The interface
+ * group draws after native tokens, so its invisible stencil hides the
+ * central portrait area. The emitted foreground-token replica is also
+ * drawn above the ripple layer. No graphic ellipse is generated.
  */
 function updateRingMask(entry, footprint) {
   const mask = entry.mask;

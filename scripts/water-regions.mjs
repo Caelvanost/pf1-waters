@@ -36,6 +36,11 @@ function parseRegionFlag(raw, scene) {
     depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
     // Optional ring image provided by the GM; no default geometric rings.
     ringPng: typeof raw?.ringPng === "string" ? raw.ringPng.trim() : "",
+    // Size of the entire ripple image relative to token width and height.
+    // Old Regions default to 1.5 without modifying stored data.
+    ringScale: typeof raw?.ringScale === "number" &&
+      Number.isFinite(raw.ringScale) && raw.ringScale > 0
+      ? raw.ringScale : 1.5,
     // A null/missing/invalid value means 36 m (metric) or 120 ft (imperial).
     // Explicit zero is valid; it means no subsurface image visibility.
     visibilityDepth: typeof raw?.visibilityDepth === "number" &&
@@ -168,6 +173,11 @@ export async function configureSelectedWaterRegions() {
       foundry.utils.escapeHTML(first.ringPng) +
       '"></file-picker></div><p class="hint">' +
       t("RingPngHint", "Choisir un PNG transparent depuis les ressources Foundry ; laisser vide pour aucun effet.") +
+      '</p><div class="form-group"><label>' +
+      t("RingScale", "Ratio de taille des remous") +
+      '</label><div class="form-fields"><input name="ringScale" type="number" min="0.01" step="0.1" value="' +
+      first.ringScale + '"></div></div><p class="hint">' +
+      t("RingScaleHint", "Taille de l’image par rapport au token (1,5 par défaut) : un token 1×1 aura des remous de 1,5×1,5 case, centrés sous lui.") +
       '</p></div></div>',
     ok: {
       label: t("Confirm", "Définir comme corps d'eau"),
@@ -176,6 +186,8 @@ export async function configureSelectedWaterRegions() {
         const surfaceRaw = button.form.elements.surface.value;
         const depthRaw = String(button.form.elements.depth.value ?? "").trim();
         const ringPng = String(button.form.elements.ringPng?.value ?? "").trim();
+        const ringScaleRaw = String(button.form.elements.ringScale?.value ?? "").trim();
+        const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
@@ -188,10 +200,13 @@ export async function configureSelectedWaterRegions() {
         if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
           throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
         }
+        if (!Number.isFinite(ringScale) || ringScale <= 0) {
+          throw new Error(t("InvalidRingScale", "Le ratio des remous doit être strictement positif."));
+        }
         if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
-        return { surface, depth, ringPng, visibilityDepth };
+        return { surface, depth, ringPng, ringScale, visibilityDepth };
       }
     },
     rejectClose: false,
@@ -204,7 +219,10 @@ export async function configureSelectedWaterRegions() {
   for (const region of regions) {
     await region.setFlag(MODULE_ID, WATER_REGION_FLAG, {
       enabled: true, surface: result.surface, depth: result.depth,
-      ringPng: result.ringPng ?? "", visibilityDepth:
+      ringPng: result.ringPng ?? "",
+      ringScale: Number.isFinite(result.ringScale) && result.ringScale > 0
+        ? result.ringScale : first.ringScale,
+      visibilityDepth:
         Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth
     });
   }
