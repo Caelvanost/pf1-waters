@@ -22,7 +22,10 @@ export function getWaterSurfaceData(value) {
   return {
     enabled: Boolean(raw?.enabled),
     regionId: typeof raw?.regionId === "string" ? raw.regionId : null,
-    syncElevation: raw?.syncElevation !== false
+    syncElevation: raw?.syncElevation !== false,
+    // Visual range only. The Region is solely responsible for water physics.
+    visibilityDepth: Math.max(0, finite(raw?.visibilityDepth,
+      Math.max(0, finite(doc?.parent?.grid?.distance, 1.5)) * 2))
   };
 }
 export function resolveWaterSurfaceRegion(value) {
@@ -88,13 +91,20 @@ export async function configureSelectedWaterSurfaces(type) {
       '</select></div></div><div class="form-group"><label>' +
       t("AlignSurface", "Aligner l’élévation sur la Region") +
       '</label><div class="form-fields"><input name="syncElevation" type="checkbox"' +
-      (first.syncElevation ? " checked" : "") + '></div></div></div>',
+      (first.syncElevation ? " checked" : "") +
+      '></div></div><div class="form-group"><label>' +
+      t("VisibilityDepth", "Profondeur maximale de visibilité sous l’eau") +
+      '</label><div class="form-fields"><input name="visibilityDepth" type="number" min="0" step="any" value="' +
+      esc(first.visibilityDepth) + '"></div></div><p class="hint">' +
+      t("VisibilityDepthHint", "En unités de scène. Le sommet du token disparaît lorsqu’il atteint cette profondeur.") +
+      '</p></div>',
     ok: {
       label: t("LinkConfirm", "Lier à la surface d’eau"),
       icon: "fa-solid fa-water",
       callback: (_event, button) => ({
         regionId: String(button.form.elements.regionId.value),
-        syncElevation: Boolean(button.form.elements.syncElevation.checked)
+        syncElevation: Boolean(button.form.elements.syncElevation.checked),
+        visibilityDepth: Number(button.form.elements.visibilityDepth.value)
       })
     },
     rejectClose: false, modal: true
@@ -103,9 +113,14 @@ export async function configureSelectedWaterSurfaces(type) {
   if (!regions.some((r) => r.id === result.regionId)) {
     return ui.notifications.warn(t("NoRegions", "Region aquatique introuvable."));
   }
+  if (!Number.isFinite(result.visibilityDepth) || result.visibilityDepth < 0) {
+    return ui.notifications.warn(t("InvalidVisibilityDepth",
+      "La profondeur de visibilité doit être positive ou nulle."));
+  }
   for (const doc of chosen) {
     await doc.setFlag(MODULE_ID, FLAG, {
-      enabled: true, regionId: result.regionId, syncElevation: result.syncElevation
+      enabled: true, regionId: result.regionId, syncElevation: result.syncElevation,
+      visibilityDepth: result.visibilityDepth
     });
     if (result.syncElevation) await syncWaterSurfaceElevation(doc);
   }

@@ -30,7 +30,10 @@
     "TileUnlinkTool": "Dissocier la tuile de la surface d’eau",
     "DrawingLinkTool": "Lier le dessin à la surface d’eau",
     "DrawingUnlinkTool": "Dissocier le dessin de la surface d’eau",
-    "VisualDepthName": "PF1 Waters — Tri graphique des tokens partiellement immergés",
-    "VisualDepthHint": "Affiche le token devant les tuiles/dessins représentant la surface de sa Region lorsque sa profondeur est inférieure à sa hauteur. Ne modifie pas son altitude réelle."
+    "VisualDepthName": "PF1 Waters — Superposition et visibilité sous-marine",
+    "VisualDepthHint": "Les tokens dépassant de l’eau apparaissent devant les tuiles/dessins ; les tokens complètement immergés restent visibles derrière la texture jusqu’à la profondeur configurée.",
+    "VisibilityDepth": "Profondeur maximale de visibilité sous l’eau",
+    "VisibilityDepthHint": "Dans les unités de la scène (mètres ou pieds). Le token reste visible jusqu’à cette profondeur de son sommet ; il s’estompe sur les derniers 30 %.",
+    "InvalidVisibilityDepth": "La profondeur de visibilité doit être positive ou nulle."
   }
 }

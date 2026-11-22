@@ -15,7 +15,7 @@ globalThis.game = {
 globalThis.ui = { notifications: { info() {}, warn() {} } };
 globalThis.foundry = {
   utils: { escapeHTML: (text) => String(text).replaceAll("&", "&amp;").replaceAll("<", "&lt;") },
-  applications: { api: { DialogV2: { prompt: async () => ({ regionId: "lake", syncElevation: true }) } } }
+  applications: { api: { DialogV2: { prompt: async () => ({ regionId: "lake", syncElevation: true, visibilityDepth:5 }) } } }
 };
 function makeScene() {
   return { id: "scene", regions: [], tiles: [], drawings: [],
@@ -41,7 +41,7 @@ function link(doc,regionId="lake",syncElevation=true) {
 test("visual surface points at a Region without any waterRegion flag",()=>{
   const s=makeScene(),r=region(s),tile=placeable(s),drawing=placeable(s,"Drawing");
   link(tile);link(drawing);
-  assert.deepEqual(getWaterSurfaceData(tile),{enabled:true,regionId:"lake",syncElevation:true});
+  assert.deepEqual(getWaterSurfaceData(tile),{enabled:true,regionId:"lake",syncElevation:true,visibilityDepth:3});
   assert.equal(tile.getFlag("pf1-waters","waterRegion"),undefined);
   assert.equal(resolveWaterSurfaceRegion(tile),r);
   assert.equal(resolveWaterSurfaceRegion(drawing),r);
@@ -81,9 +81,27 @@ test("GM tools link a selected Tile then unlink it without modifying Region",asy
   assert.equal(typeof controls.drawings.tools.pf1WatersDrawingLinkTool.onChange,"function");
   await configureSelectedWaterSurfaces("Tile");
   assert.equal(getWaterSurfaceData(tile).regionId,"lake");
+  assert.equal(getWaterSurfaceData(tile).visibilityDepth,5);
   assert.equal(tile.elevation,4);
   assert.equal(r.getFlag("pf1-waters","waterRegion").enabled,true);
   await clearSelectedWaterSurfaces("Tile");
   assert.equal(getWaterSurfaceData(tile).enabled,false);
   assert.equal(r.getFlag("pf1-waters","waterRegion").enabled,true);
+});
+
+test("old links default visibility range to two grid distances, and allow zero",()=>{
+  const s=makeScene();region(s);const tile=placeable(s);link(tile);
+  assert.equal(getWaterSurfaceData(tile).visibilityDepth,3);
+  s.grid.distance=5;
+  assert.equal(getWaterSurfaceData(tile).visibilityDepth,10);
+  tile.flags["pf1-waters"].waterSurface.visibilityDepth=0;
+  assert.equal(getWaterSurfaceData(tile).visibilityDepth,0);
+});
+test("visual visibility range never modifies the real Region depth",async()=>{
+  const s=makeScene(),r=region(s),tile=placeable(s);
+  link(tile);tile.flags["pf1-waters"].waterSurface.visibilityDepth=2.5;
+  assert.equal(getWaterSurfaceData(tile).visibilityDepth,2.5);
+  assert.equal(r.getFlag("pf1-waters","waterRegion").depth,10);
+  await syncWaterSurfaceElevation(tile);
+  assert.equal(r.getFlag("pf1-waters","waterRegion").depth,10);
 });
