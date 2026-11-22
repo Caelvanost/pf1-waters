@@ -172,15 +172,40 @@ function getLocalWaterObservers() {
 }
 
 /**
- * A token inside the SAME water Region as the target is an underwater
- * observer. The target's external visibilityDepth is NOT a limit for it.
- * An observer on a bridge over the 2D Region does not qualify.
+ * Use the actual eye/line-of-sight height when available. In particular,
+ * a floating token may cross the water surface while looking out of the water.
+ * Its body immersion alone must NOT grant unrestricted underwater vision.
+ */
+export function getWaterObserverEyeElevation(viewer, state = undefined) {
+  const doc = viewer?.document ?? viewer;
+  if (Number.isFinite(viewer?.losHeight)) return viewer.losHeight;
+  const water = state ?? (doc ? getTokenWaterState(doc) : null);
+  // A Document-only observer has no placeable LOS height; its physical
+  // top is a conservative exterior-facing fallback for floating bodies.
+  return finite(water?.tokenTop, finite(doc?.elevation, 0));
+}
+
+/** A truly underwater viewpoint needs immersed body AND eyes below water. */
+export function isWaterObserverSubmerged(viewer, state = undefined) {
+  const doc = viewer?.document ?? viewer;
+  if (!doc) return false;
+  const water = state ?? getTokenWaterState(doc);
+  return Boolean(water?.inWater && water.region &&
+    Number.isFinite(water.surface) &&
+    getWaterObserverEyeElevation(viewer, water) < water.surface - EPSILON);
+}
+
+/**
+ * The depth limit is bypassed only for a viewer whose eyes are underwater
+ * inside the SAME Region. Floating swimmers looking above the surface use
+ * exterior visibility rules, even if their bodies are partly submerged.
  */
 export function hasInteriorWaterViewer(targetState) {
   if (!targetState?.inWater || !targetState.region) return false;
   return getLocalWaterObservers().some((viewer) => {
     const state = getTokenWaterState(viewer.document);
-    return state.inWater && state.region?.id === targetState.region.id &&
+    return isWaterObserverSubmerged(viewer, state) &&
+      state.region?.id === targetState.region.id &&
       state.region?.parent?.id === targetState.region.parent?.id;
   });
 }
@@ -232,10 +257,7 @@ export function hasExteriorWaterViewer(surface, targetToken = null) {
   if (game.user?.isGM && !(canvas.tokens?.controlled?.length)) return true;
   return getLocalWaterObservers().some((source) => {
     const doc = source.document;
-    const eye = Number.isFinite(source.losHeight) ? source.losHeight :
-      finite(doc.elevation, 0) +
-      Math.max(0, finite(doc.height, 1)) *
-      finite(canvas.scene?.grid?.distance, 0);
+    const eye = getWaterObserverEyeElevation(source);
     return eye >= surface - EPSILON;
   });
 }

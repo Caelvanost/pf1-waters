@@ -9,6 +9,7 @@ import {
 class Container {
   constructor(){this.children=[];this.parent=null;this.destroyed=false;}
   addChild(x){this.children.push(x);x.parent=this;return x;}
+  addChildAt(x,n){this.children.splice(n,0,x);x.parent=this;return x;}
   removeChild(x){this.children=this.children.filter(y=>y!==x);x.parent=null;}
   destroy(){this.destroyed=true;}
 }
@@ -43,10 +44,10 @@ function setup({light=true,limit=36}={}) {
   movementAction:"swim",getFlag(){return undefined;}
  }});
  const viewer=createViewer(-19.5);
- const primary=new Container();
- globalThis.canvas={ready:true,scene:sc,primary,
+ const primary=new Container(),interfaceGroup=new Container();
+ globalThis.canvas={ready:true,scene:sc,primary,interface:interfaceGroup,
   tokens:{controlled:[viewer]},effects:{visionSources:new Map()}};
- return {sc,region,viewer,primary,createViewer};
+ return {sc,region,viewer,primary,interfaceGroup,createViewer};
 }
 test("v13 global-light setting gates the effect",()=>{
  assert.equal(hasSceneGlobalIllumination({environment:{globalLight:{enabled:true}}}),true);
@@ -92,7 +93,7 @@ test("outside or no-global-light scenes show no underwater shading",()=>{
  const x=setup({light:false});
  assert.equal(getWaterRegionGlobalLightStates(x.sc,canvas.tokens.controlled).length,0);
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(canvas.primary.children.length,0);
+ assert.equal(canvas.interfaceGroup.children.length,0);
 });
 test("multiple active underwater viewers share the least dark view",()=>{
  const {sc,viewer,createViewer}=setup();
@@ -102,11 +103,11 @@ test("multiple active underwater viewers share the least dark view",()=>{
  assert.equal(result[0].factor,1);
 });
 test("graphics matches Region triangles, fades and cleans up on exit",()=>{
- const {viewer,primary}=setup();
+ const {viewer,interfaceGroup}=setup();
  viewer.document.elevation=-37.5; // top -36
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(primary.children.length,1);
- const gfx=primary.children[0].children[0];
+ assert.equal(interfaceGroup.children.length,1);
+ const gfx=interfaceGroup.children[0].children[0];
  assert.deepEqual(gfx.polygons,[
   [0,0,200,0,200,200],[0,0,200,200,0,200]
  ]);
@@ -119,32 +120,32 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.ok(Math.abs(gfx.alpha-.95)<1e-12,"5% sunlight remains at 5×");
  viewer.document.elevation=-201.5; // observer's volume extends beyond Region depth
  assert.equal(refreshWaterGlobalLighting(),0,"outside a Region: no attenuation overlay");
- assert.equal(primary.children.length,0);
+ assert.equal(interfaceGroup.children.length,0);
  assert.equal(gfx.destroyed,true);
  viewer.document.elevation=-1.5;
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(primary.children.length,0);
+ assert.equal(interfaceGroup.children.length,0);
 });
 test("turning global light off removes local overlays without changing scene",()=>{
- const {sc,viewer,primary}=setup();
+ const {sc,viewer,interfaceGroup}=setup();
  viewer.document.elevation=-37.5;
  assert.equal(refreshWaterGlobalLighting(),1);
  sc.environment.globalLight.enabled=false;
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(primary.children.length,0);
+ assert.equal(interfaceGroup.children.length,0);
  assert.equal(sc.environment.globalLight.enabled,false);
 });
 test("GM without controlled token gets no underwater shading",()=>{
- const {viewer,primary}=setup();
+ const {viewer,interfaceGroup}=setup();
  viewer.document.elevation=-37.5;
  game.user.isGM=true;
  canvas.tokens.controlled=[];
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(primary.children.length,0);
+ assert.equal(interfaceGroup.children.length,0);
  game.user.isGM=false;
  canvas.effects.visionSources.set("sight",{object:viewer,active:true});
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(primary.children.length,1);
+ assert.equal(interfaceGroup.children.length,1);
 });
 test("underwater illumination hooks registered",()=>{
  registerWaterGlobalLightingHooks();
@@ -168,15 +169,15 @@ test("explicit Region visibility scales every milestone up to full extinction",(
  assert.equal(globalWaterLightFactor(200,10),0);
 });
 test("a non-global-light Scene never creates attenuation",()=>{
- const {sc,viewer,primary}=setup({light:false});
+ const {sc,viewer,interfaceGroup}=setup({light:false});
  viewer.document.elevation=-90;
  assert.equal(getWaterRegionGlobalLightStates(sc,[viewer]).length,0);
  assert.equal(refreshWaterGlobalLighting(),0);
- assert.equal(primary.children.length,0);
+ assert.equal(interfaceGroup.children.length,0);
 });
 
 test("a deep Region removes the last 5% of global sunlight at 20× distance",()=>{
- const {sc,region,viewer,primary}=setup({limit:10});
+ const {sc,region,viewer,interfaceGroup}=setup({limit:10});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
    ?{enabled:true,surface:0,depth:1000,visibilityDepth:10}:undefined;
  viewer.document.elevation=-201.5; // eyes at top -200m
@@ -186,8 +187,44 @@ test("a deep Region removes the last 5% of global sunlight at 20× distance",()=
  assert.equal(states[0].darkness,1);
  assert.equal(states[0].cutoff,200);
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(primary.children[0].children[0].alpha,1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,1);
  viewer.document.elevation=-301.5;
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(primary.children[0].children[0].alpha,1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,1);
+});
+
+test("darkening is drawn on the visible interface pass, not the cached primary",()=>{
+ const {viewer,primary,interfaceGroup}=setup();
+ viewer.document.elevation=-19.5; // eyes 18m under water
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(primary.children.length,0,
+   "primary cached canvas must not receive the darkness overlay");
+ assert.equal(interfaceGroup.children.length,1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
+});
+test("floating with eyes above surface gets no underwater darkness",()=>{
+ const {sc,viewer,interfaceGroup}=setup();
+ viewer.document.elevation=-0.75;
+ viewer.losHeight=0.4;
+ assert.equal(getTokenWaterState(viewer.document).floating,true);
+ assert.equal(getWaterRegionGlobalLightStates(sc,[viewer]).length,0);
+ assert.equal(refreshWaterGlobalLighting(),0);
+ assert.equal(interfaceGroup.children.length,0);
+ viewer.losHeight=-18;
+ const states=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(states.length,1);
+ assert.equal(states[0].depth,18);
+ assert.equal(states[0].factor,.75);
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
+});
+test("darkness layer is inserted below emerged foreground sprites",()=>{
+ const {viewer,interfaceGroup}=setup();
+ viewer.document.elevation=-37.5;
+ const overlay=new Container();
+ overlay.name="pf1-waters-emerged-token-overlays";
+ interfaceGroup.addChild(overlay);
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(interfaceGroup.children[0].name,"pf1-waters-underwater-global-light");
+ assert.equal(interfaceGroup.children[1],overlay);
 });

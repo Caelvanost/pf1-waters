@@ -7,7 +7,8 @@ import {
   refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth,
   surfaceContainsTokenCenter, hasExteriorWaterViewer,
   canSeeWaterTokenFromExterior, hasInteriorWaterViewer,
-  canSeeWaterTokenFromInterior
+  canSeeWaterTokenFromInterior, getWaterObserverEyeElevation,
+  isWaterObserverSubmerged
 } from "../scripts/water-visual-depth.mjs";
 
 class Point{
@@ -468,4 +469,78 @@ test("underwater observer in a different water Region never bypasses range",()=>
   assert.equal(token.mesh.alpha,0);
   assert.equal(token.visible,false);
   resetViewerTests();
+});
+
+
+test("floating swimmer with eyes above surface cannot see past depth limit",()=>{
+ const {scene,region}=makeScene();region.visibilityDepth=2;makeVisual(scene);
+ const target=makeToken(scene,-6); // top -4.5, beyond exterior limit
+ target.isVisible=false;target.visible=false;target.mesh.visible=false;
+ const swimmer=underwaterViewer(scene,{elevation:-0.75});
+ swimmer.losHeight=0.55; // crossing water, but viewing from air
+ canvas.tokens.controlled=[swimmer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ const swimmerState=getTokenWaterState(swimmer.document);
+ assert.equal(swimmerState.floating,true);
+ assert.equal(swimmerState.inWater,true);
+ assert.equal(getWaterObserverEyeElevation(swimmer,swimmerState),0.55);
+ assert.equal(isWaterObserverSubmerged(swimmer,swimmerState),false);
+ assert.equal(hasInteriorWaterViewer(getTokenWaterState(target.document)),false);
+ assert.equal(hasExteriorWaterViewer(0),true);
+ assert.equal(canSeeWaterTokenFromInterior(target),false);
+ assert.equal(getTokenWaterVisualDisplay(target).opacity,0);
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.mesh.alpha,0);
+ assert.equal(target.visible,false);
+ resetViewerTests();
+});
+test("floating swimmer with eyes below surface retains interior visibility",()=>{
+ const {scene,region}=makeScene();region.visibilityDepth=2;makeVisual(scene);
+ const target=makeToken(scene,-6);
+ target.isVisible=false;target.visible=false;target.mesh.visible=false;
+ const swimmer=underwaterViewer(scene,{elevation:-0.75});
+ swimmer.losHeight=-0.25;
+ canvas.tokens.controlled=[swimmer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ assert.equal(getTokenWaterState(swimmer.document).floating,true);
+ assert.equal(isWaterObserverSubmerged(swimmer),true);
+ assert.equal(hasInteriorWaterViewer(getTokenWaterState(target.document)),true);
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,true);
+ assert.equal(target.mesh.visible,true);
+ assert.equal(target.mesh.alpha,1);
+ resetViewerTests();
+});
+test("moving floating swim LOS across the surface re-applies exterior cap without moving target",()=>{
+ const {scene,region}=makeScene();region.visibilityDepth=2;makeVisual(scene);
+ const target=makeToken(scene,-7);
+ target.isVisible=false;target.visible=false;target.mesh.visible=false;
+ const swimmer=underwaterViewer(scene,{elevation:-0.75});
+ swimmer.losHeight=-0.2;
+ canvas.tokens.controlled=[swimmer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,true);
+ assert.equal(target.mesh.alpha,1);
+ swimmer.losHeight=0.4;
+ refreshSceneWaterVisualDepth();
+ assert.equal(target.visible,false);
+ assert.equal(target.mesh.alpha,0);
+ swimmer.losHeight=-0.3;
+ refreshSceneWaterVisualDepth();
+ assert.equal(target.visible,true);
+ assert.equal(target.mesh.alpha,1);
+ resetViewerTests();
+});
+test("floating swimmer with no LOS height falls back to physical top, not base",()=>{
+ const {scene}=makeScene();
+ const swimmer=underwaterViewer(scene,{elevation:-0.75});
+ delete swimmer.losHeight;
+ const state=getTokenWaterState(swimmer.document);
+ assert.equal(state.floating,true);
+ assert.equal(getWaterObserverEyeElevation(swimmer,state),0.75);
+ assert.equal(isWaterObserverSubmerged(swimmer,state),false);
 });

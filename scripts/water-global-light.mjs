@@ -3,12 +3,18 @@
  *
  * Foundry v13 uses a 2D scene canvas, not a volumetric lightmap. We therefore
  * model the water-column darkness from this user's active underwater viewpoint.
- * Render a non-interactive, Region-shaped dark overlay in PrimaryCanvasGroup,
- * before native lighting effects. Never edit Scene illumination, AmbientLight,
- * TokenDocument or Region documents.
+ * Render a non-interactive, Region-shaped dark overlay in InterfaceCanvasGroup.
+ * The former PrimaryCanvasGroup placement was subject to Foundry's cached
+ * primary sprite composition and could fail to appear during elevation
+ * updates. Interface renders after the Scene's lighting, guaranteeing visible
+ * local darkening; this is a graphical simulation, not a volumetric lightmap.
+ * Never edit Scene illumination, AmbientLight, TokenDocument or Region data.
  */
 import { MODULE_ID, finite } from "./constants.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
+import {
+  getWaterObserverEyeElevation, isWaterObserverSubmerged
+} from "./water-visual-depth.mjs";
 import { getWaterRegionData } from "./water-regions.mjs";
 
 const shades = new Map();
@@ -96,9 +102,9 @@ export function getWaterRegionGlobalLightStates(
   const states = new Map();
   for (const token of viewers) {
     const state = getTokenWaterState(token.document);
-    if (!state.inWater || !state.region ||
+    if (!isWaterObserverSubmerged(token, state) || !state.region ||
         state.region.parent?.id !== scene?.id) continue;
-    const eye = Number.isFinite(token.losHeight) ? token.losHeight : state.tokenTop;
+    const eye = getWaterObserverEyeElevation(token, state);
     const depth = Math.max(0, state.surface - eye);
     const visibilityDepth = getWaterRegionData(state.region).visibilityDepth;
     const factor = globalWaterLightFactor(depth, visibilityDepth);
@@ -127,16 +133,24 @@ function clearLayer() {
 
 function ensureLayer() {
   const canvas = globalThis.canvas;
-  if (!canvas?.ready || !canvas.primary || !globalThis.PIXI?.Container)
+  if (!canvas?.ready || !canvas.interface || !globalThis.PIXI?.Container)
     return null;
-  if (layer?.parent === canvas.primary && !layer.destroyed) return layer;
+  if (layer?.parent === canvas.interface && !layer.destroyed) return layer;
   clearLayer();
   layer = new PIXI.Container();
   layer.name = MODULE_ID + "-underwater-global-light";
   layer.eventMode = "none";
   layer.interactiveChildren = false;
-  layer.zIndex = 100000;
-  canvas.primary.addChild(layer);
+  // The interface pass is always rendered on screen, even if the cached
+  // PrimaryCanvasGroup does not redraw after a token elevation change.
+  // Place the darkness before foreground replicas of emerged tokens.
+  const parent = canvas.interface;
+  const replicas = parent.children?.findIndex?.(
+    x => x.name === MODULE_ID + "-emerged-token-overlays"
+  ) ?? -1;
+  if (replicas >= 0 && typeof parent.addChildAt === "function")
+    parent.addChildAt(layer, replicas);
+  else parent.addChild(layer);
   return layer;
 }
 
@@ -210,7 +224,8 @@ export function refreshWaterGlobalLighting() {
       graphic.visible=true;
       count++;
     }
-    canvas.primary.renderDirty=true;
+    // InterfaceCanvasGroup is live: changes to PIXI.Graphics alpha are
+    // visible on the next frame, without cached-primary renderDirty.
     return count;
   } finally {
     refreshing=false;
