@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.7
+# PF1 Waters — v1.4.8
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -53,6 +53,18 @@ Un token **dans l'eau** qui **n'a pas pied** reçoit et conserve l'effet d'état
 - Les effets Nager appliqués à des personnages qui n'ont **jamais** été dans l'eau ne sont pas supprimés automatiquement par PF1 Waters, afin de ne pas interférer avec d'autres sources.
 
 Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting` et `waterwalk`, ni l'altitude réelle du token.
+
+## Visibilité entre créatures immergées (v1.4.8)
+
+La limite de visibilité en profondeur définie sur une Region (36 m / 120 pieds par défaut, ou la valeur du MJ) s'applique **uniquement depuis un point de vue extérieur à l'eau**. Elle ne limite **jamais** la visibilité entre deux tokens physiquement immergés dans **la même Region aquatique**.
+
+- **Observateur dans la même Region d'eau que la cible** : aucune atténuation ni disparition imposée par PF1 Waters, même si le sommet de la cible est plus profond que `visibilityDepth`. L'image du token conserve son opacité native et demeure affichée sous la tuile transparente.
+- **Observateur extérieur** (sur le pont, sur une berge, au-dessus de l'eau ou dans une autre Region) : la profondeur maximale de visibilité de la Region reste applicable, selon la position du sommet de la cible. Les derniers 30 % de cette distance restent atténués progressivement.
+- **Plusieurs sources de vision du même utilisateur** : la présence d'au moins une source immergée dans la même Region, et capable de voir la cible selon Foundry, suffit à supprimer la limite externe pour ce client. Les tokens des autres joueurs ne servent pas de sources de vision supplémentaires.
+- **Murs, éclairage, brouillard, effets d'invisibilité et tokens cachés** : le traitement de la limite de profondeur ne contourne pas les contrôles de visibilité du moteur Foundry v13. Il vérifie un point à la profondeur réelle de la cible via `canvas.visibility.testVisibility`.
+- Lorsque l'observateur sort de l'eau ou change de Region, le prochain rafraîchissement de vision réapplique automatiquement la limite de profondeur extérieure, même si la cible n'a pas bougé.
+
+Cette fonctionnalité est propre au rendu de chaque client et n'affecte ni les caractéristiques du token, ni les états `floating` / `hasFooting`, ni les règles de couverture et de combat de PF1AE.
 
 ## Visibilité extérieure et états aquatiques (v1.4.0)
 

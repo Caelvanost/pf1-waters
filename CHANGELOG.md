@@ -1,3 +1,12 @@
+# 1.4.8 — Visibilité sans limite artificielle entre tokens dans la même eau
+
+- La profondeur de visibilité des Regions n'est plus appliquée à une cible immergée lorsque le client possède une source de vision immergée dans la **même Region** et que Foundry confirme la ligne de vue vers la cible.
+- L'opacité et la visibilité natives sont rétablies en vision intérieure même au-delà de 36 m / 120 pieds (ou d'un seuil personnalisé).
+- Les observateurs extérieurs, au-dessus de l'eau ou dans une autre Region conservent le seuil de profondeur, son atténuation finale et la disparition des tokens profonds.
+- Réévaluation lorsque les sources de vision se déplacent : passage immédiat de la vision intérieure à la vision extérieure sans mouvement de la cible.
+- Maintien des murs, brouillard, restrictions de vision et tokens cachés ; aucun changement à PF1AE ou aux mécaniques de nage.
+- Tests de régression : profondeur intérieure illimitée, transition vers l'extérieur, absence de contournement des murs, observateurs en altitude et Regions distinctes.
+
 # 1.4.7 — Ratio de taille des remous par Region d’eau
 
 - Champ « Ratio de taille des remous » dans la configuration de la Region, enregistré dans `flags.pf1-waters.waterRegion.ringScale`.

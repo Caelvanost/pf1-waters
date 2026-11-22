@@ -1,4 +1,4 @@
-import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
+import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, hasInteriorWaterViewer, canSeeWaterTokenFromInterior, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
 import { getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion, configureSelectedWaterSurfaces, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import {
   getWaterRegionData, getWaterBottomElevation, isWaterRegion,
@@ -53,6 +53,7 @@ export const WATER_API = Object.freeze({
   calculateWaterVisualElevation, surfaceContainsTokenCenter,
   getTokenWaterVisualElevation, getTokenWaterVisualDisplay,
   hasExteriorWaterViewer, canSeeWaterTokenFromExterior,
+  hasInteriorWaterViewer, canSeeWaterTokenFromInterior,
   calculateUnderwaterVisualOpacity, refreshTokenWaterVisualDepth,
   refreshSceneWaterVisualDepth
 });
