@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.8 : visibilité sans limite artificielle entre tokens de la même Region d'eau, seuil en profondeur conservé pour l'extérieur.",
+  "description": "PF1 Waters 1.4.8 : vision des tokens immergés sans limite de profondeur dans la même Region, avec ligne de vue Foundry conservée.",
   "version": "1.4.8",
   "authors": [
     {

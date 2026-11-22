@@ -310,7 +310,7 @@ test("submerged target is displayed beneath Tile if top is within Region range a
  game.user.isGM=true;
  canvas.tokens.controlled=[];delete canvas.visibility;
 });
-test("an underwater observer or a blocked LOS cannot reveal a floating creature",()=>{
+test("an underwater observer sees a floating creature while blocked LOS still prevents it",()=>{
  const {scene}=makeScene();makeVisual(scene);
  const target=makeToken(scene,-0.75);
  target.isVisible=false;target.visible=false;target.mesh.visible=false;
@@ -320,8 +320,9 @@ test("an underwater observer or a blocked LOS cannot reveal a floating creature"
  game.user.isGM=false;
  assert.equal(hasExteriorWaterViewer(0),false);
  assert.equal(canSeeWaterTokenFromExterior(target),false);
+ assert.equal(canSeeWaterTokenFromInterior(target),true);
  refreshTokenWaterVisualDepth(target);
- assert.equal(target.visible,false);
+ assert.equal(target.visible,true,"an observer in the same water Region sees the floating creature");
  viewer.losHeight=5;
  canvas.visibility={testVisibility(){return false;}}; // wall or darkness
  assert.equal(hasExteriorWaterViewer(0),true);
