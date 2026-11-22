@@ -1,3 +1,12 @@
+# 1.4.10 — Lumière globale : 5 % à 5× et extinction à 20×
+
+- Conservation des seuils précédents : **50 %** à une profondeur de visibilité, **25 %** à deux profondeurs.
+- Ajout des seuils **5 %** à cinq profondeurs de visibilité et **0 %** à vingt profondeurs de visibilité, puis extinction au-delà.
+- Courbe d’atténuation continue, interpolée linéairement entre tous les paliers.
+- Par défaut (36 m) : seuils à **36, 72, 180 et 720 m** ; pour les scènes à 120 pieds : **120, 240, 600 et 2 400 pieds**.
+- Le traitement reste conditionné à l'éclairage global, limité à la Region depuis un observateur immergé. Les lumières locales ne sont pas configurées par ce calcul.
+- Tests de régression sur la nouvelle courbe, les limites personnalisées, la composition d'assombrissement et l'extinction totale en eaux profondes.
+
 # 1.4.9 — Lumière globale sous l'eau : 50 %, puis 25 % minimum
 
 - Assombrissement visuel progressif de la Region d'eau lorsque l'éclairage global est activé et que le point de vue du client est immergé.

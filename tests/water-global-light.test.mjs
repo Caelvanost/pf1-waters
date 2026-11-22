@@ -53,19 +53,29 @@ test("v13 global-light setting gates the effect",()=>{
  assert.equal(hasSceneGlobalIllumination({environment:{globalLight:{enabled:false}}}),false);
  assert.equal(hasSceneGlobalIllumination({}),false);
 });
-test("smooth sunlight stops at a 25% floor beyond twice visibility depth",()=>{
+test("sunlight milestones: 50% at 1×, 25% at 2×, 5% at 5×, 0% at 20×",()=>{
+ // The curve is piecewise linear, continuous and never negative.
  assert.equal(globalWaterLightFactor(0,36),1);
  assert.equal(globalWaterLightFactor(18,36),.75);
  assert.equal(globalWaterLightFactor(36,36),.5);
  assert.equal(globalWaterLightFactor(54,36),.375);
  assert.equal(globalWaterLightFactor(72,36),.25);
- assert.equal(globalWaterLightFactor(1000,36),.25);
+ assert.ok(Math.abs(globalWaterLightFactor(126,36)-.15)<1e-12);
+ assert.ok(Math.abs(globalWaterLightFactor(180,36)-.05)<1e-12);
+ assert.ok(Math.abs(globalWaterLightFactor(450,36)-.025)<1e-12);
+ assert.equal(globalWaterLightFactor(720,36),0);
+ assert.equal(globalWaterLightFactor(1000,36),0);
+ // Feet-based Regions use their configured 120-foot distance, not metres.
  assert.equal(globalWaterLightFactor(120,120),.5);
  assert.equal(globalWaterLightFactor(180,120),.375);
  assert.equal(globalWaterLightFactor(240,120),.25);
- assert.equal(globalWaterLightFactor(300,120),.25);
+ assert.ok(Math.abs(globalWaterLightFactor(600,120)-.05)<1e-12);
+ assert.equal(globalWaterLightFactor(2400,120),0);
+ assert.equal(globalWaterLightFactor(3000,120),0);
  assert.equal(globalWaterLightFactor(0,0),1);
- assert.equal(globalWaterLightFactor(.01,0),.25);
+ assert.equal(globalWaterLightFactor(.01,0),0);
+ assert.equal(globalWaterLightFactor(-10,36),1);
+ assert.equal(globalWaterLightFactor(10,-1),1);
 });
 test("observer depth and custom water visibility determine attenuation",()=>{
  const {sc}=setup({limit:36});
@@ -73,7 +83,7 @@ test("observer depth and custom water visibility determine attenuation",()=>{
  assert.equal(state.length,1);
  assert.equal(state[0].depth,18);
  assert.equal(state[0].factor,.75);
- assert.equal(state[0].cutoff,72);
+ assert.equal(state[0].cutoff,720);
 });
 test("outside or no-global-light scenes show no underwater shading",()=>{
  const {sc,viewer}=setup();
@@ -103,14 +113,17 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.equal(gfx.alpha,.5);
  viewer.document.elevation=-73.5; // top -72
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(gfx.alpha,.75,"never fully black out the water");
- viewer.document.elevation=-100;
+ assert.equal(gfx.alpha,.75,"25% sunlight remains at the second milestone");
+ viewer.document.elevation=-181.5; // top -180 = 5× visibility
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(gfx.alpha,.75,"25% sunlight remains at any greater depth");
+ assert.ok(Math.abs(gfx.alpha-.95)<1e-12,"5% sunlight remains at 5×");
+ viewer.document.elevation=-201.5; // observer's volume extends beyond Region depth
+ assert.equal(refreshWaterGlobalLighting(),0,"outside a Region: no attenuation overlay");
+ assert.equal(primary.children.length,0);
+ assert.equal(gfx.destroyed,true);
  viewer.document.elevation=-1.5;
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(primary.children.length,0);
- assert.equal(gfx.destroyed,true);
 });
 test("turning global light off removes local overlays without changing scene",()=>{
  const {sc,viewer,primary}=setup();
@@ -139,15 +152,20 @@ test("underwater illumination hooks registered",()=>{
   assert.equal(typeof hooks.get(name),"function");
 });
 
-test("explicit Region visibility changes the 50% and 25% thresholds",()=>{
+test("explicit Region visibility scales every milestone up to full extinction",()=>{
  const {sc,viewer}=setup({limit:10});
  viewer.document.elevation=-11.5; // token top -10m
  let states=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(states[0].factor,.5);
- assert.equal(states[0].cutoff,20);
- viewer.document.elevation=-21.5; // top -20m
+ assert.equal(states[0].cutoff,200);
+ viewer.document.elevation=-21.5; // top -20m = 2×
  states=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(states[0].factor,.25);
+ viewer.document.elevation=-51.5; // top -50m = 5×
+ states=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.ok(Math.abs(states[0].factor-.05)<1e-12);
+ viewer.document.elevation=-201.5; // volume below finite Region; calculation still reaches 0
+ assert.equal(globalWaterLightFactor(200,10),0);
 });
 test("a non-global-light Scene never creates attenuation",()=>{
  const {sc,viewer,primary}=setup({light:false});
@@ -155,4 +173,21 @@ test("a non-global-light Scene never creates attenuation",()=>{
  assert.equal(getWaterRegionGlobalLightStates(sc,[viewer]).length,0);
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(primary.children.length,0);
+});
+
+test("a deep Region removes the last 5% of global sunlight at 20× distance",()=>{
+ const {sc,region,viewer,primary}=setup({limit:10});
+ region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
+   ?{enabled:true,surface:0,depth:1000,visibilityDepth:10}:undefined;
+ viewer.document.elevation=-201.5; // eyes at top -200m
+ const states=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(states.length,1);
+ assert.equal(states[0].factor,0);
+ assert.equal(states[0].darkness,1);
+ assert.equal(states[0].cutoff,200);
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(primary.children[0].children[0].alpha,1);
+ viewer.document.elevation=-301.5;
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(primary.children[0].children[0].alpha,1);
 });

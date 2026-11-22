@@ -28,21 +28,39 @@ export function hasSceneGlobalIllumination(scene) {
 }
 
 /**
- * User-defined underwater sunlight curve, piecewise linear:
- * surface 100% → first visibility distance 50% → second distance 25%.
- * Sunlight remains at a 25% visual floor below two times the distance.
+ * Visual underwater sunlight remaining at multiples of the Region's sight
+ * depth, with straight-line transitions between the authored milestones:
+ *
+ *   0× -> 100 %, 1× -> 50 %, 2× -> 25 %, 5× -> 5 %, 20× -> 0 %.
+ *
+ * Light stays completely extinguished deeper than 20× visibilityDepth.
+ * This applies only to the visual global-light layer, not local light sources.
  */
 export function globalWaterLightFactor(depth, visibilityDepth) {
   const d = Math.max(0, finite(depth, 0));
   if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) return 1;
-  if (visibilityDepth === 0) return d > 0 ? 0.25 : 1;
-  if (d <= visibilityDepth) {
-    return 1 - 0.5 * (d / visibilityDepth);
+  if (d === 0) return 1;
+  if (visibilityDepth === 0) return 0;
+
+  const multiple = d / visibilityDepth;
+  const milestones = [
+    [0, 1],
+    [1, 0.5],
+    [2, 0.25],
+    [5, 0.05],
+    [20, 0]
+  ];
+  for (let i = 1; i < milestones.length; i++) {
+    const [end, endLight] = milestones[i];
+    if (multiple <= end) {
+      const [start, startLight] = milestones[i - 1];
+      const ratio = (multiple - start) / (end - start);
+      return Math.max(0, Math.min(1,
+        startLight + (endLight - startLight) * ratio
+      ));
+    }
   }
-  if (d <= 2 * visibilityDepth) {
-    return 0.5 - 0.25 * ((d - visibilityDepth) / visibilityDepth);
-  }
-  return 0.25;
+  return 0;
 }
 
 function localWaterViewers() {
@@ -88,7 +106,7 @@ export function getWaterRegionGlobalLightStates(
     if (!previous || factor > previous.factor) {
       states.set(state.region.id, {
         region: state.region, regionId: state.region.id,
-        depth, visibilityDepth, cutoff: 2*visibilityDepth,
+        depth, visibilityDepth, cutoff: 20*visibilityDepth,
         factor, darkness: 1-factor
       });
     }

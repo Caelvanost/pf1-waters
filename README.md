@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.9
+# PF1 Waters — v1.4.10
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -54,7 +54,7 @@ Un token **dans l'eau** qui **n'a pas pied** reçoit et conserve l'effet d'état
 
 Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting` et `waterwalk`, ni l'altitude réelle du token.
 
-## Atténuation de la lumière globale sous l'eau (v1.4.9)
+## Atténuation de la lumière globale sous l'eau (v1.4.10)
 
 Lorsque l'**éclairage global de la scène** est activé dans Foundry v13, la luminosité ambiante à l'intérieur de la Region d'eau diminue **progressivement avec la profondeur du point de vue immergé**.
 
@@ -67,9 +67,10 @@ La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres o
 | Une profondeur de visibilité | 50 % |
 | Une profondeur et demie de visibilité | 37,5 % |
 | Deux profondeurs de visibilité | **25 %** |
-| Au-delà | **25 %**, sans extinction complète |
+| Cinq profondeurs de visibilité | **5 %** |
+| Vingt profondeurs de visibilité et au-delà | **0 %** |
 
-**Exemple :** une Region dont la visibilité vaut 36 m a 50 % de lumière globale à 36 m et 25 % à 72 m, et conserve 25 % au-delà. Pour une scène en pieds, les mêmes paliers valent 120 et 240 pieds.
+**Exemple :** pour une Region dont la visibilité vaut 36 m, la lumière globale passe à **50 % à 36 m**, **25 % à 72 m**, **5 % à 180 m**, puis **0 % à 720 m et au-delà**. Dans une scène en pieds (visibilité de 120 pieds), ces seuils sont **120**, **240**, **600** et **2 400 pieds**. L'interpolation est linéaire entre les paliers ; la lumière ne s'éteint qu'au vingtième facteur.
 
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur qui regarde depuis l'eau. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
