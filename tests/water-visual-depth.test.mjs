@@ -112,6 +112,8 @@ test("full immersion restores native mesh elevation; exit from water also restor
   token.document.elevation = -0.75;
   assert.equal(refreshTokenWaterVisualDepth(token), true);
   token.document.x = 400;
+  // Mock Token.center follows the live TokenDocument position as it does in Foundry.
+  token.center = { x: 450, y: 60 };
   assert.equal(refreshTokenWaterVisualDepth(token), true);
   assert.equal(token.mesh.elevation, -0.75);
 });

@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "Corps d'eau PF1 : Regions et volume aquatique, nage, immersion, projectiles, surfaces visuelles de tuile/dessin avec priorité de rendu des tokens partiellement immergés.",
+  "description": "Corps d'eau PF1 : Regions, immersion, nage et projectiles. Tuiles/dessins de surface liés aux Regions, avec tri graphique des tokens partiellement immergés, sans modification de leur élévation réelle.",
   "version": "1.2.0",
   "authors": [
     {
