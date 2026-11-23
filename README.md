@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.12
+# PF1 Waters — v1.4.13
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -75,6 +75,23 @@ La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres o
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Obscurité native de Foundry dans les Regions aquatiques (v1.4.13)
+
+**PF1 Waters utilise maintenant le comportement natif Foundry v13 « Ajuster le niveau d'obscurité » (`adjustDarknessLevel`)** pour que la profondeur du regard ait un véritable impact sur l'éclairage et la perception des tokens, plutôt que de masquer la scène avec un rectangle noir.
+
+- Lorsqu'un MJ configure une Region d'eau, le module lui ajoute automatiquement un comportement natif **neutre** (`mode: DARKEN`, `modifier: 0`). Les Regions existantes sont équipées automatiquement lorsque le MJ ouvre la scène. Les comportements d'obscurité créés manuellement par le MJ ne sont pas modifiés.
+- Lorsqu'un joueur observe depuis **l'intérieur de l'eau avec ses yeux sous la surface**, le module utilise les valeurs **Obscurité** et **Illumination globale** de la scène. Il calcule localement l'obscurité de la Region à partir de la profondeur de la ligne de vue. Les changements de profondeur passent uniquement par `RegionBehavior.system.updateSource` **sur ce client** : l'obscurité sauvegardée de la scène n'est **jamais écrasée**, et plusieurs joueurs peuvent observer des profondeurs différentes.
+- La courbe solaire existante reste **100 % à la surface**, **50 % à 1×** la visibilité, **25 % à 2×**, **5 % à 5×**, puis **0 % à 20×**. Le niveau d'obscurité appliqué est `obscuritéScène + (1 − obscuritéScène) × (1 − lumièreRestante)`, plafonné entre 0 et 1.
+- **Le seuil d'illumination globale de la scène doit être configuré** : lorsque l'obscurité effective de la Region le franchit, Foundry considère cette zone comme mécaniquement non éclairée. Sans ce seuil, une obscurité régionale peut rester essentiellement esthétique. Les torches, murs, vision dans le noir et autres détections sont alors gérés par le moteur de Foundry, sans masque qui couvrirait toutes les sources lumineuses.
+- Quand le token quitte l'eau, que sa ligne de vue repasse au-dessus de la surface, que l'éclairage global est coupé, ou que le MJ reprend sa caméra libre, le comportement revient localement à son état neutre. Les autres Regions ne sont pas modifiées.
+- Le rendu noir supplémentaire des versions précédentes n'est plus superposé aux Regions disposant du comportement natif actif. Pour les Regions non encore équipées, l'ancien filtre graphique reste un mécanisme de secours.
+
+**Exemple :** obscurité de scène 0,20 et visibilité aquatique 36 m. À 36 m de profondeur, la Region prend une obscurité locale de 0,60 ; à 72 m, 0,80 ; à 180 m, 0,96. Avec un seuil d'illumination globale fixé à 0,80, Foundry désactive l'illumination globale de cette Region à partir de ce seuil, tout en conservant les effets des sources de lumière et modes de vision qu'il autorise.
+
+**Diagnostic :** `game.modules.get("pf1-waters").api.nativeWaterDarknessDiagnostics()` fournit la valeur d'obscurité de la scène, la profondeur du point de vue et l'obscurité calculée pour la Region.
+
+**Compatibilité :** l'actualisation instantanée d'un comportement de Region par `updateSource()` est un ajustement local dont l'effet réel sur les passes de rendu et les seuils de Foundry v13 doit encore être validé dans une scène de jeu. Aucun niveau d'obscurité calculé ne se propage aux autres clients, mais une mise à jour ou un autre module peut réinitialiser le modèle local, auquel cas PF1 Waters le resynchronise.
 
 ## Visibilité réelle dans l'obscurité sous-marine (v1.4.12)
 

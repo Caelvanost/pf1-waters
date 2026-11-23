@@ -1,3 +1,16 @@
+# 1.4.13 — Obscurité native de Foundry selon la profondeur dans une Region d'eau
+
+- Le calcul de profondeur utilise désormais la **valeur Obscurité de la scène** et un comportement natif `adjustDarknessLevel` associé à chaque Region d'eau.
+- L'effet interagit avec le **seuil d'illumination globale** de Foundry v13, permettant à Foundry lui-même de considérer une zone comme non éclairée et de calculer les détections et sources de lumière locales.
+- Comportement natif neutre créé **une fois par Region** par le MJ, sans remplacer les comportements d'obscurité manuels.
+- Profondeur de la ligne de vue appliquée **uniquement sur le client** du joueur par `updateSource`, sans mise à jour réseau ni changement sauvegardé de l'obscurité de la scène.
+- Obscurité calculée : `D = Dscène + (1 − Dscène) × (1 − lumièreRestante)`. Courbe de profondeur inchangée : 50 % à 1×, 25 % à 2×, 5 % à 5×, 0 % à 20×.
+- Retour à l'obscurité neutre quand le point de vue quitte la Region, remonte à la surface ou quand l'illumination globale est désactivée.
+- Retrait de l'ancien masque PIXI dans les Regions gérées par le système natif ; recours au masque conservé si le comportement natif n'a pas encore pu être créé.
+- Abandon du nouveau réglage de pourcentage de masque, qui ne correspondait pas au besoin exprimé.
+- Diagnostics et tests sur l'absence de persistance des mises à jour de profondeur, le seuil régional et les modes de vision.
+- La synchronisation locale avec les passes de perception de Foundry doit être confirmée en conditions réelles de Foundry v13.
+
 # 1.4.12 — Vision normale aveuglée par la profondeur et calque sombre prioritaire
 
 - Conservation de la courbe de lumière physique : 50 % à 1×, 25 % à 2×, 5 % à 5× et disparition à 20× la profondeur de visibilité.

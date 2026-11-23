@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.12 : correction de la pénombre sous-marine perçue par les tokens sans vision dans le noir, sans modifier la lumière physique.",
-  "version": "1.4.12",
+  "description": "PF1 Waters v1.4.13 : obscurité native de Foundry, calculée selon la profondeur et l'obscurité de scène, avec seuil d'illumination régionale.",
+  "version": "1.4.13",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.12/pf1-waters-v1.4.12.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.13/pf1-waters-v1.4.13.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"
