@@ -208,9 +208,9 @@ test("leaving Region clears status and mirrored flags",async()=>{
 });
 test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
   const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36});
+  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36,sunlightHalfDepth:36});
   game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36});
+  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36,sunlightHalfDepth:36});
   assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
   r.flags["pf1-waters"].waterRegion.enabled=false;
   assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
