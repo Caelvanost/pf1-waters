@@ -21,6 +21,11 @@ import {
   hasWaterDarkvision, perceivedWaterGlobalLightFactor,
   waterLightingDiagnostics
 } from "./water-global-light.mjs";
+import {
+  getNativeWaterDarknessBehavior, ensureNativeWaterDarknessBehavior,
+  getNativeWaterDarknessTargets, calculateNativeWaterDarkness,
+  refreshNativeWaterDarkness, nativeWaterDarknessDiagnostics
+} from "./water-native-darkness.mjs";
 
 export const WATER_AUTOMATION = Object.freeze({
   flagScope: "world",
@@ -57,6 +62,9 @@ export const WATER_API = Object.freeze({
   getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
   hasWaterDarkvision, perceivedWaterGlobalLightFactor,
   waterLightingDiagnostics,
+  getNativeWaterDarknessBehavior, ensureNativeWaterDarknessBehavior,
+  getNativeWaterDarknessTargets, calculateNativeWaterDarkness,
+  refreshNativeWaterDarkness, nativeWaterDarknessDiagnostics,
   getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
   configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,

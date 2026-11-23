@@ -42,9 +42,6 @@
     "RegionVisibilityDepthHint": "Valeur par défaut : 36 m en unités métriques ou 120 pieds dans les scènes en pieds. Le seuil concerne le sommet du token. Le MJ peut définir toute autre valeur, y compris 0.",
     "RingScale": "Ratio de taille des remous",
     "RingScaleHint": "Multiplicateur de la largeur et de la hauteur du token : 1,5 par défaut (1×1 case → 1,5×1,5 case). Le PNG est centré et affiché sous le portrait du token.",
-    "InvalidRingScale": "Le ratio des remous doit être un nombre strictement positif.",
-    "GlobalLightDarkness": "Intensité de l’obscurité sous-marine (%)",
-    "GlobalLightDarknessHint": "Par rapport à la lumière globale : 0 % = aucun assombrissement supplémentaire ; 100 % = atténuation normale ; 200 % = atténuation doublée (maximum noir).",
-    "InvalidGlobalLightDarkness": "L’intensité de l’obscurité doit être comprise entre 0 et 200 %."
+    "InvalidRingScale": "Le ratio des remous doit être un nombre strictement positif."
   }
 }

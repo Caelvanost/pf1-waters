@@ -54,19 +54,6 @@ export function perceivedWaterGlobalLightFactor(factor, darkvision=false) {
     (DARK_SIGHT_TWILIGHT - DARK_SIGHT_FLOOR);
 }
 
-/**
- * Scale the client-side darkness overlay by its Region's relative intensity.
- * 0% disables it, 100% retains the legacy curve, 200% doubles attenuation,
- * always capped to an opaque black mask.
- * This does not alter sunlight physics or Foundry light sources.
- */
-export function calculateWaterGlobalDarkness(perceivedFactor, percent = 100) {
-  const light = Math.max(0, Math.min(1, finite(perceivedFactor, 1)));
-  const strength = Number.isFinite(percent) && percent >= 0 &&
-    percent <= 200 ? percent : 100;
-  return Math.max(0, Math.min(1, (1 - light) * strength / 100));
-}
-
 function warnOnce(message, error) {
   if (warnings.has(message)) return;
   warnings.add(message);
@@ -159,9 +146,7 @@ export function getWaterRegionGlobalLightStates(
         state.region.parent?.id !== scene?.id) continue;
     const eye = getWaterObserverEyeElevation(token, state);
     const depth = Math.max(0, state.surface - eye);
-    const config = getWaterRegionData(state.region);
-    const visibilityDepth = config.visibilityDepth;
-    const globalLightDarkness = config.globalLightDarkness;
+    const visibilityDepth = getWaterRegionData(state.region).visibilityDepth;
     const factor = globalWaterLightFactor(depth, visibilityDepth);
     const darkvision = hasWaterDarkvision(token);
     const perceivedFactor = perceivedWaterGlobalLightFactor(
@@ -172,10 +157,8 @@ export function getWaterRegionGlobalLightStates(
       states.set(state.region.id, {
         region: state.region, regionId: state.region.id,
         depth, visibilityDepth, cutoff: 20*visibilityDepth,
-        factor, perceivedFactor, darkvision, globalLightDarkness,
-        darkness: calculateWaterGlobalDarkness(
-          perceivedFactor, globalLightDarkness
-        )
+        factor, perceivedFactor, darkvision,
+        darkness: 1-perceivedFactor
       });
     }
   }
@@ -265,7 +248,6 @@ export function waterLightingDiagnostics() {
       physicalLightPercent:100*item.factor,
       perceivedLightPercent:100*item.perceivedFactor,
       darknessAlpha:item.darkness,
-      globalLightDarknessPercent:item.globalLightDarkness,
       darkvision:item.darkvision
     })),
     overlayAttached:layer?.parent===canvas?.interface,
@@ -283,8 +265,16 @@ export function refreshWaterGlobalLighting() {
       clearLayer();
       return 0;
     }
+    // The built-in Region behavior, when present, replaces the old black
+    // sprite entirely. Native darkness participates in Foundry light/vision.
     const active=getWaterRegionGlobalLightStates(canvas.scene)
-      .filter(item=>item.darkness>0);
+      .filter(item=>item.darkness>0 &&
+        ![...(item.region?.behaviors??[])].some(b=>
+          b.type==="adjustDarknessLevel" &&
+          (b.getFlag?.(MODULE_ID,"nativeWaterDepth") ??
+           b.flags?.[MODULE_ID]?.nativeWaterDepth) === true
+        )
+      );
     if (!active.length) {
       clearLayer();
       return 0;

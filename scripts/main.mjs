@@ -9,6 +9,10 @@ import {
 import { registerWaterMovementHooks, syncSceneUnderwaterFlags } from "./water-movement.mjs";
 import { registerWaterRenderingHooks, refreshWaterSurfaceMarkers } from "./water-rendering.mjs";
 import { registerWaterGlobalLightingHooks, refreshWaterGlobalLighting } from "./water-global-light.mjs";
+import {
+  registerNativeWaterDarknessHooks, refreshNativeWaterDarkness,
+  ensureSceneNativeWaterDarkness
+} from "./water-native-darkness.mjs";
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "partialSurfaceDepth", {
@@ -23,6 +27,7 @@ Hooks.once("init", () => {
   registerWaterMovementHooks();
   registerWaterRenderingHooks();
   registerWaterGlobalLightingHooks();
+  registerNativeWaterDarknessHooks();
   registerWaterVisualDepthHooks();
   registerWaterSurfaceHooks();
   registerWaterRegionHooks(async (scene) => {
@@ -45,6 +50,8 @@ Hooks.once("ready", async () => {
     await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);
     refreshSceneWaterVisualDepth();
+    await ensureSceneNativeWaterDarkness(globalThis.canvas?.scene);
+    refreshNativeWaterDarkness();
     refreshWaterGlobalLighting();
     await refreshWaterSurfaceMarkers();
   } catch (error) {
