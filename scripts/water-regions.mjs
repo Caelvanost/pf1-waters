@@ -45,7 +45,12 @@ function parseRegionFlag(raw, scene) {
     // Explicit zero is valid; it means no subsurface image visibility.
     visibilityDepth: typeof raw?.visibilityDepth === "number" &&
       Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
-      ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene)
+      ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene),
+    // 0%=no extra water darkness; 100%=legacy; 200%=twice as dark.
+    globalLightDarkness: typeof raw?.globalLightDarkness === "number" &&
+      Number.isFinite(raw.globalLightDarkness) &&
+      raw.globalLightDarkness >= 0 && raw.globalLightDarkness <= 200
+      ? raw.globalLightDarkness : 100
   };
 }
 
@@ -178,6 +183,11 @@ export async function configureSelectedWaterRegions() {
       '</label><div class="form-fields"><input name="ringScale" type="number" min="0.01" step="0.1" value="' +
       first.ringScale + '"></div></div><p class="hint">' +
       t("RingScaleHint", "Taille de l’image par rapport au token (1,5 par défaut) : un token 1×1 aura des remous de 1,5×1,5 case, centrés sous lui.") +
+      '</p><div class="form-group"><label>' +
+      t("GlobalLightDarkness", "Intensité de l’obscurité sous-marine (%)") +
+      '</label><div class="form-fields"><input name="globalLightDarkness" type="number" min="0" max="200" step="5" value="' +
+      first.globalLightDarkness + '"><span class="units">%</span></div></div><p class="hint">' +
+      t("GlobalLightDarknessHint", "Par rapport à l’éclairage global : 0 % désactive l’assombrissement de cette Region, 100 % conserve le comportement actuel, 200 % double l’obscurité (sans dépasser le noir).") +
       '</p></div></div>',
     ok: {
       label: t("Confirm", "Définir comme corps d'eau"),
@@ -190,6 +200,10 @@ export async function configureSelectedWaterRegions() {
         const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
+        const darknessRaw = String(
+          button.form.elements.globalLightDarkness?.value ?? ""
+        ).trim();
+        const globalLightDarkness = darknessRaw === "" ? NaN : Number(darknessRaw);
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
         const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -200,13 +214,21 @@ export async function configureSelectedWaterRegions() {
         if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
           throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
         }
+        if (!Number.isFinite(globalLightDarkness) ||
+            globalLightDarkness < 0 || globalLightDarkness > 200) {
+          throw new Error(t("InvalidGlobalLightDarkness",
+            "L’intensité de l’obscurité doit être comprise entre 0 et 200 %."));
+        }
         if (!Number.isFinite(ringScale) || ringScale <= 0) {
           throw new Error(t("InvalidRingScale", "Le ratio des remous doit être strictement positif."));
         }
         if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
-        return { surface, depth, ringPng, ringScale, visibilityDepth };
+        return {
+          surface, depth, ringPng, ringScale, visibilityDepth,
+          globalLightDarkness
+        };
       }
     },
     rejectClose: false,
@@ -223,7 +245,10 @@ export async function configureSelectedWaterRegions() {
       ringScale: Number.isFinite(result.ringScale) && result.ringScale > 0
         ? result.ringScale : first.ringScale,
       visibilityDepth:
-        Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth
+        Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth,
+      globalLightDarkness: Number.isFinite(result.globalLightDarkness) &&
+        result.globalLightDarkness >= 0 && result.globalLightDarkness <= 200
+        ? result.globalLightDarkness : first.globalLightDarkness
     });
   }
   ui.notifications.info(regions.length + " " + t("Configured", "corps d'eau configuré(s)."));

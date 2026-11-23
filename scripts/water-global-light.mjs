@@ -54,6 +54,19 @@ export function perceivedWaterGlobalLightFactor(factor, darkvision=false) {
     (DARK_SIGHT_TWILIGHT - DARK_SIGHT_FLOOR);
 }
 
+/**
+ * Scale the client-side darkness overlay by its Region's relative intensity.
+ * 0% disables it, 100% retains the legacy curve, 200% doubles attenuation,
+ * always capped to an opaque black mask.
+ * This does not alter sunlight physics or Foundry light sources.
+ */
+export function calculateWaterGlobalDarkness(perceivedFactor, percent = 100) {
+  const light = Math.max(0, Math.min(1, finite(perceivedFactor, 1)));
+  const strength = Number.isFinite(percent) && percent >= 0 &&
+    percent <= 200 ? percent : 100;
+  return Math.max(0, Math.min(1, (1 - light) * strength / 100));
+}
+
 function warnOnce(message, error) {
   if (warnings.has(message)) return;
   warnings.add(message);
@@ -146,7 +159,9 @@ export function getWaterRegionGlobalLightStates(
         state.region.parent?.id !== scene?.id) continue;
     const eye = getWaterObserverEyeElevation(token, state);
     const depth = Math.max(0, state.surface - eye);
-    const visibilityDepth = getWaterRegionData(state.region).visibilityDepth;
+    const config = getWaterRegionData(state.region);
+    const visibilityDepth = config.visibilityDepth;
+    const globalLightDarkness = config.globalLightDarkness;
     const factor = globalWaterLightFactor(depth, visibilityDepth);
     const darkvision = hasWaterDarkvision(token);
     const perceivedFactor = perceivedWaterGlobalLightFactor(
@@ -157,8 +172,10 @@ export function getWaterRegionGlobalLightStates(
       states.set(state.region.id, {
         region: state.region, regionId: state.region.id,
         depth, visibilityDepth, cutoff: 20*visibilityDepth,
-        factor, perceivedFactor, darkvision,
-        darkness: 1-perceivedFactor
+        factor, perceivedFactor, darkvision, globalLightDarkness,
+        darkness: calculateWaterGlobalDarkness(
+          perceivedFactor, globalLightDarkness
+        )
       });
     }
   }
@@ -248,6 +265,7 @@ export function waterLightingDiagnostics() {
       physicalLightPercent:100*item.factor,
       perceivedLightPercent:100*item.perceivedFactor,
       darknessAlpha:item.darkness,
+      globalLightDarknessPercent:item.globalLightDarkness,
       darkvision:item.darkvision
     })),
     overlayAttached:layer?.parent===canvas?.interface,
