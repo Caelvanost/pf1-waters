@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.15 : obscurité sous-marine progressive avec profondeur d'atténuation solaire configurable indépendamment de la visibilité des tokens.",
+  "description": "PF1 Waters v1.4.15 : obscurité sous-marine progressive selon l'élévation, transitions douces et profondeur d'atténuation solaire indépendante de la visibilité.",
   "version": "1.4.15",
   "authors": [
     {
