@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.20 : corps d'eau de la scène obligatoires, Regions à fonds locaux et Tuiles/Dessins liés uniquement au corps d'eau, sans compatibilité historique.",
+  "description": "PF1 Waters v1.4.20 : format unique des corps d'eau par scène, Regions liées et surfaces communes, migration historique et liens individuels supprimés.",
   "version": "1.4.20",
   "authors": [
     {

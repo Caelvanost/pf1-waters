@@ -303,7 +303,7 @@ test("10.6% physical sunlight at 150m does not give unaided sight",()=>{
 test("selected ordinary-sighted observer at -150m gets a black screen",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:36});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
-  ?{enabled:true,surface:0,depth:1000,visibilityDepth:36}:undefined;
+  ?{enabled:true,bodyId:"body",depth:1000,visibilityDepth:36}:undefined;
  viewer.document.elevation=-151.5;
  viewer.document.sight={visionMode:"basic"};
  const state=getWaterRegionGlobalLightStates(sc,[viewer]);
@@ -322,7 +322,7 @@ test("selected ordinary-sighted observer at -150m gets a black screen",()=>{
 test("a darkvision observer at -150m is not visually blacked out",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:36});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
-  ?{enabled:true,surface:0,depth:1000,visibilityDepth:36}:undefined;
+  ?{enabled:true,bodyId:"body",depth:1000,visibilityDepth:36}:undefined;
  viewer.document.elevation=-151.5;
  viewer.document.sight={visionMode:"darkvision"};
  const state=getWaterRegionGlobalLightStates(sc,[viewer]);

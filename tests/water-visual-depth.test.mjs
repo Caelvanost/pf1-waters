@@ -343,7 +343,7 @@ test("an underwater observer sees a floating creature while blocked LOS still pr
 test("an unset Region threshold uses 36m from the creature's TOP",()=>{
  const {scene,region}=makeScene();
  region.getFlag=(_ns,key)=>key==="waterRegion"?
-   {enabled:true,surface:0,depth:200}:undefined;
+   {enabled:true,bodyId:"bay",depth:200}:undefined;
  makeVisual(scene,"Tile",{visibilityDepth:3});
  const token=makeToken(scene,-37);
  let state=getTokenWaterVisualDisplay(token);
