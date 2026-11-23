@@ -737,3 +737,60 @@ test("one nearby diver can still see a target when another diver is too far away
     delete canvas.visibility;
   }
 });
+
+test("underwater vision uses 3D distance: a far vertical target is hidden even at identical x/y",()=>{
+  const {scene,region}=makeScene();
+  region.depth=200;
+  region.testPoint=({x,y})=>x>=0&&x<5000&&y>=0&&y<200;
+  scene.flags["pf1-waters"].waterBodies[0].visionRange=36;
+  scene.flags["pf1-waters"].waterBodies[0].visionHalfDepth=100;
+  makeVisual(scene,"Tile",{width:5000});
+  const observer=makeToken(scene,-60);
+  observer.losHeight=-58.5;
+  observer.controlled=true;
+  const target=makeToken(scene,-5);
+  target.controlled=false;
+  canvas.tokens.placeables=[observer,target];
+  canvas.tokens.controlled=[observer];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  try{
+    assert.equal(observer.center.x,target.center.x);
+    assert.equal(observer.center.y,target.center.y);
+    assert.equal(isWithinUnderwaterVisionRange(observer,target),false,
+      "the vertical gap alone exceeds the configured vision radius");
+    assert.equal(isBeyondAllUnderwaterVisionRanges(target),true);
+    assert.equal(canSeeWaterTokenFromInterior(target),false);
+    refreshTokenWaterVisualDepth(target);
+    assert.equal(target.visible,false,"hide the whole token including HUD");
+    target.document.elevation=-57;
+    assert.equal(isWithinUnderwaterVisionRange(observer,target),true,
+      "small elevation difference at the same x/y is in sight range");
+    assert.equal(canSeeWaterTokenFromInterior(target),true);
+    refreshTokenWaterVisualDepth(target);
+    assert.equal(target.visible,true);
+  }finally{
+    game.user.isGM=true;
+    canvas.tokens.controlled=[];
+    delete canvas.visibility;
+  }
+});
+
+test("3D underwater range correctly combines horizontal and vertical distance",()=>{
+  const {scene,region}=makeScene();
+  region.depth=200;
+  region.testPoint=({x,y})=>x>=0&&x<5000&&y>=0&&y<200;
+  scene.flags["pf1-waters"].waterBodies[0].visionRange=10;
+  scene.flags["pf1-waters"].waterBodies[0].visionHalfDepth=100;
+  const viewer=makeToken(scene,-10);
+  viewer.losHeight=-8.5;
+  const target=makeToken(scene,-13);
+  target.document.x=600;
+  target.center={x:650,y:60};
+  assert.equal(isWithinUnderwaterVisionRange(viewer,target),false,
+    "590px horizontal + 4.5m vertical must exceed the 10m cap");
+  target.document.x=90;
+  target.center={x:140,y:60};
+  assert.equal(isWithinUnderwaterVisionRange(viewer,target),true,
+    "80px horizontal + 3m vertical fits within cap");
+});

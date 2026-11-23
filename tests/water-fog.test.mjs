@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getActiveFogObservers, hasUnderwaterFogObserver,
   discardUnderwaterFogPending, patchWaterFogExploration,
+  syncUnderwaterFogDisplay,restoreUnderwaterFogDisplay,
   waterFogDiagnostics
 } from "../scripts/water-fog.mjs";
 
@@ -36,6 +37,7 @@ function fixture(){
   }
   class FakeFog{
     commits=0;saves=0;persisted=["known surface"];
+    sprite={visible:true,renderable:true};
     commit(){
       this.commits++;
       this.persisted.push(...globalThis.canvas.visibility.explored);
@@ -44,7 +46,16 @@ function fixture(){
   }
   class FakeVisibility{
     explored=[];resetCount=0;refreshCount=0;
-    resetExploration(){this.resetCount++;this.explored=[];}
+    constructor(){
+      this.explored.visible=true;
+      this.explored.renderable=true;
+    }
+    resetExploration(){
+      this.resetCount++;
+      // Foundry reuses the exploration container; it does not replace the
+      // live CanvasVisibility.explored property on a simple reset.
+      this.explored.length=0;
+    }
     refreshVisibility(){this.refreshCount++;}
   }
   const fog=new FakeFog(),visibility=new FakeVisibility();
@@ -137,4 +148,59 @@ test("unrelated scenes with no underwater viewers retain normal exploration",asy
   assert.equal(fog.commits,1);
   assert.equal(fog.saves,1);
   assert.deepEqual(fog.persisted,["known surface","dry area"]);
+});
+
+test("submerged rendering masks historical fog, while native current LOS remains active",()=>{
+  const {fog,visibility,FakeFog,FakeVisibility,diver}=fixture();
+  visibility.vision={visible:true,renderable:true};
+  assert.equal(patchWaterFogExploration(FakeFog,FakeVisibility),true);
+  assert.equal(syncUnderwaterFogDisplay(),true);
+  assert.equal(visibility.explored.visible,false);
+  assert.equal(visibility.explored.renderable,false);
+  assert.equal(fog.sprite.visible,false,"persisted FogManager.sprite must be hidden");
+  assert.equal(fog.sprite.renderable,false);
+  assert.equal(visibility.vision.visible,true,"current visible polygons must remain");
+  assert.equal(visibility.vision.renderable,true);
+  assert.equal(waterFogDiagnostics().exploredHidden,true);
+  assert.equal(waterFogDiagnostics().fogSpriteHidden,true);
+
+  // The framework refresh may overwrite sprite flags: reapply after refresh.
+  visibility.explored.visible=true;
+  fog.sprite.visible=true;
+  visibility.refreshVisibility();
+  assert.equal(visibility.explored.visible,false);
+  assert.equal(fog.sprite.visible,false);
+
+  // The protection applies even if the area was explored prior to diving.
+  diver.losHeight=2;
+  diver.document.elevation=1;
+  assert.equal(syncUnderwaterFogDisplay(),true);
+  assert.equal(visibility.explored.visible,true);
+  assert.equal(visibility.explored.renderable,true);
+  assert.equal(fog.sprite.visible,true);
+  assert.equal(fog.sprite.renderable,true);
+  assert.equal(visibility.vision.visible,true);
+  assert.equal(waterFogDiagnostics().exploredHidden,false);
+});
+
+test("fog display is only hidden when at least one active source is immersed",()=>{
+  const {fog,visibility,dry}=fixture();
+  canvas.effects.visionSources.set("surface",{active:true,object:dry});
+  assert.equal(syncUnderwaterFogDisplay(),true);
+  assert.equal(visibility.explored.visible,false);
+  canvas.effects.visionSources.get("diver").active=false;
+  assert.equal(syncUnderwaterFogDisplay(),true);
+  assert.equal(visibility.explored.visible,true);
+  assert.equal(fog.sprite.visible,true);
+  assert.equal(syncUnderwaterFogDisplay(),false);
+});
+
+test("fog display restoration does not destroy persisted exploration data",()=>{
+  const {fog,visibility}=fixture();
+  const recorded=fog.persisted.slice();
+  syncUnderwaterFogDisplay();
+  restoreUnderwaterFogDisplay();
+  assert.equal(visibility.explored.visible,true);
+  assert.equal(fog.sprite.renderable,true);
+  assert.deepEqual(fog.persisted,recorded);
 });

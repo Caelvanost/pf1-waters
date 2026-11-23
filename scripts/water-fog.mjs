@@ -17,6 +17,9 @@ const FOG_PATCHED=Symbol.for("pf1-waters.fog-commit-patched");
 const VISIBILITY_PATCHED=Symbol.for("pf1-waters.fog-visibility-patched");
 const pending=new WeakSet();
 const warnings=new Set();
+// The V13 explored texture is independent of the currently visible vision
+// polygons. Do not display it while an active observer is underwater.
+const explorationDisplayState=new Map();
 
 function warnOnce(key,error){
   if(warnings.has(key))return;
@@ -49,6 +52,58 @@ export function getActiveFogObservers(canvas=globalThis.canvas){
  */
 export function hasUnderwaterFogObserver(canvas=globalThis.canvas){
   return getActiveFogObservers(canvas).some(token=>isWaterObserverSubmerged(token));
+}
+
+/**
+ * Display only *current* LOS while submerged: hide Foundry V13's existing
+ * explored-fog texture, which otherwise reveals the map in dim gray despite
+ * blocking new commits. This is client-local rendering state, NOT a FogExploration
+ * document update or a change to the Scene's exploration setting.
+ */
+export function syncUnderwaterFogDisplay(canvas=globalThis.canvas){
+  const submerged=hasUnderwaterFogObserver(canvas);
+  if(!canvas?.visibility)return false;
+  const objects=[canvas.visibility.explored,canvas.fog?.sprite]
+    .filter(Boolean);
+  let changed=false;
+  for(const object of objects){
+    const original=explorationDisplayState.get(object);
+    if(submerged){
+      if(!original)explorationDisplayState.set(object,{
+        visible:object.visible,renderable:object.renderable
+      });
+      if(object.visible!==false){object.visible=false;changed=true;}
+      if(object.renderable!==false){object.renderable=false;changed=true;}
+    }else if(original){
+      if(object.visible!==original.visible){object.visible=original.visible;changed=true;}
+      if(object.renderable!==original.renderable){
+        object.renderable=original.renderable;changed=true;
+      }
+      explorationDisplayState.delete(object);
+    }
+  }
+  // A scene switch can replace the explored display objects. Keep the map
+  // small and avoid leaving stale pixi objects patched.
+  for(const [object,original] of explorationDisplayState){
+    if(objects.includes(object))continue;
+    if(object&&!object.destroyed){
+      object.visible=original.visible;
+      object.renderable=original.renderable;
+    }
+    explorationDisplayState.delete(object);
+  }
+  return changed;
+}
+
+/** Restore the native exploration display on teardown (but not its data). */
+export function restoreUnderwaterFogDisplay(){
+  for(const [object,original] of explorationDisplayState){
+    if(object&&!object.destroyed){
+      object.visible=original.visible;
+      object.renderable=original.renderable;
+    }
+    explorationDisplayState.delete(object);
+  }
 }
 
 /** Discard unsaved underwater exploration before resuming native fog commits. */
@@ -85,6 +140,7 @@ export function patchWaterFogExploration(
     const originalCommit=fogProto.commit;
     const originalSave=fogProto.save;
     fogProto.commit=function(...args){
+      syncUnderwaterFogDisplay();
       if(hasUnderwaterFogObserver()){
         pending.add(this);
         return undefined;
@@ -96,6 +152,7 @@ export function patchWaterFogExploration(
       return originalCommit.apply(this,args);
     };
     fogProto.save=function(...args){
+      syncUnderwaterFogDisplay();
       if(hasUnderwaterFogObserver()){
         // Existing above-water fog may be awaiting its save; defer it until
         // no submerged observer is active, instead of saving mixed pixels.
@@ -121,7 +178,12 @@ export function patchWaterFogExploration(
       if(pending.has(globalThis.canvas?.fog)){
         discardUnderwaterFogPending(globalThis.canvas.fog);
       }
-      return originalRefresh.apply(this,args);
+      syncUnderwaterFogDisplay();
+      const result=originalRefresh.apply(this,args);
+      // Foundry may reset exploration sprites while refreshing the vision
+      // texture. Reapply the mask after the native refresh as well.
+      syncUnderwaterFogDisplay();
+      return result;
     };
     Object.defineProperty(visibilityProto,VISIBILITY_PATCHED,{value:true});
   }
@@ -136,6 +198,12 @@ export function waterFogDiagnostics(){
       .map(viewer=>viewer.document.id),
     suspended:hasUnderwaterFogObserver(canvas),
     pendingDiscard:Boolean(canvas?.fog&&pending.has(canvas.fog)),
+    exploredHidden:Boolean(canvas?.visibility?.explored &&
+      canvas.visibility.explored.visible===false &&
+      canvas.visibility.explored.renderable===false),
+    fogSpriteHidden:Boolean(canvas?.fog?.sprite &&
+      canvas.fog.sprite.visible===false &&
+      canvas.fog.sprite.renderable===false),
     fogEnabled:Boolean(canvas?.scene?.fog?.exploration),
     patched: Boolean(canvas?.fog &&
       Object.hasOwn(Object.getPrototypeOf(canvas.fog),FOG_PATCHED))
@@ -145,9 +213,22 @@ export function waterFogDiagnostics(){
 /** Patch classes once, and refresh the scene singleton after canvas rebuilds. */
 export function registerWaterFogHooks(){
   patchWaterFogExploration();
-  Hooks.on("canvasInit",()=>patchWaterFogExploration());
-  Hooks.on("canvasReady",()=>patchWaterFogExploration());
+  Hooks.on("canvasInit",()=>{
+    restoreUnderwaterFogDisplay();
+    patchWaterFogExploration();
+  });
+  Hooks.on("canvasReady",()=>{
+    patchWaterFogExploration();
+    syncUnderwaterFogDisplay();
+  });
+  // The engine can replace the active vision source on selection, movement,
+  // elevation and light refresh without committing FogExploration.
+  for(const event of ["sightRefresh","visibilityRefresh","controlToken",
+    "updateToken","createToken","deleteToken"]){
+    Hooks.on(event,()=>syncUnderwaterFogDisplay());
+  }
   Hooks.on("canvasTearDown",()=>{
+    restoreUnderwaterFogDisplay();
     const fog=globalThis.canvas?.fog;
     if(fog&&pending.has(fog))discardUnderwaterFogPending(fog);
   });

@@ -226,7 +226,24 @@ export function isWithinUnderwaterVisionRange(viewer,target) {
   const point=tokenCenter(doc);
   const maximum=waterVisionPixels(limit.range,viewer.document.parent);
   if(maximum===null)return true;
-  return Math.hypot(point.x-origin.x,point.y-origin.y)<=maximum+EPSILON;
+  // Foundry's token sight normally measures the 2D canvas footprint.
+  // Water is volumetric: convert the vertical separation to the same pixel
+  // scale before comparing it against the configured sight distance.
+  // Use the nearest point on the target's PHYSICAL vertical interval, not
+  // its base elevation (a Large creature can be seen near its head).
+  const observerState=getTokenWaterState(viewer);
+  const targetState=getTokenWaterState(doc);
+  const eye=getWaterObserverEyeElevation(viewer,observerState);
+  const targetBottom=targetState.tokenBottom;
+  const targetTop=targetState.tokenTop;
+  if(!Number.isFinite(eye)||!Number.isFinite(targetBottom)||
+      !Number.isFinite(targetTop))return false;
+  const nearestElevation=Math.max(targetBottom,Math.min(eye,targetTop));
+  const grid=viewer.document.parent?.grid;
+  const pixelsPerUnit=Number(grid?.size)/Number(grid?.distance);
+  if(!Number.isFinite(pixelsPerUnit)||pixelsPerUnit<=0)return false;
+  const dz=(nearestElevation-eye)*pixelsPerUnit;
+  return Math.hypot(point.x-origin.x,point.y-origin.y,dz)<=maximum+EPSILON;
 }
 
 /**
@@ -554,7 +571,8 @@ export function refreshTokenWaterVisualDepth(token) {
   // Native detection / brightness can report a target as visible despite the
   // underwater range cap. Hide the entire placeable (HUD included), locally,
   // only when every active observer has a cap and the target is out of range.
-  const beyondEveryViewer = enabled && water.inWater &&
+  // This includes vertical distance in scene elevation units.
+  const beyondEveryViewer = water.inWater &&
     !placeable.controlled && isBeyondAllUnderwaterVisionRanges(placeable);
   let changed = syncWaterTokenVisibility(
     placeable, interiorAllowed || exteriorAllowed,

@@ -1,3 +1,11 @@
+# 1.4.24 — Distance de vision 3D, brouillard noir pendant l'immersion, boutons épurés
+
+- Correction du test de visibilité entre tokens immergés : la distance utilise désormais **X, Y et Z**. Le décalage vertical entre les yeux du plongeur et la partie la plus proche de la cible compte dans la portée maximale configurable du corps d'eau.
+- Correction du brouillard gris/persistant : lorsqu'un observateur actif est immergé, les objets de rendu `CanvasVisibility.explored` et `FogManager.sprite` sont masqués **localement** (visible et renderable), sans interrompre la vision courante (`CanvasVisibility.vision`). La carte doit rester noire en dehors de la zone actuellement visible. Les états de rendu initiaux sont restaurés à la sortie de l'eau ou au changement de scène.
+- La protection précédente contre l'enregistrement des découvertes sous-marines est conservée ; aucune donnée de brouillard déjà sauvegardée n'est effacée.
+- Suppression des deux boutons Regions redondants « Corps d'eau de la scène » et « Retirer la propriété eau ». Les actions Associer/Dissocier/Configurer et les outils Tuiles/Dessins restent disponibles.
+- Tests ajoutés : cible au même X/Y mais loin en Z, somme des distances horizontales et verticales, masquage du brouillard exploré, conservation de la vision actuelle, restauration après remontée, suppression des commandes obsolètes.
+
 # 1.4.23 — Portée sous-marine réelle et brouillard non persistant
 
 - Correction Foundry V13 : le champ `radius` de `VisionSourceData` n'est pas standard. Plafonnement désormais effectué aussi sur les accesseurs natifs `Token.sightRange`, `Token.lightPerceptionRange` et `Token.optimalSightRange`, en plus de `lightRadius`.

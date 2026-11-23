@@ -192,7 +192,12 @@ test("Tile/Drawing association tool binds a full body, not just one Region",asyn
   const controls={regions:{tools:{}},tiles:{tools:{}},drawings:{tools:{}}};
   registerWaterRegionSceneControls(controls);
   registerWaterSurfaceSceneControls(controls);
-  assert.equal(typeof controls.regions.tools.pf1WatersBodies?.onChange,"function");
+  assert.equal(controls.regions.tools.pf1WatersBodies,undefined,
+    "la gestion des corps d'eau se trouve à la racine de la barre d'outils");
+  assert.equal(controls.regions.tools.pf1WatersClear,undefined,
+    "l'action Retirer la propriété eau est redondante avec Dissocier");
+  assert.equal(typeof controls.regions.tools.pf1WatersConfigure?.onChange,"function");
+  assert.equal(typeof controls.regions.tools.pf1WatersDetachRegion?.onChange,"function");
   assert.equal(typeof controls.regions.tools.pf1WatersAttachRegion?.onChange,"function");
   assert.equal(typeof controls.tiles.tools.pf1WatersTileBodySurface?.onChange,"function");
   assert.equal(typeof controls.drawings.tools.pf1WatersDrawingBodySurface?.onChange,"function");

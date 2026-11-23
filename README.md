@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.23
+# PF1 Waters — v1.4.24
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -26,7 +26,7 @@ PF1 Waters possède désormais une **entrée principale « PF1 Waters — Corps 
 3. Sur la couche **Regions**, dessiner une ou plusieurs Regions physiques et les sélectionner.
 4. Choisir **« PF1 Waters — Ajouter des Regions à un corps d'eau »**, sélectionner le corps d'eau et renseigner la profondeur locale ou utiliser la limite d'élévation inférieure de chaque Region.
 5. Pour régler les autres propriétés d'une Region (visibilité, remous, atténuation solaire, tranches d'obscurité), utiliser l'outil de configuration de Regions. Son altitude de surface commune est **en lecture seule** et provient du corps d'eau.
-6. Pour retirer une Region aquatique, utiliser **« Dissocier les Regions »** ou **« Retirer la propriété eau »**.
+6. Pour retirer une Region aquatique, utiliser **« Dissocier les Regions »**.
 
 Les corps d'eau sont enregistrés dans `Scene.flags.pf1-waters.waterBodies`, les volumes dans `Region.flags.pf1-waters.waterRegion` (avec `bodyId` et profondeur locale). Une Region non associée à un corps d'eau existant n'est pas aquatique.
 
@@ -75,6 +75,18 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
 
+## Vision 3D et brouillard noir pendant l'immersion (v1.4.24)
+
+**Distance de vision entre deux tokens immergés :** le module vérifie maintenant la **distance tridimensionnelle** entre l'observateur et la créature. La distance horizontale est convertie dans les unités de la scène, puis combinée avec l'écart d'élévation vertical entre les yeux de l'observateur et le point le plus proche du corps de la cible. Une cible au même emplacement 2D mais beaucoup plus haut ou plus bas peut donc être **invisible**, même si Foundry retourne `testVisibility=true`. Ce contrôle fonctionne pour plusieurs observateurs actifs : une cible n'est masquée que si elle est hors de portée de **toutes** leurs visions sous-marines.
+
+**Brouillard noir et non persistant :** empêcher `FogManager.commit()` et `save()` ne suffisait pas, car Foundry V13 continue d'afficher la **texture des secteurs déjà explorés**. Tant qu'un observateur actif est immergé, PF1 Waters masque **localement et temporairement** le conteneur `canvas.visibility.explored` et le sprite `canvas.fog.sprite`. La couche `canvas.visibility.vision`, qui représente la vision **actuelle**, reste active : l'utilisateur voit l'intérieur de sa portée de vision actuelle mais le reste de la carte est censé rester **noir**, même s'il avait exploré la zone auparavant. La visibilité de la texture mémorisée est restaurée à la remontée ou au démontage de la scène. Aucune exploration mémorisée n'est supprimée.
+
+Le blocage de l'enregistrement de nouvelles découvertes sous-marines reste actif. En cas de vision combinée surface + immersion dans une même vue Foundry V13, la mémoire de brouillard est temporairement cachée pour cette vue entière, afin de ne pas révéler des données de plongée ; les sources de vision actuelles restent accessibles.
+
+**Commandes simplifiées :** le registre des corps d'eau s'ouvre exclusivement via le **bouton principal PF1 Waters**. Les anciens boutons du sous-menu Regions « Corps d'eau de la scène » et « Retirer la propriété eau » sont supprimés car redondants. Les commandes utiles **Associer des Regions**, **Dissocier des Regions**, **Configurer des Regions** restent présentes, ainsi que les commandes d'association/dissociation des Tuiles et Dessins.
+
+Test de recette conseillé : sélectionner un plongeur, placer une cible directement au-dessus mais au-delà de sa portée **verticale**, vérifier sa disparition ; faire réapparaître la cible en réduisant l'écart d'élévation ; déplacer le plongeur en ayant activé l'exploration du brouillard et vérifier que le fond déjà exploré est toujours noir **hors du champ de vision**.
+
 ## Correction des limites de vision et exploration temporaire (v1.4.23)
 
 **Foundry V13 :** une vision limitée sous l'eau doit limiter les distances de *sight* et de *light perception* du Token. Les paramètres de `VisionSourceData` ne comportent pas de champ standard `radius` : la version 1.4.23 plafonne donc les getters natifs `Token.sightRange`, `Token.lightPerceptionRange` et `Token.optimalSightRange`, en complément de `VisionSourceData.lightRadius`. La portée continue à diminuer quelle que soit la profondeur ; aux profondeurs extrêmes, la source reçoit un rayon minimum d'un pixel, et non zéro (qui peut être interprété comme non borné). Le TokenDocument n'est pas modifié.
@@ -115,7 +127,7 @@ L'API expose aussi `getTokenUnderwaterVisionLimit(token)`, `waterVisionFraction(
 
 **À partir de la v1.4.20, PF1 Waters ne prend plus en charge les configurations des anciennes versions.** Le système est fondé exclusivement sur les corps d'eau enregistrés dans la scène ; il n'y a ni import des anciens flags `pf1-skull-and-shackles.waterRegion`, ni liaison de tuile/dessin vers une Region isolée.
 
-- **Barre d'outils principale — « PF1 Waters » :** créez, modifiez ou supprimez les corps d'eau, avec leur altitude commune de surface et leurs paramètres de vision. Un raccourci reste disponible dans Regions.
+- **Barre d'outils principale — « PF1 Waters » :** créez, modifiez ou supprimez les corps d'eau, avec leur altitude commune de surface et leurs paramètres de vision. Aucun doublon dans les outils Regions.
 - **Regions — « Ajouter des Regions à un corps d'eau » :** sélectionnez les contours aquatiques, puis choisissez leur corps d'eau et leur profondeur locale, éventuellement déduite de la limite native d'élévation inférieure. Une Region non associée n'est plus interprétée comme un volume d'eau, même si elle conserve d'anciens paramètres locaux.
 - **Regions — « Paramètres d'eau » :** configurez la profondeur, la visibilité, l'atténuation solaire, les tranches d'obscurité et les remous. La surface de la Region est affichée **en lecture seule**, car elle appartient au corps d'eau enregistré.
 - **Regions — « Dissocier » ou « Retirer la propriété eau » :** les Regions cessent de représenter de l'eau, sans suppression de leurs formes 2D.

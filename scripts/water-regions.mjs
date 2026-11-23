@@ -3,8 +3,7 @@ import {
 } from "./constants.mjs";
 import { ensureNativeWaterDarknessBehavior } from "./water-native-darkness.mjs";
 import {
-  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBodyId,
-  configureSceneWaterBodies
+  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBodyId
 } from "./water-bodies.mjs";
 
 function readRegionFlag(region, scope) {
@@ -388,34 +387,22 @@ export function registerWaterRegionSceneControls(controls) {
   const regionControls = controls?.regions;
   if (!regionControls?.tools) return;
   const start = Object.keys(regionControls.tools).length;
-  regionControls.tools.pf1WatersBodies = {
-    name:"pf1WatersBodies",title:"PF1 Waters — Corps d’eau de la scène",
-    icon:"fa-solid fa-list",order:start,button:true,
-    visible:Boolean(game.user?.isGM),
-    onChange:()=>void configureSceneWaterBodies()
-  };
   regionControls.tools.pf1WatersAttachRegion = {
     name:"pf1WatersAttachRegion",title:"PF1 Waters — Ajouter des Regions à un corps d’eau",
-    icon:"fa-solid fa-link",order:start+1,button:true,
+    icon:"fa-solid fa-link",order:start,button:true,
     visible:Boolean(game.user?.isGM),
     onChange:()=>void attachSelectedWaterRegionsToBody()
   };
   regionControls.tools.pf1WatersDetachRegion = {
     name:"pf1WatersDetachRegion",title:"PF1 Waters — Dissocier les Regions d’un corps d’eau",
-    icon:"fa-solid fa-unlink",order:start+2,button:true,
+    icon:"fa-solid fa-unlink",order:start+1,button:true,
     visible:Boolean(game.user?.isGM),
     onChange:()=>void detachSelectedWaterRegionsFromBody()
   };
   regionControls.tools.pf1WatersConfigure = {
     name: "pf1WatersConfigure", title: t("ToolConfigure", "PF1 Waters — Corps d'eau"),
-    icon: "fa-solid fa-water", order: start+3, button: true,
+    icon: "fa-solid fa-water", order: start+2, button: true,
     visible: Boolean(game.user?.isGM),
     onChange: () => void configureSelectedWaterRegions()
-  };
-  regionControls.tools.pf1WatersClear = {
-    name: "pf1WatersClear", title: t("ToolClear", "PF1 Waters — Retirer la propriété eau"),
-    icon: "fa-solid fa-ban", order: start + 4, button: true,
-    visible: Boolean(game.user?.isGM),
-    onChange: () => void clearSelectedWaterRegions()
   };
 }

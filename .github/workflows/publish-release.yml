@@ -34,15 +34,15 @@ jobs:
           node - <<'JS'
           const m=require("./module.json");
           const base="https://github.com/Caelvanost/pf1-waters";
-          if(m.id!=="pf1-waters"||m.version!=="1.4.23"||m.url!==base)throw Error("Module identity");
+          if(m.id!=="pf1-waters"||m.version!=="1.4.24"||m.url!==base)throw Error("Module identity");
           if(m.manifest!=="https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json")throw Error("Manifest URL");
-          if(m.download!==base+"/releases/download/v1.4.23/pf1-waters-v1.4.23.zip")throw Error("Download URL");
+          if(m.download!==base+"/releases/download/v1.4.24/pf1-waters-v1.4.24.zip")throw Error("Download URL");
           JS
           mkdir -p dist
-          zip -q -r dist/pf1-waters-v1.4.23.zip module.json scripts lang styles README.md CHANGELOG.md
+          zip -q -r dist/pf1-waters-v1.4.24.zip module.json scripts lang styles README.md CHANGELOG.md
           python - <<'PY'
           import json,zipfile
-          with zipfile.ZipFile("dist/pf1-waters-v1.4.23.zip") as z:
+          with zipfile.ZipFile("dist/pf1-waters-v1.4.24.zip") as z:
               assert all(x in z.namelist() for x in ("module.json","scripts/main.mjs","scripts/api.mjs","lang/fr.json"))
               assert json.loads(z.read("module.json"))["id"]=="pf1-waters"
           PY
@@ -52,11 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=v1.4.23
-          archive=dist/pf1-waters-v1.4.23.zip
+          tag=v1.4.24
+          archive=dist/pf1-waters-v1.4.24.zip
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.23" --notes "Vision sous-marine native limitée à toutes les profondeurs, tokens distants non révélés, brouillard de guerre exploré temporairement sans persistance."
+            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.24" --notes "Vision sous-marine 3D (distance et élévation), brouillard réellement noir au-delà de la vision courante pendant l'immersion, suppression des boutons Regions redondants."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,assets,url
