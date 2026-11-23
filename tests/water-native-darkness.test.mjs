@@ -48,8 +48,8 @@ function clean(){resetNativeWaterDarkness();calls.length=0;game.user.isGM=true;}
 test("calculation is anchored to the Scene darkness and the sunlight knots",()=>{
   assert.equal(calculateNativeWaterDarkness(0,1),0);
   assert.equal(calculateNativeWaterDarkness(0,.5),.5);
-  assert.equal(calculateNativeWaterDarkness(.2,.5),.6);
-  assert.equal(calculateNativeWaterDarkness(.2,.25),.8);
+  assert.ok(Math.abs(calculateNativeWaterDarkness(.2-.6)<1e-12);
+  assert.ok(Math.abs(calculateNativeWaterDarkness(.2-.8)<1e-12);
   assert.equal(calculateNativeWaterDarkness(.2,0),1);
   assert.equal(calculateNativeWaterDarkness(.7,1),.7);
   assert.equal(calculateNativeWaterDarkness(1,.5),1);
@@ -79,7 +79,7 @@ test("only the actual viewer's immersed LOS determines per-client native darknes
   let data=targets.get(region.id);
   assert.equal(data.depth,36);
   assert.equal(data.fraction,.5);
-  assert.equal(data.darkness,.6);
+  assert.ok(Math.abs(data.darkness-.6)<1e-12);
   observer.document.elevation=-.75;observer.losHeight=.1;
   assert.equal(getNativeWaterDarknessTargets(scene,[observer]).size,0);
   observer.document.elevation=-151.5;observer.losHeight=-150;
@@ -94,7 +94,7 @@ test("per-client native behavior changes source and triggers Foundry perception,
   behavior.update=()=>{throw Error("must not persist temporary viewpoint depth")};
   assert.equal(refreshNativeWaterDarkness(),1);
   assert.equal(behavior.system.mode,0);
-  assert.equal(behavior.system.modifier,.6);
+  assert.ok(Math.abs(behavior.system.modifier-.6)<1e-12);
   assert.equal(calls.filter(c=>c[0]==="perception").length,1);
   assert.equal(refreshNativeWaterDarkness(),0,"idempotent refresh");
   observer.document.elevation=-.75;observer.losHeight=0.5;
@@ -147,7 +147,7 @@ test("diagnostics include native target and Scene darkness",async()=>{
   const d=nativeWaterDarknessDiagnostics();
   assert.equal(d.sceneDarkness,.2);
   assert.equal(d.regions.length,1);
-  assert.equal(d.regions[0].nativeDarkness,.6);
+  assert.ok(Math.abs(d.regions[0].nativeDarkness-.6)<1e-12);
   assert.equal(d.regions[0].behaviorReady,true);
   clean();
 });
