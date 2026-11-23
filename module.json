@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.18 : résolution du conflit entre obscurité de la Region parente et tranches d'élévation, avec restauration automatique.",
-  "version": "1.4.18",
+  "description": "PF1 Waters v1.4.19 : registre de corps d'eau de la scène, Regions à profondeur locale variable, surfaces de Tuiles/Dessins communes et compatibilité des anciens liens.",
+  "version": "1.4.19",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.18/pf1-waters-v1.4.18.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.19/pf1-waters-v1.4.19.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

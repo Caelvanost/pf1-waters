@@ -4,6 +4,9 @@
  */
 import { MODULE_ID, finite, isPrimaryGM, t } from "./constants.mjs";
 import { getWaterRegionData } from "./water-regions.mjs";
+import {
+  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBodyId
+} from "./water-bodies.mjs";
 const FLAG = "waterSurface";
 
 function values(collection) {
@@ -22,6 +25,8 @@ export function getWaterSurfaceData(value) {
   return {
     enabled: Boolean(raw?.enabled),
     regionId: typeof raw?.regionId === "string" ? raw.regionId : null,
+    ...(typeof raw?.bodyId==="string"&&raw.bodyId.trim()
+      ?{bodyId:raw.bodyId.trim()}:{ }),
     syncElevation: raw?.syncElevation !== false,
     // Visual range only. The Region is solely responsible for water physics.
     visibilityDepth: Math.max(0, finite(raw?.visibilityDepth,
@@ -35,16 +40,30 @@ export function getWaterSurfaceData(value) {
 }
 export function resolveWaterSurfaceRegion(value) {
   const doc = unwrap(value);
-  const { enabled, regionId } = getWaterSurfaceData(doc);
-  if (!enabled || !regionId || !doc?.parent) return null;
-  const region = values(doc.parent.regions).find((r) => r.id === regionId);
-  return region && getWaterRegionData(region).enabled ? region : null;
+  const { enabled, regionId, bodyId } = getWaterSurfaceData(doc);
+  if(!enabled||!doc?.parent)return null;
+  // New surfaces may cover multiple Regions of the same logical body.
+  // For compatibility this function still returns one representative Region.
+  if(bodyId){
+    if(!getSceneWaterBody(doc.parent,bodyId))return null;
+    return values(doc.parent.regions).find(region=>
+      getRegionWaterBodyId(region)===bodyId&&getWaterRegionData(region).enabled)??null;
+  }
+  if(!regionId)return null;
+  const region=values(doc.parent.regions).find(r=>r.id===regionId);
+  return region&&getWaterRegionData(region).enabled?region:null;
 }
 export function getWaterSurfacesForRegion(region) {
   if (!region?.parent) return [];
-  return [...values(region.parent.tiles), ...values(region.parent.drawings)].filter((doc) =>
-    getWaterSurfaceData(doc).enabled && resolveWaterSurfaceRegion(doc)?.id === region.id
-  );
+  const bodyId=getRegionWaterBodyId(region);
+  return [...values(region.parent.tiles),...values(region.parent.drawings)].filter(doc=>{
+    const link=getWaterSurfaceData(doc);
+    if(!link.enabled)return false;
+    if(bodyId&&link.bodyId===bodyId&&
+       getSceneWaterBody(region.parent,bodyId))return true;
+    // Region-specific links in pre-v1.4.19 scenes still behave unchanged.
+    return !link.bodyId&&resolveWaterSurfaceRegion(doc)?.id===region.id;
+  });
 }
 /**
  * A water-surface Tile is environmental art, not a roof.
@@ -63,8 +82,10 @@ export async function syncWaterSurfaceVisibility(value) {
   const mode = Number(doc.occlusion?.mode);
   if (!Number.isFinite(mode)) return false;
   const NONE = globalThis.CONST?.OCCLUSION_MODES?.NONE ?? 0;
-  const active = data.enabled && data.keepVisible &&
-    Boolean(resolveWaterSurfaceRegion(doc));
+  const active=data.enabled&&data.keepVisible&&
+    Boolean(data.bodyId
+      ?getSceneWaterBody(doc.parent,data.bodyId)
+      :resolveWaterSurfaceRegion(doc));
   const original = data.previousOcclusionMode;
 
   if (active) {
@@ -107,9 +128,10 @@ export async function syncSceneWaterSurfaceVisibilities(scene = globalThis.canva
 export async function syncWaterSurfaceElevation(value) {
   const doc = unwrap(value);
   if (!isPrimaryGM() || !getWaterSurfaceData(doc).syncElevation) return false;
-  const region = resolveWaterSurfaceRegion(doc);
-  if (!region || typeof doc.update !== "function") return false;
-  const expected = getWaterRegionData(region).surface;
+  const body=getSceneWaterBody(doc?.parent,getWaterSurfaceData(doc).bodyId);
+  const region=body?null:resolveWaterSurfaceRegion(doc);
+  if((!body&&!region)||typeof doc.update!=="function")return false;
+  const expected=body?body.surface:getWaterRegionData(region).surface;
   if (Math.abs(finite(doc.elevation, expected) - expected) <= 1e-6) return false;
   await doc.update({ elevation: expected });
   return true;
@@ -189,7 +211,7 @@ export async function configureSelectedWaterSurfaces(type) {
   }
   for (const doc of chosen) {
     await doc.setFlag(MODULE_ID, FLAG, {
-      enabled: true, regionId: result.regionId, syncElevation: result.syncElevation,
+      enabled: true, bodyId:null, regionId: result.regionId, syncElevation: result.syncElevation,
       visibilityDepth: result.visibilityDepth, keepVisible: result.keepVisible,
       previousOcclusionMode: getWaterSurfaceData(doc).previousOcclusionMode
     });
@@ -198,12 +220,81 @@ export async function configureSelectedWaterSurfaces(type) {
   }
   ui.notifications.info(chosen.length + " " + t("Linked", "surface(s) visuelle(s) associée(s)."));
 }
+/**
+ * Register a Tile or Drawing as visual surface of an entire Scene water body.
+ * A single surface can span several physical Regions with different bottoms.
+ */
+export async function assignSelectedSurfacesToBody(type) {
+  if(!game.user?.isGM)return ui.notifications.warn(t("OnlyGM","Outil réservé au MJ."));
+  const chosen=selected(type);
+  if(!chosen.length)return ui.notifications.warn(t("SelectSurface","Sélectionnez une tuile ou un dessin."));
+  const scene=globalThis.canvas?.scene;
+  const bodies=getSceneWaterBodies(scene);
+  if(!bodies.length)return ui.notifications.warn("Créez d’abord un corps d’eau de la scène.");
+  const first=getWaterSurfaceData(chosen[0]);
+  const esc=x=>foundry.utils.escapeHTML(String(x??""));
+  const options=bodies.map(b=>'<option value="'+esc(b.id)+'"'+
+    (first.bodyId===b.id?' selected':'')+'>'+esc(b.name)+
+    ' — surface '+esc(b.surface)+'</option>').join("");
+  const result=await foundry.applications.api.DialogV2.prompt({
+    classes:["pf1-waters-region-dialog"],
+    position:{width:520,height:"auto"},
+    window:{title:"PF1 Waters — Surface d’un corps d’eau"},
+    content:'<div class="standard-form pf1-waters-region-fields">'+
+      '<p>Cette surface visuelle s’applique à toutes les Regions associées au corps d’eau qu’elle recouvre.</p>'+
+      '<div class="form-group"><label>Corps d’eau</label><div class="form-fields">'+
+      '<select name="bodyId">'+options+'</select></div></div>'+
+      '<div class="form-group"><label>Aligner sur la surface commune</label>'+
+      '<div class="form-fields"><input type="checkbox" name="syncElevation" '+
+      (first.syncElevation?'checked ':'')+'></div></div>'+
+      '<div class="form-group"><label>Profondeur maximale de visibilité sous la surface</label>'+
+      '<div class="form-fields"><input type="number" min="0" step="any" name="visibilityDepth" value="'+
+      esc(first.visibilityDepth)+'"></div></div>'+
+      '<div class="form-group"><label>Ne pas masquer la surface comme une toiture</label>'+
+      '<div class="form-fields"><input type="checkbox" name="keepVisible" '+
+      (first.keepVisible?'checked ':'')+'></div></div></div>',
+    ok:{
+      label:"Définir comme surface",icon:"fa-solid fa-water",
+      callback:(_event,button)=>{
+        const visibilityDepth=Number(button.form.elements.visibilityDepth.value);
+        if(!Number.isFinite(visibilityDepth)||visibilityDepth<0){
+          throw new Error("La visibilité sous-marine doit être positive ou nulle.");
+        }
+        return {
+          bodyId:String(button.form.elements.bodyId.value),
+          syncElevation:Boolean(button.form.elements.syncElevation?.checked),
+          visibilityDepth,
+          keepVisible:Boolean(button.form.elements.keepVisible?.checked)
+        };
+      }
+    },rejectClose:false,modal:false
+  });
+  if(!result)return;
+  if(!getSceneWaterBody(scene,result.bodyId)){
+    return ui.notifications.warn("Corps d’eau introuvable.");
+  }
+  for(const doc of chosen){
+    await doc.setFlag(MODULE_ID,FLAG,{
+      ...getWaterSurfaceData(doc),
+      enabled:true,regionId:null,bodyId:result.bodyId,
+      syncElevation:result.syncElevation,
+      visibilityDepth:result.visibilityDepth,
+      keepVisible:result.keepVisible
+    });
+    await syncWaterSurfaceElevation(doc);
+    await syncWaterSurfaceVisibility(doc);
+  }
+  ui.notifications.info(chosen.length+" surface(s) associée(s) au corps d’eau.");
+}
+
 export async function clearSelectedWaterSurfaces(type) {
   if (!game.user?.isGM) return ui.notifications.warn(t("OnlyGM", "Outil réservé au MJ."));
   const chosen = selected(type);
   if (!chosen.length) return ui.notifications.warn(t("SelectSurface", "Sélectionnez une tuile ou un dessin."));
   for (const doc of chosen) {
-    await doc.setFlag(MODULE_ID, FLAG, { ...getWaterSurfaceData(doc), enabled: false });
+    await doc.setFlag(MODULE_ID, FLAG, {
+      ...getWaterSurfaceData(doc), enabled:false, bodyId:null, regionId:null
+    });
     await syncWaterSurfaceVisibility(doc);
   }
   ui.notifications.info(chosen.length + " " + t("Unlinked", "surface(s) visuelle(s) dissociée(s)."));
@@ -216,14 +307,21 @@ export function registerWaterSurfaceSceneControls(controls) {
     const group = controls?.[layer];
     if (!group?.tools) continue;
     const order = Object.keys(group.tools).length;
+    group.tools["pf1Waters" + type + "BodySurface"] = {
+      name:"pf1Waters"+type+"BodySurface",
+      title:"PF1 Waters — Définir comme surface d’un corps d’eau",
+      icon:"fa-solid fa-water",order:order,button:true,
+      visible:Boolean(game.user?.isGM),
+      onChange:()=>void assignSelectedSurfacesToBody(type)
+    };
     group.tools["pf1Waters" + configure] = {
       name: "pf1Waters" + configure, title: t(configure, "Lier à la surface d’eau"),
-      icon: "fa-solid fa-water", order, button: true, visible: Boolean(game.user?.isGM),
+      icon: "fa-solid fa-link", order: order+1, button: true, visible: Boolean(game.user?.isGM),
       onChange: () => void configureSelectedWaterSurfaces(type)
     };
     group.tools["pf1Waters" + clear] = {
       name: "pf1Waters" + clear, title: t(clear, "Dissocier la surface d’eau"),
-      icon: "fa-solid fa-unlink", order: order + 1, button: true,
+      icon: "fa-solid fa-unlink", order: order + 2, button: true,
       visible: Boolean(game.user?.isGM),
       onChange: () => void clearSelectedWaterSurfaces(type)
     };
@@ -246,6 +344,13 @@ export function registerWaterSurfaceHooks() {
         console.warn(MODULE_ID + " | Occlusion de surface non synchronisée", error));
     });
   }
+  Hooks.on("updateScene", (scene,changes) => {
+    const flags=changes?.flags?.[MODULE_ID] ??
+      changes?.[`flags.${MODULE_ID}`];
+    if(!flags||!Object.hasOwn(flags,"waterBodies"))return;
+    void syncSceneWaterSurfaceElevations(scene);
+    void syncSceneWaterSurfaceVisibilities(scene);
+  });
   Hooks.on("canvasReady", () => {
     void syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     void syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);

@@ -449,6 +449,37 @@ test("being inside Region footprint above water never grants underwater vision",
   resetViewerTests();
 });
 
+test("underwater observers in different Regions of one body share interior visibility",()=>{
+  const {scene,region}=makeScene();
+  scene.flags={"pf1-waters":{waterBodies:[{id:"bay",name:"Baie",surface:0}]}};
+  scene.getFlag=(ns,key)=>scene.flags?.[ns]?.[key];
+  const original=region.getFlag.bind(region);
+  region.getFlag=(ns,key)=>{
+    const value=original(ns,key);
+    return value&&ns==="pf1-waters"&&key==="waterRegion"
+      ?{...value,bodyId:"bay"}:value;
+  };
+  const distant={
+    id:"r2",parent:scene,elevation:{bottom:-12,top:0},
+    getFlag(ns,key){return ns==="pf1-waters"&&key==="waterRegion"
+      ?{enabled:true,bodyId:"bay",surface:0,depth:12,visibilityDepth:2}:undefined;},
+    testPoint({x,y,elevation}){return x>=200&&x<400&&y>=0&&y<200&&
+      elevation>=-12&&elevation<=0;}
+  };
+  scene.regions.push(distant);
+  makeVisual(scene);
+  const target=makeToken(scene,-6);
+  target.isVisible=false;target.visible=false;target.mesh.visible=false;
+  canvas.tokens.controlled=[underwaterViewer(scene,{x:250,y:10,elevation:-4})];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  assert.equal(hasInteriorWaterViewer(getTokenWaterState(target.document)),true);
+  assert.equal(canSeeWaterTokenFromInterior(target),true);
+  refreshTokenWaterVisualDepth(target);
+  assert.equal(target.visible,true);
+  assert.equal(target.mesh.alpha,1);
+  resetViewerTests();
+});
 test("underwater observer in a different water Region never bypasses range",()=>{
   const {scene,region}=makeScene();region.visibilityDepth=2;
   makeVisual(scene);

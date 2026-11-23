@@ -16,6 +16,7 @@ import { MODULE_ID, EPSILON, finite } from "./constants.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterSurfaceData, getWaterSurfacesForRegion } from "./water-surface-links.mjs";
 import { tokenCenter, getWaterRegionData } from "./water-regions.mjs";
+import { areWaterRegionsInSameBody } from "./water-bodies.mjs";
 
 const overlaySprites = new Map();
 const alphaOverrides = new WeakMap();
@@ -204,7 +205,7 @@ export function isWaterObserverSubmerged(viewer, state = undefined) {
 
 /**
  * The depth limit is bypassed only for a viewer whose eyes are underwater
- * inside the SAME Region. Floating swimmers looking above the surface use
+ * inside the SAME WATER BODY (or legacy Region). Floating swimmers looking above the surface use
  * exterior visibility rules, even if their bodies are partly submerged.
  */
 export function hasInteriorWaterViewer(targetState) {
@@ -212,8 +213,7 @@ export function hasInteriorWaterViewer(targetState) {
   return getLocalWaterObservers().some((viewer) => {
     const state = getTokenWaterState(viewer.document);
     return isWaterObserverSubmerged(viewer, state) &&
-      state.region?.id === targetState.region.id &&
-      state.region?.parent?.id === targetState.region.parent?.id;
+      areWaterRegionsInSameBody(state.region,targetState.region);
   });
 }
 

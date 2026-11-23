@@ -241,7 +241,11 @@ export function registerWaterDepthBandHooks() {
     }
   });
   Hooks.on("updateScene", (scene, changes) => {
-    if (changes?.environment || changes?.grid) scheduleScene(scene);
+    const bodyChanges=changes?.flags?.[MODULE_ID]?.waterBodies ??
+      changes?.[`flags.${MODULE_ID}.waterBodies`] ??
+      changes?.[`flags.${MODULE_ID}`]?.waterBodies;
+    if (changes?.environment || changes?.grid ||
+        bodyChanges !== undefined) scheduleScene(scene);
   });
   Hooks.on("canvasReady", sceneOrCanvas => {
     const scene = sceneOrCanvas?.scene ?? globalThis.canvas?.scene;

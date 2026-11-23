@@ -1,3 +1,13 @@
+# 1.4.19 — Corps d'eau regroupés à la scène (plusieurs Regions, une surface)
+
+- Nouveau registre par scène pour les corps d'eau : nom, élévation de surface commune, création/modification/suppression avec contrôle des associations.
+- Nouveaux boutons dans la couche Regions pour enregistrer les corps d'eau, associer une ou plusieurs Regions et dissocier celles-ci sans retirer leurs paramètres d'eau. Chaque Region conserve son contour et un fond local distinct, obtenu au choix par sa limite inférieure de Foundry ou par une profondeur explicitement saisie.
+- Boutons supplémentaires dans les couches Tuiles et Dessins pour relier des surfaces visuelles directement à un corps d'eau, et non plus uniquement à une Region donnée.
+- Surface partagée résolue dynamiquement par les calculs de nage, fond, vision et éclairage ; une surface visuelle liée à un corps d'eau peut servir plusieurs Regions.
+- Détection d'appartenance horizontale corrigée pour les Regions dont les limites natives d'élévation ne comprennent pas 0 ; observers immergés dans deux Regions du même corps d'eau partageant la vision intérieure (sans contourner Foundry).
+- Rafraîchissement sur changement de registre de la scène ; compatibilité préservée avec les Regions et Tiles/Drawings liés directement sans registre.
+- Tests couvrant les plages à plusieurs fonds, association des Regions et surfaces, montage 3D, registres, suppression sûre et vision entre membres.
+
 # 1.4.18 — Exclusion mutuelle de l'obscurité de la Region parente et des tranches
 
 - Correction du conflit entre le comportement « PF1 Waters — Obscurité selon profondeur » de la Region parente et les comportements natifs « Remplacer l'obscurité » des tranches d'élévation.

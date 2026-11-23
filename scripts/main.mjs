@@ -38,6 +38,19 @@ Hooks.once("init", () => {
     await syncSceneUnderwaterFlags(scene);
     await refreshWaterSurfaceMarkers();
   });
+  Hooks.on("updateScene", (scene,changes) => {
+    const value=changes?.flags?.[MODULE_ID]?.waterBodies ??
+      changes?.[`flags.${MODULE_ID}.waterBodies`] ??
+      changes?.[`flags.${MODULE_ID}`]?.waterBodies;
+    if(value===undefined)return;
+    // All members share a changed surface elevation, but their individual
+    // depths/footprints remain untouched.
+    void syncSceneUnderwaterFlags(scene).catch(error=>
+      console.warn(MODULE_ID+" | Corps d’eau non synchronisé",error));
+    refreshSceneWaterVisualDepth();
+    refreshNativeWaterDarkness();
+    refreshWaterGlobalLighting();
+  });
   Hooks.on("getSceneControlButtons", registerWaterRegionSceneControls);
   Hooks.on("getSceneControlButtons", registerWaterSurfaceSceneControls);
 });

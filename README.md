@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.18
+# PF1 Waters — v1.4.19
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -75,6 +75,33 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Corps d'eau de la scène : plusieurs Regions, une seule surface (v1.4.19)
+
+PF1 Waters permet maintenant de regrouper **plusieurs Regions d'eau indépendantes**, avec des coordonnées et profondeurs différentes, sous **un même corps d'eau enregistré sur la scène**. Il n'est pas nécessaire de créer une Region parente englobante.
+
+**Exemple de plage :** enregistrer « Baie des Épaves » avec la surface à l'élévation `0`. Associer des Regions adjacentes : « Bord de plage » (fond à `-1`), « Haut-fond » (fond à `-3`), « Large » (fond à `-20`). La topographie aquatique est ainsi composée de portions distinctes, mais la surface est une valeur unique.
+
+**Interface MJ :**
+
+1. Dans la couche **Regions**, utiliser **« PF1 Waters — Corps d'eau de la scène »** pour créer, modifier ou supprimer une entrée du registre de cette scène (nom et élévation commune).
+2. Dessiner librement les portions aquatiques. Sélectionner une ou plusieurs Regions et utiliser **« PF1 Waters — Ajouter des Regions à un corps d'eau »**. Choisir le corps d'eau et la profondeur locale : soit chaque limite inférieure d'élévation native de Foundry (si définie), soit une profondeur renseignée dans le formulaire. Les contours et les élévations natifs des Regions ne sont jamais modifiés par cette association.
+3. Dans **Tuiles** ou **Dessins**, sélectionner les surfaces visuelles et utiliser **« PF1 Waters — Définir comme surface d'un corps d'eau »**. Une surface peut recouvrir plusieurs Regions du même corps d'eau. Son élévation est alignée sur la surface commune lorsque l'option est cochée.
+4. Les commandes **« Dissocier les Regions d'un corps d'eau »** et **« Dissocier la surface d'eau »** conservent les objets et permettent de retirer leurs associations.
+
+**Règles de fonctionnement :**
+- La surface commune appartient à la **scène**, enregistrée dans `flags.pf1-waters.waterBodies`. Chaque Region porte `flags.pf1-waters.waterRegion.bodyId`; chaque Tile/Drawing peut porter `flags.pf1-waters.waterSurface.bodyId`.
+- Le **fond** et la profondeur restent définis **par Region**. Les calculs de nage, de pieds au fond, de projectiles sous l'eau et de profondeur physique ne fusionnent pas les volumes en une seule Region.
+- Deux observateurs immergés dans des Regions du même corps d'eau sont reconnus comme partageant la même eau, tout en conservant les tests de vision, d'obstacles et d'obscurité de Foundry.
+- Une seule tuile ou un seul dessin peut servir de surface à toutes les Regions associées qu'il recouvre. Les anciennes surfaces liées à un unique identifiant de Region fonctionnent toujours.
+- Modifier le niveau de surface du corps d'eau met à jour la surface logique de toutes ses Regions sans réécrire leurs profondeurs locales, et réajuste les surfaces graphiques liées qui suivent l'élévation.
+- Les Regions ont des géométries indépendantes ; pour obtenir des fonds différents, les dessiner **adjacentes et sans chevauchements**. La profondeur est une approximation en escalier ; cette fonctionnalité ne génère pas de fond incliné continu.
+- Le registre ne supprime pas les objets : la suppression d'un corps d'eau est refusée s'il possède encore des Regions, Tuiles ou Dessins associés. Les dissocier d'abord.
+- Toutes les associations sont **facultatives** : les scènes existantes n'ont pas à être migrées et conservent leur comportement originel.
+
+Le menu avancé individuel **« PF1 Waters — Corps d'eau »** et la méthode d'obscurité par tranches restent disponibles sur les Regions. Si une Region appartient à un corps d'eau enregistré, le niveau commun de surface prévaut sur sa valeur locale.
+
+**API :** `game.modules.get("pf1-waters").api.getSceneWaterBodies(canvas.scene)`, `getRegionWaterBodyId(region)`, `areWaterRegionsInSameBody(regionA,regionB)`.
 
 ## Obscurité sous-marine par tranches d'élévation (v1.4.17)
 

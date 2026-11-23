@@ -1,10 +1,16 @@
 import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, hasInteriorWaterViewer, canSeeWaterTokenFromInterior, getWaterObserverEyeElevation, isWaterObserverSubmerged, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
-import { getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion, configureSelectedWaterSurfaces, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
+import { getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion, configureSelectedWaterSurfaces, assignSelectedSurfacesToBody, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import {
   getWaterRegionData, getWaterBottomElevation, isWaterRegion,
   configureSelectedWaterRegions, clearSelectedWaterRegions,
+  attachSelectedWaterRegionsToBody, detachSelectedWaterRegionsFromBody,
   migrateLegacyWaterRegions
 } from "./water-regions.mjs";
+import {
+  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
+  getRegionWaterBodyId, areWaterRegionsInSameBody,
+  configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody
+} from "./water-bodies.mjs";
 import {
   getTokenWaterState, isTokenUnderwater, getTokenPhysicalHeight,
   getTokenSwimElevation, tokenHasFooting, hasWaterWalkFlag, WATER_CLASSIFICATION
@@ -53,6 +59,10 @@ export const WATER_AUTOMATION = Object.freeze({
 export const WATER_API = Object.freeze({
   WATER_CLASSIFICATION,
   waterAutomation: WATER_AUTOMATION,
+  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
+  getRegionWaterBodyId, areWaterRegionsInSameBody,
+  configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody,
+  attachSelectedWaterRegionsToBody, detachSelectedWaterRegionsFromBody,
   getWaterRegionData, isWaterRegion, getTokenWaterState,
   isTokenUnderwater, getTokenPhysicalHeight,
   getWaterBottomElevation, getTokenSwimElevation, tokenHasFooting,
@@ -72,7 +82,8 @@ export const WATER_API = Object.freeze({
   planWaterDepthBands, getWaterDepthBandInfo, waterDepthBandDiagnostics,
   syncSceneWaterDepthBands,
   getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
-  configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
+  configureSelectedWaterSurfaces, assignSelectedSurfacesToBody,
+  clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,
   calculateWaterVisualElevation, surfaceContainsTokenCenter,
   getTokenWaterVisualElevation, getTokenWaterVisualDisplay,
