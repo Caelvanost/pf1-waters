@@ -1,1 +1,40 @@
-/* PF1 Waters v1.0.0 — No global canvas or sheet overrides. */
+/* PF1 Waters — Foundry V13 Region editor, locally scoped styles. */
+.application.pf1-waters-region-dialog {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+}
+
+/*
+ * DialogV2.prompt() owns the header and the submit buttons. Only the
+ * configuration fields scroll, so the validation button stays accessible.
+ * A viewport-relative cap works when the game runs in a short browser window.
+ */
+.application.pf1-waters-region-dialog .pf1-waters-region-fields {
+  box-sizing: border-box;
+  min-height: 0;
+  max-height: calc(100vh - 180px);
+  max-height: min(560px, calc(100dvh - 180px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-inline: 0.5rem;
+  padding-block: 0.25rem;
+}
+
+.application.pf1-waters-region-dialog .pf1-waters-region-fields .form-group {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.application.pf1-waters-region-dialog .pf1-waters-region-fields .form-fields {
+  min-width: 0;
+  flex: 1 1 190px;
+}
+
+.application.pf1-waters-region-dialog .pf1-waters-region-fields input[type="number"],
+.application.pf1-waters-region-dialog .pf1-waters-region-fields file-picker {
+  min-width: 0;
+  max-width: 100%;
+}

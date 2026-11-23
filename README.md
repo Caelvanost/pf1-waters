@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.15
+# PF1 Waters — v1.4.16
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -19,7 +19,7 @@ Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 
 Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, visibilityDepth, ringPng, ringScale }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
 
-Le formulaire **PF1 Waters — Corps d'eau** est désormais **non modal** : lorsque le MJ sélectionne **Image PNG des remous**, le navigateur natif de fichiers Foundry peut être placé au premier plan et reste cliquable. La Region n'est enregistrée qu'après confirmation du formulaire. Le choix du fichier et le champ facultatif `ringPng` ne changent pas.
+Le formulaire **PF1 Waters — Corps d'eau** est **non modal** : lorsque le MJ sélectionne **Image PNG des remous**, le navigateur natif de fichiers Foundry peut être placé au premier plan et reste cliquable. **Depuis la v1.4.16, les champs du formulaire défilent verticalement à l'intérieur de la fenêtre**, dont la largeur et la hauteur sont limitées à l'espace visible ; les boutons de confirmation restent accessibles même sur les petits écrans. La Region n'est enregistrée qu'après confirmation du formulaire. Le choix du fichier et le champ facultatif `ringPng` ne changent pas.
 
 ## Associer une tuile ou un dessin à la surface visuelle de l'eau
 

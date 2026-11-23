@@ -1,3 +1,11 @@
+# 1.4.16 — Fenêtre de configuration des Regions aquatiques défilable
+
+- Correction du formulaire « PF1 Waters — Corps d'eau » qui dépassait de l'écran avec ses nouveaux paramètres d'éclairage.
+- Hauteur maximale du contenu adaptée au viewport (560 px maximum) et défilement vertical réservé aux champs, sans cacher le titre ou le bouton de validation.
+- Largeur maximale adaptée aux petites fenêtres ; champs numériques et sélecteur PNG restent utilisables.
+- Conservation du dialogue non modal pour que le navigateur de fichiers natif de Foundry V13 soit accessible.
+- Test de non-régression pour la configuration de la fenêtre et ses styles CSS.
+
 # 1.4.15 — Obscurité native progressive et profondeur solaire indépendante
 
 - À chaque changement d'élévation du regard, l'obscurité native d'une Region rejoint sa valeur cible par une interpolation locale douce de 450 ms, avec recalcul de perception toutes les 75 ms au maximum.

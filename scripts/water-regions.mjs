@@ -159,8 +159,12 @@ export async function configureSelectedWaterRegions() {
   const visibilityDepth = first.visibilityDepth;
   const units = foundry.utils.escapeHTML(globalThis.canvas?.scene?.grid?.units ?? "");
   const result = await foundry.applications.api.DialogV2.prompt({
+    classes: ["pf1-waters-region-dialog"],
+    // Foundry V13: keep a comfortable dialog width while CSS constrains
+    // the window and scrollable content to the available viewport height.
+    position: { width: 520, height: "auto" },
     window: { title: t("DialogTitle", "PF1 Waters — Corps d'eau") },
-    content: '<div class="standard-form">' +
+    content: '<div class="standard-form pf1-waters-region-fields">' +
       '<p>' + t("DialogHint", "Élévations dans les unités de grille de cette scène.") + '</p>' +
       '<div class="form-group"><label>' + t("Surface", "Surface") + '</label>' +
       '<div class="form-fields"><input name="surface" type="number" step="any" value="' +
@@ -189,7 +193,7 @@ export async function configureSelectedWaterRegions() {
       '</label><div class="form-fields"><input name="ringScale" type="number" min="0.01" step="0.1" value="' +
       first.ringScale + '"></div></div><p class="hint">' +
       t("RingScaleHint", "Taille de l’image par rapport au token (1,5 par défaut) : un token 1×1 aura des remous de 1,5×1,5 case, centrés sous lui.") +
-      '</p></div></div>',
+      '</p></div>',
     ok: {
       label: t("Confirm", "Définir comme corps d'eau"),
       icon: "fa-solid fa-water",
