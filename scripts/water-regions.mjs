@@ -188,7 +188,7 @@ export async function configureSelectedWaterRegions() {
       foundry.utils.escapeHTML(first.ringPng) +
       '"></file-picker></div><p class="hint">' +
       t("RingPngHint", "Choisir un PNG transparent depuis les ressources Foundry ; laisser vide pour aucun effet.") +
-      '</p><div class="form-group"><label>' +
+      '</p></div><div class="form-group"><label>' +
       t("RingScale", "Ratio de taille des remous") +
       '</label><div class="form-fields"><input name="ringScale" type="number" min="0.01" step="0.1" value="' +
       first.ringScale + '"></div></div><p class="hint">' +
