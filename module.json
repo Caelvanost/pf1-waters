@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.21 : portée de vision sous-marine dynamique et configurable par corps d'eau, selon la profondeur des yeux de chaque token, sans modifier les lumières.",
+  "description": "PF1 Waters v1.4.21 : vision sous-marine dynamique par token ; distance maximale et profondeur de demi-visibilité réglables pour chaque corps d'eau, sans écriture de lumière.",
   "version": "1.4.21",
   "authors": [
     {

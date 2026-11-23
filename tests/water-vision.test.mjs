@@ -160,8 +160,8 @@ test("registering body vision settings preserves old registry values while allow
     (({visionEnabled,visionRange,visionHalfDepth})=>({visionEnabled,visionRange,visionHalfDepth}))(getSceneWaterBody(scene,"bay")),
     {visionEnabled:false,visionRange:70,visionHalfDepth:14}
   );
-  await assert.rejects(saveSceneWaterBody(scene,{id:"bay",name:"bad",surface:0,visionRange:-2}),/positive/);
-  await assert.rejects(saveSceneWaterBody(scene,{id:"bay",name:"bad",surface:0,visionHalfDepth:""}),/positive/);
+  await assert.rejects(saveSceneWaterBody(scene,{id:"bay",name:"bad",surface:0,visionRange:-2}),/positif/);
+  await assert.rejects(saveSceneWaterBody(scene,{id:"bay",name:"bad",surface:0,visionHalfDepth:""}),/positif/);
 });
 
 test("per-scene settings default to scene units for previously created body records",()=>{
