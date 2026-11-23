@@ -34,15 +34,15 @@ jobs:
           node - <<'JS'
           const m=require("./module.json");
           const base="https://github.com/Caelvanost/pf1-waters";
-          if(m.id!=="pf1-waters"||m.version!=="1.4.19"||m.url!==base)throw Error("Module identity");
+          if(m.id!=="pf1-waters"||m.version!=="1.4.20"||m.url!==base)throw Error("Module identity");
           if(m.manifest!=="https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json")throw Error("Manifest URL");
-          if(m.download!==base+"/releases/download/v1.4.19/pf1-waters-v1.4.19.zip")throw Error("Download URL");
+          if(m.download!==base+"/releases/download/v1.4.20/pf1-waters-v1.4.20.zip")throw Error("Download URL");
           JS
           mkdir -p dist
-          zip -q -r dist/pf1-waters-v1.4.19.zip module.json scripts lang styles README.md CHANGELOG.md
+          zip -q -r dist/pf1-waters-v1.4.20.zip module.json scripts lang styles README.md CHANGELOG.md
           python - <<'PY'
           import json,zipfile
-          with zipfile.ZipFile("dist/pf1-waters-v1.4.19.zip") as z:
+          with zipfile.ZipFile("dist/pf1-waters-v1.4.20.zip") as z:
               assert all(x in z.namelist() for x in ("module.json","scripts/main.mjs","scripts/api.mjs","lang/fr.json"))
               assert json.loads(z.read("module.json"))["id"]=="pf1-waters"
           PY
@@ -52,11 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=v1.4.19
-          archive=dist/pf1-waters-v1.4.19.zip
+          tag=v1.4.20
+          archive=dist/pf1-waters-v1.4.20.zip
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.19" --notes "Registre des corps d'eau par scène, association de plusieurs Regions à fonds distincts et surfaces de Tuiles/Dessins partagées."
+            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.20" --notes "Format unique basé sur les corps d'eau enregistrés dans la scène ; suppression des anciennes migrations et des liens visuels vers une seule Region."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,assets,url

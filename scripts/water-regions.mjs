@@ -1,5 +1,5 @@
 import {
-  MODULE_ID, LEGACY_MODULE_ID, WATER_REGION_FLAG, finite, isPrimaryGM, t
+  MODULE_ID, WATER_REGION_FLAG, finite, t
 } from "./constants.mjs";
 import { ensureNativeWaterDarknessBehavior } from "./water-native-darkness.mjs";
 import {
@@ -31,10 +31,9 @@ export function getDefaultWaterVisibilityDepth(scene) {
 }
 
 function parseRegionFlag(raw, scene) {
+  // v1.4.20+: only a Region registered to a scene water body is water.
   const body=getSceneWaterBody(scene,raw?.bodyId);
-  // The registered body's waterline is authoritative for all its Regions.
-  // Unregistered legacy Regions retain their independent surface elevation.
-  const surface=body?body.surface:finite(raw?.surface,0);
+  const surface=body?.surface??0;
   const depthRaw = raw?.depth;
   const parsedDepth = depthRaw === "" || depthRaw === null || depthRaw === undefined
     ? null : Number(depthRaw);
@@ -46,7 +45,7 @@ function parseRegionFlag(raw, scene) {
     Number.isFinite(raw.sunlightHalfDepth) && raw.sunlightHalfDepth >= 0
     ? raw.sunlightHalfDepth : visibilityDepth;
   return {
-    enabled: Boolean(raw?.enabled),
+    enabled: Boolean(raw?.enabled && body),
     surface,
     depth: Number.isFinite(parsedDepth) && parsedDepth >= 0 ? parsedDepth : null,
     // Optional ring image provided by the GM; no default geometric rings.
@@ -68,8 +67,7 @@ function parseRegionFlag(raw, scene) {
  * their previous lighting behavior until the GM enables this setting.
  */
 export function getWaterDepthBandSettings(region) {
-  const canonical = readRegionFlag(region, MODULE_ID);
-  const raw = canonical !== undefined ? canonical : readRegionFlag(region, LEGACY_MODULE_ID);
+  const raw=readRegionFlag(region,MODULE_ID);
   const value = Number(raw?.darknessBandCount);
   return {
     enabled: raw?.darknessBands === true,
@@ -79,10 +77,7 @@ export function getWaterDepthBandSettings(region) {
 }
 
 export function getWaterRegionData(region) {
-  const canonical = readRegionFlag(region, MODULE_ID);
-  // An explicit canonical disabled value overrides any old enabled value.
-  const raw = canonical !== undefined ? canonical : readRegionFlag(region, LEGACY_MODULE_ID);
-  return parseRegionFlag(raw, region?.parent);
+  return parseRegionFlag(readRegionFlag(region,MODULE_ID),region?.parent);
 }
 
 export function getWaterBottomElevation(region) {
@@ -142,26 +137,6 @@ export function getWaterRegionsAtToken2D(token) {
     .filter(isWaterRegion)
     .filter((region) => tokenInsideWaterRegion2D(doc, region))
     .sort((a, b) => getWaterRegionData(b).surface - getWaterRegionData(a).surface);
-}
-
-export async function migrateLegacyWaterRegions() {
-  if (!isPrimaryGM()) return { migrated: 0, errors: 0 };
-  let migrated = 0;
-  let errors = 0;
-  for (const scene of game.scenes ?? []) {
-    for (const region of scene.regions ?? []) {
-      const legacy = readRegionFlag(region, LEGACY_MODULE_ID);
-      if (legacy === undefined || readRegionFlag(region, MODULE_ID) !== undefined) continue;
-      try {
-        await region.setFlag(MODULE_ID, WATER_REGION_FLAG, parseRegionFlag(legacy, scene));
-        migrated++;
-      } catch (error) {
-        errors++;
-        console.warn(MODULE_ID + " | Migration non destructive impossible : " + region.name, error);
-      }
-    }
-  }
-  return { migrated, errors };
 }
 
 export function registerWaterRegionHooks(resync) {
@@ -263,18 +238,22 @@ export async function detachSelectedWaterRegionsFromBody() {
     if(!getRegionWaterBodyId(region))continue;
     const current=getWaterRegionData(region),bands=getWaterDepthBandSettings(region);
     await region.setFlag(MODULE_ID,WATER_REGION_FLAG,{
-      ...current,bodyId:null,enabled:true,
+      ...current,bodyId:null,enabled:false,
       darknessBands:bands.enabled,darknessBandCount:bands.count
     });
     changed++;
   }
-  ui.notifications.info(changed+" Region(s) dissociée(s), conservées comme Regions d’eau autonomes.");
+  ui.notifications.info(changed+" Region(s) dissociée(s) ; elles ne sont plus considérées comme de l’eau.");
 }
 
 export async function configureSelectedWaterRegions() {
   if (!game.user?.isGM) return ui.notifications.warn(t("OnlyGM", "Outil réservé au MJ."));
   const regions = selectedWaterRegionDocuments();
   if (!regions.length) return ui.notifications.warn(t("SelectRegion", "Sélectionnez une Region sur la couche Regions."));
+  if(regions.some(region=>!getRegionWaterBodyId(region)||
+    !getSceneWaterBody(region.parent,getRegionWaterBodyId(region)))) {
+    return ui.notifications.warn("Associez d’abord toutes les Regions sélectionnées à un corps d’eau de la scène.");
+  }
   const first = getWaterRegionData(regions[0]);
   const lightingBands = getWaterDepthBandSettings(regions[0]);
   const visibilityDepth = first.visibilityDepth;
@@ -286,10 +265,10 @@ export async function configureSelectedWaterRegions() {
     position: { width: 520, height: "auto" },
     window: { title: t("DialogTitle", "PF1 Waters — Corps d'eau") },
     content: '<div class="standard-form pf1-waters-region-fields">' +
-      '<p>' + t("DialogHint", "Élévations dans les unités de grille de cette scène.") + '</p>' +
-      '<div class="form-group"><label>' + t("Surface", "Surface") + '</label>' +
-      '<div class="form-fields"><input name="surface" type="number" step="any" value="' +
-      first.surface + '"><span class="units">' + units + '</span></div></div>' +
+      '<p>La surface est définie par le corps d’eau de la scène ; cette fenêtre configure uniquement la Region.</p>' +
+      '<div class="form-group"><label>Surface commune (lecture seule)</label><div class="form-fields">' +
+      '<input type="number" value="' + first.surface + '" disabled><span class="units">' + units +
+      '</span></div></div>' +
       '<div class="form-group"><label>' + t("Depth", "Profondeur") + '</label>' +
       '<div class="form-fields"><input name="depth" type="number" step="any" min="0" value="' +
       (first.depth ?? "") + '" placeholder="' + t("NoBottom", "Fond illimité") +
@@ -326,8 +305,7 @@ export async function configureSelectedWaterRegions() {
       label: t("Confirm", "Définir comme corps d'eau"),
       icon: "fa-solid fa-water",
       callback: (_event, button) => {
-        const surfaceRaw = button.form.elements.surface.value;
-        const depthRaw = String(button.form.elements.depth.value ?? "").trim();
+         const depthRaw = String(button.form.elements.depth.value ?? "").trim();
         const ringPng = String(button.form.elements.ringPng?.value ?? "").trim();
         const ringScaleRaw = String(button.form.elements.ringScale?.value ?? "").trim();
         const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
@@ -337,10 +315,7 @@ export async function configureSelectedWaterRegions() {
         const sunlightHalfDepth = sunlightRaw === "" ? NaN : Number(sunlightRaw);
         const darknessBands = Boolean(button.form.elements.darknessBands?.checked);
         const darknessBandCount = Number(button.form.elements.darknessBandCount?.value);
-        if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
-        const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
-        if (!Number.isFinite(surface)) throw new Error(t("InvalidSurface", "Surface invalide."));
         if (depth !== null && (!Number.isFinite(depth) || depth < 0)) {
           throw new Error(t("InvalidDepth", "La profondeur doit être positive ou nulle."));
         }
@@ -361,7 +336,7 @@ export async function configureSelectedWaterRegions() {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
         return {
-          surface, depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth,
+          depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth,
           darknessBands, darknessBandCount
         };
       }
@@ -376,8 +351,7 @@ export async function configureSelectedWaterRegions() {
   for (const region of regions) {
     const currentBodyId=getRegionWaterBodyId(region);
     await region.setFlag(MODULE_ID, WATER_REGION_FLAG, {
-      enabled: true, surface: result.surface, depth: result.depth,
-      ...(currentBodyId ? {bodyId:currentBodyId} : {}),
+      enabled:true,bodyId:currentBodyId,depth:result.depth,
       ringPng: result.ringPng ?? "",
       ringScale: Number.isFinite(result.ringScale) && result.ringScale > 0
         ? result.ringScale : first.ringScale,

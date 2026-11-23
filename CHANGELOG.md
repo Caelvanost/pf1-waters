@@ -1,3 +1,11 @@
+# 1.4.20 — Suppression de la compatibilité des anciennes Regions et surfaces
+
+- Le registre des corps d'eau de la scène devient obligatoire : seule une Region rattachée à un identifiant de corps d'eau existant représente de l'eau. La surface ne peut plus être paramétrée indépendamment sur chaque Region.
+- Suppression de la migration des flags `pf1-skull-and-shackles.waterRegion`, des lectures d'anciens espaces de flags et des états de mouvement hérités d'un autre module. Le miroir public `world.underwater` est conservé pour les automatismes PF1.
+- Les Tuiles/Dessins ne peuvent plus être associés à un identifiant individuel de Region. Suppression de l'ancien bouton « Lier à la surface d'eau » ; seules l'association à un corps d'eau de la scène et la dissociation restent disponibles.
+- La fenêtre des paramètres d'une Region affiche l'altitude de surface commune en lecture seule. Une Region dissociée n'est plus un corps d'eau autonome.
+- Tests réécrits sur le format unique, notamment nage, éclairage, remous, plages multi-profondeurs, surfaces communes et visibilité entre Regions.
+
 # 1.4.19 — Corps d'eau regroupés à la scène (plusieurs Regions, une surface)
 
 - Nouveau registre par scène pour les corps d'eau : nom, élévation de surface commune, création/modification/suppression avec contrôle des associations.

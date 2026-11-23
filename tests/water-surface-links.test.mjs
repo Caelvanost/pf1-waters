@@ -1,147 +1,171 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
-  syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,
-  syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities,
-  configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
+  getWaterSurfaceData,getWaterSurfacesForRegion,
+  syncWaterSurfaceElevation,syncSceneWaterSurfaceElevations,
+  syncWaterSurfaceVisibility,syncSceneWaterSurfaceVisibilities,
+  assignSelectedSurfacesToBody,clearSelectedWaterSurfaces,
   registerWaterSurfaceSceneControls
 } from "../scripts/water-surface-links.mjs";
 import { getTokenWaterState } from "../scripts/water-state.mjs";
 
-globalThis.game = {
-  user: { id: "GM", isGM: true }, users: { activeGM: { id: "GM" } },
-  i18n: { localize: (key) => key }
+globalThis.game={
+  user:{id:"GM",isGM:true},users:{activeGM:{id:"GM"}},
+  i18n:{localize:key=>key}
 };
-globalThis.ui = { notifications: { info() {}, warn() {} } };
-globalThis.foundry = {
-  utils: { escapeHTML: (text) => String(text).replaceAll("&", "&amp;").replaceAll("<", "&lt;") },
-  applications: { api: { DialogV2: { prompt: async () => ({ regionId: "lake", syncElevation: true, visibilityDepth:5, keepVisible:true }) } } }
+globalThis.ui={notifications:{info(){},warn(message){throw Error(message);}}};
+globalThis.foundry={
+  utils:{escapeHTML:text=>String(text).replaceAll("&","&amp;").replaceAll("<","&lt;")},
+  applications:{api:{DialogV2:{prompt:async()=>({
+    bodyId:"bay",syncElevation:true,visibilityDepth:5,keepVisible:true
+  })}}}
 };
-function makeScene() {
-  return { id: "scene", regions: [], tiles: [], drawings: [],
-    grid: { size: 100, distance: 1.5, units: "m" } };
+function makeScene(){
+  return {
+    id:"scene",regions:[],tiles:[],drawings:[],
+    flags:{"pf1-waters":{waterBodies:[{id:"bay",name:"Baie",surface:4}]}},
+    getFlag(ns,key){return this.flags?.[ns]?.[key];},
+    grid:{size:100,distance:1.5,units:"m"}
+  };
 }
-function region(scene, id="lake", surface=4) {
-  const r={ id,name:id,parent:scene,flags:{"pf1-waters":{waterRegion:{enabled:true,surface,depth:10}}},
-    getFlag(ns,key){return this.flags[ns]?.[key];},
-    testPoint(){return true;} };
-  scene.regions.push(r); return r;
+function region(scene,id="shallows",depth=2){
+  const r={
+    id,name:id,parent:scene,
+    flags:{"pf1-waters":{waterRegion:{enabled:true,bodyId:"bay",depth}}},
+    getFlag(ns,key){return this.flags?.[ns]?.[key];},
+    testPoint(){return true;}
+  };
+  scene.regions.push(r);
+  return r;
 }
-function placeable(scene, type="Tile", id="surface") {
-  const doc={documentName:type,id,parent:scene,elevation:0,occlusion:{mode:1,alpha:0.5},flags:{},
-    getFlag(ns,key){return this.flags[ns]?.[key];},
+function placeable(scene,type="Tile",id="water"){
+  const doc={
+    documentName:type,id,parent:scene,elevation:0,
+    occlusion:{mode:1,alpha:.5},flags:{},
+    getFlag(ns,key){return this.flags?.[ns]?.[key];},
     async setFlag(ns,key,value){this.flags[ns]??={};this.flags[ns][key]=value;},
-    async update(changes){for(const [k,v] of Object.entries(changes)){if(k==="occlusion.mode")this.occlusion.mode=v;else this[k]=v;}} };
+    async update(changes){
+      for(const [key,value] of Object.entries(changes))
+        if(key==="occlusion.mode")this.occlusion.mode=value;else this[key]=value;
+    }
+  };
   (type==="Tile"?scene.tiles:scene.drawings).push(doc);
   return doc;
 }
-function link(doc,regionId="lake",syncElevation=true) {
-  doc.flags["pf1-waters"]={waterSurface:{enabled:true,regionId,syncElevation}};
+function link(doc,bodyId="bay",syncElevation=true){
+  doc.flags["pf1-waters"]={waterSurface:{enabled:true,bodyId,syncElevation}};
 }
-test("visual surface points at a Region without any waterRegion flag",()=>{
-  const s=makeScene(),r=region(s),tile=placeable(s),drawing=placeable(s,"Drawing");
-  link(tile);link(drawing);
-  assert.deepEqual(getWaterSurfaceData(tile),{enabled:true,regionId:"lake",syncElevation:true,visibilityDepth:3,keepVisible:true,previousOcclusionMode:null});
-  assert.equal(tile.getFlag("pf1-waters","waterRegion"),undefined);
-  assert.equal(resolveWaterSurfaceRegion(tile),r);
-  assert.equal(resolveWaterSurfaceRegion(drawing),r);
-  assert.deepEqual(getWaterSurfacesForRegion(r),[tile,drawing]);
+
+test("one visual water body surface serves multiple Regions, not one Region ID",()=>{
+  const s=makeScene(),r1=region(s),r2=region(s,"deep",18),
+    t=placeable(s),d=placeable(s,"Drawing");
+  link(t);link(d);
+  assert.deepEqual(getWaterSurfaceData(t),{
+    enabled:true,bodyId:"bay",syncElevation:true,visibilityDepth:3,
+    keepVisible:true,previousOcclusionMode:null
+  });
+  assert.deepEqual(getWaterSurfacesForRegion(r1),[t,d]);
+  assert.deepEqual(getWaterSurfacesForRegion(r2),[t,d]);
+  assert.equal(t.getFlag("pf1-waters","waterRegion"),undefined);
 });
-test("unlinked and orphan visuals never become a water Region",()=>{
-  const s=makeScene(),tile=placeable(s);
-  link(tile,"deleted");
-  assert.equal(resolveWaterSurfaceRegion(tile),null);
-  assert.equal(getWaterSurfacesForRegion({id:"deleted",parent:s}).length,0);
-  const token={id:"token",parent:s,x:0,y:0,width:1,height:1,elevation:-1};
+
+test("unlinked and orphan surfaces are never considered water",()=>{
+  const s=makeScene(),r=region(s),t=placeable(s);
+  link(t,"nonexistent");
+  assert.deepEqual(getWaterSurfacesForRegion(r),[]);
+  const token={id:"token",parent:s,x:0,y:0,width:1,height:1,elevation:9};
   assert.equal(getTokenWaterState(token).inWater,false);
 });
-test("visual elevation aligns but physics Region surface remains unchanged",async()=>{
-  const s=makeScene(),r=region(s,"lake",4),tile=placeable(s);
-  link(tile);
-  assert.equal(await syncWaterSurfaceElevation(tile),true);
-  assert.equal(tile.elevation,4);
-  assert.equal(r.getFlag("pf1-waters","waterRegion").surface,4);
-  r.flags["pf1-waters"].waterRegion.surface=7;
-  assert.deepEqual(await syncSceneWaterSurfaceElevations(s),{aligned:1,failed:0});
-  assert.equal(tile.elevation,7);
-  assert.equal(r.getFlag("pf1-waters","waterRegion").surface,7);
+
+test("all body-linked visual surfaces follow the shared surface elevation",async()=>{
+  const s=makeScene();region(s);const t=placeable(s),d=placeable(s,"Drawing");
+  link(t);link(d);
+  assert.equal(await syncWaterSurfaceElevation(t),true);
+  assert.equal(await syncWaterSurfaceElevation(d),true);
+  assert.equal(t.elevation,4);
+  assert.equal(d.elevation,4);
+  s.flags["pf1-waters"].waterBodies[0].surface=7;
+  assert.deepEqual(await syncSceneWaterSurfaceElevations(s),{aligned:2,failed:0});
+  assert.equal(t.elevation,7);
+  assert.equal(d.elevation,7);
 });
-test("opt-out preserves visual elevation while Region remains mechanical",async()=>{
-  const s=makeScene();region(s);const drawing=placeable(s,"Drawing");
-  link(drawing,"lake",false);drawing.elevation=11;
-  assert.equal(await syncWaterSurfaceElevation(drawing),false);
-  assert.equal(drawing.elevation,11);
+
+test("disable auto elevation follows the explicit Tile/Drawing value",async()=>{
+  const s=makeScene();region(s);const d=placeable(s,"Drawing");
+  link(d,"bay",false);d.elevation=11;
+  assert.equal(await syncWaterSurfaceElevation(d),false);
+  assert.equal(d.elevation,11);
 });
-test("GM tools link a selected Tile then unlink it without modifying Region",async()=>{
-  const s=makeScene();const r=region(s);const tile=placeable(s);
-  globalThis.canvas={scene:s,tiles:{controlled:[{document:tile}]},drawings:{controlled:[]}};
+
+test("the new Tile and Drawing tools attach to a water body and detach safely",async()=>{
+  const s=makeScene();const r=region(s);
+  const t=placeable(s),d=placeable(s,"Drawing");
+  globalThis.canvas={
+    scene:s,tiles:{controlled:[{document:t}]},
+    drawings:{controlled:[{document:d}]}
+  };
   const controls={tiles:{tools:{}},drawings:{tools:{}}};
   registerWaterSurfaceSceneControls(controls);
-  assert.equal(typeof controls.tiles.tools.pf1WatersTileLinkTool.onChange,"function");
-  assert.equal(typeof controls.drawings.tools.pf1WatersDrawingLinkTool.onChange,"function");
-  await configureSelectedWaterSurfaces("Tile");
-  assert.equal(getWaterSurfaceData(tile).regionId,"lake");
-  assert.equal(getWaterSurfaceData(tile).visibilityDepth,5);
-  assert.equal(getWaterSurfaceData(tile).keepVisible,true);
-  assert.equal(tile.occlusion.mode,0);
-  assert.equal(tile.elevation,4);
+  assert.equal(typeof controls.tiles.tools.pf1WatersTileBodySurface.onChange,"function");
+  assert.equal(typeof controls.drawings.tools.pf1WatersDrawingBodySurface.onChange,"function");
+  assert.equal(controls.tiles.tools.pf1WatersTileLinkTool,undefined,
+    "old Region-specific link command must be gone");
+  await assignSelectedSurfacesToBody("Tile");
+  await assignSelectedSurfacesToBody("Drawing");
+  assert.equal(getWaterSurfaceData(t).bodyId,"bay");
+  assert.equal(getWaterSurfaceData(d).bodyId,"bay");
+  assert.equal(t.elevation,4);
+  assert.equal(d.elevation,4);
+  assert.equal(t.occlusion.mode,0);
   assert.equal(r.getFlag("pf1-waters","waterRegion").enabled,true);
   await clearSelectedWaterSurfaces("Tile");
-  assert.equal(getWaterSurfaceData(tile).enabled,false);
-  assert.equal(tile.occlusion.mode,1);
-  assert.equal(r.getFlag("pf1-waters","waterRegion").enabled,true);
+  assert.equal(getWaterSurfaceData(t).enabled,false);
+  assert.equal(getWaterSurfaceData(t).bodyId,null);
+  assert.equal(t.occlusion.mode,1);
 });
 
-test("old links default visibility range to two grid distances, and allow zero",()=>{
-  const s=makeScene();region(s);const tile=placeable(s);link(tile);
-  assert.equal(getWaterSurfaceData(tile).visibilityDepth,3);
+test("visibility limit defaults to two grid distances and accepts zero",()=>{
+  const s=makeScene();region(s);const t=placeable(s);link(t);
+  assert.equal(getWaterSurfaceData(t).visibilityDepth,3);
   s.grid.distance=5;
-  assert.equal(getWaterSurfaceData(tile).visibilityDepth,10);
-  tile.flags["pf1-waters"].waterSurface.visibilityDepth=0;
-  assert.equal(getWaterSurfaceData(tile).visibilityDepth,0);
-});
-test("visual visibility range never modifies the real Region depth",async()=>{
-  const s=makeScene(),r=region(s),tile=placeable(s);
-  link(tile);tile.flags["pf1-waters"].waterSurface.visibilityDepth=2.5;
-  assert.equal(getWaterSurfaceData(tile).visibilityDepth,2.5);
-  assert.equal(r.getFlag("pf1-waters","waterRegion").depth,10);
-  await syncWaterSurfaceElevation(tile);
-  assert.equal(r.getFlag("pf1-waters","waterRegion").depth,10);
+  assert.equal(getWaterSurfaceData(t).visibilityDepth,10);
+  t.flags["pf1-waters"].waterSurface.visibilityDepth=0;
+  assert.equal(getWaterSurfaceData(t).visibilityDepth,0);
 });
 
-test("water Tile keeps its original alpha, native vision and its old occlusion mode",async()=>{
-  const s=makeScene();region(s);const tile=placeable(s);
-  link(tile);tile.occlusion.mode=4;tile.occlusion.alpha=0.37;
-  assert.equal(await syncWaterSurfaceVisibility(tile),true);
-  assert.equal(tile.occlusion.mode,0);
-  assert.equal(tile.occlusion.alpha,0.37);
-  assert.equal(tile.hidden,undefined);
-  assert.equal(getWaterSurfaceData(tile).previousOcclusionMode,4);
-  assert.equal(await syncWaterSurfaceVisibility(tile),false);
-  assert.equal(await syncSceneWaterSurfaceVisibilities(s).then(x=>x.changed),0);
-  tile.flags["pf1-waters"].waterSurface.enabled=false;
-  assert.equal(await syncWaterSurfaceVisibility(tile),true);
-  assert.equal(tile.occlusion.mode,4);
-  assert.equal(getWaterSurfaceData(tile).previousOcclusionMode,null);
+test("surface visibility never changes physical Region depth",async()=>{
+  const s=makeScene(),r=region(s),t=placeable(s);link(t);
+  t.flags["pf1-waters"].waterSurface.visibilityDepth=2.5;
+  await syncWaterSurfaceElevation(t);
+  assert.equal(r.getFlag("pf1-waters","waterRegion").depth,2);
 });
-test("surface Tile without linked Region is not changed or revealed",async()=>{
-  const s=makeScene();region(s);const tile=placeable(s);
-  link(tile,"missing");tile.occlusion.mode=3;tile.hidden=true;
-  assert.equal(await syncWaterSurfaceVisibility(tile),false);
-  assert.equal(tile.occlusion.mode,3);
-  assert.equal(tile.hidden,true);
+
+test("native Tile occlusion is restored on unlink",async()=>{
+  const s=makeScene();region(s);const t=placeable(s);
+  link(t);t.occlusion.mode=4;t.occlusion.alpha=.37;
+  assert.equal(await syncWaterSurfaceVisibility(t),true);
+  assert.equal(t.occlusion.mode,0);
+  assert.equal(t.occlusion.alpha,.37);
+  assert.equal(getWaterSurfaceData(t).previousOcclusionMode,4);
+  assert.equal(await syncWaterSurfaceVisibility(t),false);
+  assert.equal((await syncSceneWaterSurfaceVisibilities(s)).changed,0);
+  t.flags["pf1-waters"].waterSurface.enabled=false;
+  assert.equal(await syncWaterSurfaceVisibility(t),true);
+  assert.equal(t.occlusion.mode,4);
+  assert.equal(getWaterSurfaceData(t).previousOcclusionMode,null);
 });
-test("disabled surface visibility preserves GM occlusion settings",async()=>{
-  const s=makeScene();region(s);const tile=placeable(s);
-  link(tile);tile.flags["pf1-waters"].waterSurface.keepVisible=false;
-  tile.occlusion.mode=3;
-  assert.equal(await syncWaterSurfaceVisibility(tile),false);
-  assert.equal(tile.occlusion.mode,3);
+
+test("orphaned and hidden surfaces are never unhidden by the module",async()=>{
+  const s=makeScene(),t=placeable(s);
+  link(t,"gone");t.occlusion.mode=3;t.hidden=true;
+  assert.equal(await syncWaterSurfaceVisibility(t),false);
+  assert.equal(t.occlusion.mode,3);
+  assert.equal(t.hidden,true);
 });
-test("surface cover is not applied to Drawing and never changes the water Region",async()=>{
-  const s=makeScene(),r=region(s);const drawing=placeable(s,"Drawing");
-  link(drawing);
-  assert.equal(await syncWaterSurfaceVisibility(drawing),false);
-  assert.equal(r.flags["pf1-waters"].waterRegion.depth,10);
+
+test("Drawing never changes native Tile occlusion",async()=>{
+  const s=makeScene(),r=region(s),d=placeable(s,"Drawing");
+  link(d);
+  assert.equal(await syncWaterSurfaceVisibility(d),false);
+  assert.equal(r.flags["pf1-waters"].waterRegion.depth,2);
 });

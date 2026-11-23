@@ -40,11 +40,14 @@ globalThis.canvas={
 
 function makeScene(){
  const scene={id:"water-test",grid:{size:100,distance:1.5,units:"m"},
-   regions:[],tiles:[],drawings:[]};
+   regions:[],tiles:[],drawings:[],
+   flags:{"pf1-waters":{waterBodies:[{id:"bay",name:"Baie",surface:0}]}},
+   getFlag(ns,key){return this.flags?.[ns]?.[key];}
+ };
  const region={id:"r1",parent:scene,name:"Lac",elevation:0,
    getFlag(ns,key){
      if(ns==="pf1-waters"&&key==="waterRegion")
-       return {enabled:true,surface:0,depth:this.depth??10,visibilityDepth:this.visibilityDepth??null};
+       return {enabled:true,bodyId:"bay",depth:this.depth??10,visibilityDepth:this.visibilityDepth??null};
      return undefined;
    },
    testPoint({x,y}){return x>=0&&x<200&&y>=0&&y<200;}
@@ -57,7 +60,7 @@ function makeVisual(scene,type="Tile",opts={}){
    width:opts.width??200,height:opts.height??200,
    elevation:opts.elevation??0,rotation:0,
    flags:{"pf1-waters":{waterSurface:{
-     enabled:opts.enabled!==false,regionId:opts.regionId??"r1",
+     enabled:opts.enabled!==false,bodyId:opts.bodyId??"bay",
      syncElevation:true,visibilityDepth:opts.visibilityDepth??3
    }}},
    getFlag(ns,key){return this.flags[ns]?.[key];}
@@ -191,7 +194,7 @@ test("Drawing works like a linked Tile",()=>{
 });
 test("no effect for missing link or outside visual footprint",()=>{
  const {scene}=makeScene();
- makeVisual(scene,"Tile",{regionId:"missing"});
+ makeVisual(scene,"Tile",{bodyId:"missing"});
  const token=makeToken(scene,-0.75);
  assert.equal(getTokenWaterVisualDisplay(token),null);
  assert.equal(refreshTokenWaterVisualDepth(token),false);
@@ -483,9 +486,10 @@ test("underwater observers in different Regions of one body share interior visib
 test("underwater observer in a different water Region never bypasses range",()=>{
   const {scene,region}=makeScene();region.visibilityDepth=2;
   makeVisual(scene);
+  scene.flags["pf1-waters"].waterBodies.push({id:"other",name:"Autre eau",surface:0});
   const other={id:"r2",parent:scene,elevation:0,
     getFlag(ns,key){return ns==="pf1-waters"&&key==="waterRegion"
-      ?{enabled:true,surface:0,depth:10,visibilityDepth:2}:undefined;},
+      ?{enabled:true,bodyId:"other",depth:10,visibilityDepth:2}:undefined;},
     testPoint({x,y}){return x>=200&&x<400&&y>=0&&y<200;}
   };
   scene.regions.push(other);

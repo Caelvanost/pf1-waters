@@ -1,5 +1,5 @@
 import {
-  MODULE_ID, LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG, UNDERWATER_FLAG,
+  MODULE_ID, WATER_MOVEMENT_FLAG, UNDERWATER_FLAG,
   EPSILON, finite, canWriteToken
 } from "./constants.mjs";
 import { getWaterRegionData, getWaterBottomElevation, getWaterRegionsAtToken2D } from "./water-regions.mjs";
@@ -9,9 +9,7 @@ const busy = new Set();
 const keyOf = (doc) => doc?.uuid ?? (doc?.parent?.id + "." + doc?.id);
 
 function movementStored(doc) {
-  const canonical = doc.getFlag?.(MODULE_ID, WATER_MOVEMENT_FLAG);
-  return canonical !== undefined ? canonical :
-    doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) ?? {};
+  return doc.getFlag?.(MODULE_ID,WATER_MOVEMENT_FLAG) ?? {};
 }
 
 function findNativeSwimStatus() {
@@ -140,9 +138,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
 
     if (!region) {
       if (wasInWater) await setNativeSwimmingStatus(doc, false);
-      if (wasInWater ||
-          (oldCanonical === undefined &&
-            doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
+      if (wasInWater) {
         const cleared = { inWater: false, floating: false, hasFooting: false };
         if (changed(oldCanonical, cleared)) {
           await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);
@@ -176,9 +172,7 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const state = getTokenWaterState(doc);
     if (!state.inWater) {
       if (wasInWater) await setNativeSwimmingStatus(doc, false);
-      if (wasInWater ||
-          (oldCanonical === undefined &&
-            doc.getFlag?.(LEGACY_MODULE_ID, WATER_MOVEMENT_FLAG) !== undefined)) {
+      if (wasInWater) {
         const cleared = { inWater: false, floating: false, hasFooting: false };
         if (changed(oldCanonical, cleared)) {
           await doc.setFlag(MODULE_ID, WATER_MOVEMENT_FLAG, cleared);

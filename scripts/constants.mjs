@@ -1,5 +1,4 @@
 export const MODULE_ID = "pf1-waters";
-export const LEGACY_MODULE_ID = "pf1-skull-and-shackles";
 export const WATER_REGION_FLAG = "waterRegion";
 export const WATER_MOVEMENT_FLAG = "waterMovement";
 export const UNDERWATER_FLAG = "underwater";

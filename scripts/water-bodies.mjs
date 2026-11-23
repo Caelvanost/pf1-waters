@@ -5,10 +5,10 @@
  * shaped and independently deep physical water Regions, and many visual
  * Tiles/Drawings. No synthetic parent Region is required.
  *
- * Legacy Regions and region-linked visuals remain fully supported.
+ * Every physical Region and visual surface must belong to a registered body.
  */
 import {
-  MODULE_ID, LEGACY_MODULE_ID, WATER_REGION_FLAG, finite, t
+  MODULE_ID, WATER_REGION_FLAG, t
 } from "./constants.mjs";
 
 const FLAG = "waterBodies";
@@ -33,9 +33,7 @@ export function getSceneWaterBody(scene,id) {
 }
 export function getRegionWaterBodyId(region) {
   const raw=region?.getFlag?.(MODULE_ID,WATER_REGION_FLAG) ??
-    region?.getFlag?.(LEGACY_MODULE_ID,WATER_REGION_FLAG) ??
-    region?.flags?.[MODULE_ID]?.[WATER_REGION_FLAG] ??
-    region?.flags?.[LEGACY_MODULE_ID]?.[WATER_REGION_FLAG];
+    region?.flags?.[MODULE_ID]?.[WATER_REGION_FLAG];
   return typeof raw?.bodyId==="string" && raw.bodyId.trim()
     ? raw.bodyId.trim() : null;
 }

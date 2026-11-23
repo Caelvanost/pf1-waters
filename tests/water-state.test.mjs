@@ -2,8 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getTokenWaterState, getTokenPhysicalHeight, getTokenSwimElevation,
   tokenHasFooting, hasWaterWalkFlag, WATER_CLASSIFICATION } from "../scripts/water-state.mjs";
-import { getWaterRegionData, getWaterBottomElevation,
-  migrateLegacyWaterRegions } from "../scripts/water-regions.mjs";
+import { getWaterRegionData,getWaterBottomElevation } from "../scripts/water-regions.mjs";
 import { syncTokenWaterMovement, syncTokenUnderwaterFlag, syncTokenSwimmingStatus,
   isNativeSwimEffect, registerWaterMovementHooks, syncSceneUnderwaterFlags,
   hasWaterWalkFlagUpdate } from "../scripts/water-movement.mjs";
@@ -14,11 +13,17 @@ globalThis.game = { user: { id: "GM", isGM: true }, users: { activeGM: { id: "GM
 globalThis.CONFIG = { statusEffects: [{ id: "swim", name: "Nager" }] };
 globalThis.ui = { notifications: { info() {}, warn() {} } };
 
-function scene() { return { id: "scene", grid: { size: 100, distance: 1.5, units: "m" }, regions: [], tokens: [] }; }
-function region(s, {id="r1",surface=0,depth=null,minX=0,maxX=1000,legacy=false}={}) {
-  const namespace = legacy ? "pf1-skull-and-shackles" : "pf1-waters";
+function scene() { return {
+  id:"scene",grid:{size:100,distance:1.5,units:"m"},regions:[],tokens:[],
+  flags:{"pf1-waters":{waterBodies:[]}},
+  getFlag(ns,key){return this.flags?.[ns]?.[key];}
+}; }
+function region(s, {id="r1",surface=0,depth=null,minX=0,maxX=1000}={}) {
+  s.flags["pf1-waters"].waterBodies.push({
+    id:"body-"+id,name:"Eau "+id,surface
+  });
   const r = { id, name:id, parent:s, elevation:0,
-    flags: { [namespace]: { waterRegion: { enabled:true, surface, depth } } },
+    flags: { "pf1-waters": { waterRegion: { enabled:true, bodyId:"body-"+id,depth } } },
     getFlag(ns,k) { return this.flags[ns]?.[k]; },
     async setFlag(ns,k,v) { this.flags[ns] ??= {}; this.flags[ns][k] = v; },
     testPoint({x,y}) { return x>=minX && x<=maxX && y>=0 && y<=1000; } };
@@ -206,15 +211,6 @@ test("leaving Region clears status and mirrored flags",async()=>{
   assert.equal(d.actor.statuses.has("swim"),false);
   assert.equal(d.getFlag("world","underwater"),false);
 });
-test("legacy Region migration preserves source and disabled canonical takes precedence",async()=>{
-  const s=scene();const r=region(s,{legacy:true,surface:3,depth:8});
-  assert.deepEqual(getWaterRegionData(r),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36,sunlightHalfDepth:36});
-  game.scenes=[s];assert.equal((await migrateLegacyWaterRegions()).migrated,1);
-  assert.deepEqual(r.getFlag("pf1-waters","waterRegion"),{enabled:true,surface:3,depth:8,ringPng:"",ringScale:1.5,visibilityDepth:36,sunlightHalfDepth:36});
-  assert.ok(r.getFlag("pf1-skull-and-shackles","waterRegion").enabled);
-  r.flags["pf1-waters"].waterRegion.enabled=false;
-  assert.equal(getWaterRegionData(r).enabled,false);game.scenes=[];
-});
 test("projectile partially crossing water measures an immersed fraction",()=>{
   const s=scene();region(s,{depth:20});
   const a=token(s,{x:0,elevation:1}),b=token(s,{x:500,elevation:-3});
@@ -245,7 +241,7 @@ test("water Region dialog accepts a Foundry resource PNG without changing physic
    assert.ok(config.content.includes('value="1.5"'));
    assert.equal(config.modal,false,
      "The native Foundry file browser must remain clickable outside the water Region dialog");
-   return {surface:0,depth:6,ringPng:"worlds/pirates/images/remous.png",ringScale:2.25,visibilityDepth:2.25};
+   return {depth:6,ringPng:"worlds/pirates/images/remous.png",ringScale:2.25,visibilityDepth:2.25,sunlightHalfDepth:5,darknessBands:false,darknessBandCount:24};
   }}}}};
  const notifications=[];ui.notifications.info=x=>notifications.push(x);
  const {configureSelectedWaterRegions}=await import("../scripts/water-regions.mjs");

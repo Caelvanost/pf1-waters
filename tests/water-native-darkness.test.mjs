@@ -14,9 +14,12 @@ globalThis.game={user:{id:"GM",isGM:true}};
 globalThis.Hooks={on:(name,cb)=>calls.push([name,cb])};
 function makeRegion({distance=36,sunlightHalfDepth=null,water=true,depth=1000}={}) {
   const scene={id:"sc",environment:{darknessLevel:.2,globalLight:{enabled:true,darkness:{max:.8}}},
-    grid:{size:100,distance:1.5,units:"m"},regions:[],tokens:[]};
+    grid:{size:100,distance:1.5,units:"m"},regions:[],tokens:[],
+    flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+    getFlag(ns,key){return this.flags?.[ns]?.[key];}
+  };
   const region={id:"r1",parent:scene,behaviors:[],elevation:0,
-    flags:{"pf1-waters":{waterRegion:{enabled:water,surface:0,depth,visibilityDepth:distance,
+    flags:{"pf1-waters":{waterRegion:{enabled:water,bodyId:"body",depth,visibilityDepth:distance,
       ...(sunlightHalfDepth===null?{}:{sunlightHalfDepth})}}},
     getFlag(ns,key){return this.flags?.[ns]?.[key];},
     testPoint({x,y}){return x>=0&&x<100&&y>=0&&y<100;},

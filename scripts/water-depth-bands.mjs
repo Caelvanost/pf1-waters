@@ -9,7 +9,7 @@
  * These light-only Regions are NEVER flagged as water bodies, so they do not
  * affect swimming, footing, projectiles, surface tiles or water boundaries.
  */
-import { MODULE_ID, WATER_REGION_FLAG, LEGACY_MODULE_ID, finite } from "./constants.mjs";
+import { MODULE_ID, WATER_REGION_FLAG, finite } from "./constants.mjs";
 import { getWaterRegionData, isWaterRegion, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { globalWaterLightFactor, hasSceneGlobalIllumination } from "./water-global-light.mjs";
 import {
@@ -176,8 +176,7 @@ async function synchronizeScene(scene) {
   const sources = new Map();
   for (const region of scene.regions ?? []) {
     if (isWaterDepthBand(region)) continue;
-    const ownFlag = region.getFlag?.(MODULE_ID, WATER_REGION_FLAG) ??
-      region.getFlag?.(LEGACY_MODULE_ID, WATER_REGION_FLAG);
+    const ownFlag=region.getFlag?.(MODULE_ID,WATER_REGION_FLAG);
     if (ownFlag !== undefined) {
       // The parent must stop applying darkness BEFORE the light-only
       // strata are created. Restore its previous state when banding
@@ -226,8 +225,7 @@ export function registerWaterDepthBandHooks() {
   for (const event of ["createRegion", "updateRegion", "deleteRegion"]) {
     Hooks.on(event, region => {
       if (isWaterDepthBand(region)) return;
-      const ownFlag = region?.getFlag?.(MODULE_ID, WATER_REGION_FLAG) ??
-        region?.getFlag?.(LEGACY_MODULE_ID, WATER_REGION_FLAG);
+      const ownFlag=region?.getFlag?.(MODULE_ID,WATER_REGION_FLAG);
       if (ownFlag !== undefined) scheduleScene(region.parent);
     });
   }

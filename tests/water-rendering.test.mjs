@@ -39,10 +39,13 @@ globalThis.foundry={canvas:{loadTexture:async(src)=>{loads++;return {src};}}};
 
 function scene(){
  const scene={id:"water-scene",grid:{size:100,distance:1.5},
-   tiles:[],drawings:[],regions:[]};
+   tiles:[],drawings:[],regions:[],
+   flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+   getFlag(ns,key){return this.flags?.[ns]?.[key];}
+ };
  const region={id:"lake",parent:scene,elevation:0,
    flags:{"pf1-waters":{waterRegion:{
-     enabled:true,surface:0,depth:8,ringPng:""
+     enabled:true,bodyId:"body",depth:8,ringPng:""
    }}},
    getFlag(ns,key){return this.flags[ns]?.[key];},
    testPoint(){return true;}};

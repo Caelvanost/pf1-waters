@@ -3,9 +3,8 @@
  * It never defines water volume, swimming, immersion, or projectile physics.
  */
 import { MODULE_ID, finite, isPrimaryGM, t } from "./constants.mjs";
-import { getWaterRegionData } from "./water-regions.mjs";
 import {
-  getSceneWaterBodies, getSceneWaterBody, getRegionWaterBodyId
+  getSceneWaterBodies,getSceneWaterBody,getRegionWaterBodyId
 } from "./water-bodies.mjs";
 const FLAG = "waterSurface";
 
@@ -24,9 +23,8 @@ export function getWaterSurfaceData(value) {
   const raw = isWaterSurfaceDocument(doc) ? doc?.getFlag?.(MODULE_ID, FLAG) : null;
   return {
     enabled: Boolean(raw?.enabled),
-    regionId: typeof raw?.regionId === "string" ? raw.regionId : null,
-    ...(typeof raw?.bodyId==="string"&&raw.bodyId.trim()
-      ?{bodyId:raw.bodyId.trim()}:{ }),
+    bodyId:typeof raw?.bodyId==="string"&&raw.bodyId.trim()
+      ?raw.bodyId.trim():null,
     syncElevation: raw?.syncElevation !== false,
     // Visual range only. The Region is solely responsible for water physics.
     visibilityDepth: Math.max(0, finite(raw?.visibilityDepth,
@@ -38,32 +36,15 @@ export function getWaterSurfaceData(value) {
       ? raw.previousOcclusionMode : null
   };
 }
-export function resolveWaterSurfaceRegion(value) {
-  const doc = unwrap(value);
-  const { enabled, regionId, bodyId } = getWaterSurfaceData(doc);
-  if(!enabled||!doc?.parent)return null;
-  // New surfaces may cover multiple Regions of the same logical body.
-  // For compatibility this function still returns one representative Region.
-  if(bodyId){
-    if(!getSceneWaterBody(doc.parent,bodyId))return null;
-    return values(doc.parent.regions).find(region=>
-      getRegionWaterBodyId(region)===bodyId&&getWaterRegionData(region).enabled)??null;
-  }
-  if(!regionId)return null;
-  const region=values(doc.parent.regions).find(r=>r.id===regionId);
-  return region&&getWaterRegionData(region).enabled?region:null;
-}
 export function getWaterSurfacesForRegion(region) {
-  if (!region?.parent) return [];
-  const bodyId=getRegionWaterBodyId(region);
-  return [...values(region.parent.tiles),...values(region.parent.drawings)].filter(doc=>{
-    const link=getWaterSurfaceData(doc);
-    if(!link.enabled)return false;
-    if(bodyId&&link.bodyId===bodyId&&
-       getSceneWaterBody(region.parent,bodyId))return true;
-    // Region-specific links in pre-v1.4.19 scenes still behave unchanged.
-    return !link.bodyId&&resolveWaterSurfaceRegion(doc)?.id===region.id;
-  });
+  if(!region?.parent)return [];
+  const id=getRegionWaterBodyId(region);
+  if(!getSceneWaterBody(region.parent,id))return [];
+  return [...values(region.parent.tiles),...values(region.parent.drawings)]
+    .filter(doc=>{
+      const link=getWaterSurfaceData(doc);
+      return link.enabled&&link.bodyId===id;
+    });
 }
 /**
  * A water-surface Tile is environmental art, not a roof.
@@ -83,9 +64,7 @@ export async function syncWaterSurfaceVisibility(value) {
   if (!Number.isFinite(mode)) return false;
   const NONE = globalThis.CONST?.OCCLUSION_MODES?.NONE ?? 0;
   const active=data.enabled&&data.keepVisible&&
-    Boolean(data.bodyId
-      ?getSceneWaterBody(doc.parent,data.bodyId)
-      :resolveWaterSurfaceRegion(doc));
+    Boolean(getSceneWaterBody(doc.parent,data.bodyId));
   const original = data.previousOcclusionMode;
 
   if (active) {
@@ -129,9 +108,8 @@ export async function syncWaterSurfaceElevation(value) {
   const doc = unwrap(value);
   if (!isPrimaryGM() || !getWaterSurfaceData(doc).syncElevation) return false;
   const body=getSceneWaterBody(doc?.parent,getWaterSurfaceData(doc).bodyId);
-  const region=body?null:resolveWaterSurfaceRegion(doc);
-  if((!body&&!region)||typeof doc.update!=="function")return false;
-  const expected=body?body.surface:getWaterRegionData(region).surface;
+  if(!body||typeof doc.update!=="function")return false;
+  const expected=body.surface;
   if (Math.abs(finite(doc.elevation, expected) - expected) <= 1e-6) return false;
   await doc.update({ elevation: expected });
   return true;
@@ -152,73 +130,6 @@ export async function syncSceneWaterSurfaceElevations(scene = globalThis.canvas?
 function selected(type) {
   const layer = type === "Tile" ? globalThis.canvas?.tiles : globalThis.canvas?.drawings;
   return (layer?.controlled ?? []).map(unwrap).filter((d) => d?.documentName === type);
-}
-export async function configureSelectedWaterSurfaces(type) {
-  if (!game.user?.isGM) return ui.notifications.warn(t("OnlyGM", "Outil réservé au MJ."));
-  const chosen = selected(type);
-  if (!chosen.length) return ui.notifications.warn(t("SelectSurface", "Sélectionnez une tuile ou un dessin."));
-  const regions = values(globalThis.canvas?.scene?.regions).filter((r) => getWaterRegionData(r).enabled);
-  if (!regions.length) return ui.notifications.warn(t("NoRegions", "Définissez d'abord une Region aquatique."));
-  const first = getWaterSurfaceData(chosen[0]);
-  const selectedId = regions.some((r) => r.id === first.regionId) ? first.regionId : regions[0].id;
-  const esc = (value) => foundry.utils.escapeHTML(String(value ?? ""));
-  const options = regions.map((r) => '<option value="' + esc(r.id) + '"' +
-    (r.id === selectedId ? " selected" : "") + ">" +
-    esc(r.name || r.id) + " — " + esc(getWaterRegionData(r).surface) + "</option>").join("");
-  const result = await foundry.applications.api.DialogV2.prompt({
-    window: { title: type === "Tile" ?
-      t("TileLinkTitle", "PF1 Waters — Surface d’eau (tuile)") :
-      t("DrawingLinkTitle", "PF1 Waters — Surface d’eau (dessin)") },
-    content: '<div class="standard-form"><p>' +
-      t("LinkHint", "Cet objet n’est que la surface visuelle ; la Region détermine le volume et la profondeur.") +
-      '</p><div class="form-group"><label>' + t("LinkedRegion", "Region aquatique") +
-      '</label><div class="form-fields"><select name="regionId">' + options +
-      '</select></div></div><div class="form-group"><label>' +
-      t("AlignSurface", "Aligner l’élévation sur la Region") +
-      '</label><div class="form-fields"><input name="syncElevation" type="checkbox"' +
-      (first.syncElevation ? " checked" : "") +
-      '></div></div><div class="form-group"><label>' +
-      t("VisibilityDepth", "Profondeur maximale de visibilité sous l’eau") +
-      '</label><div class="form-fields"><input name="visibilityDepth" type="number" min="0" step="any" value="' +
-      esc(first.visibilityDepth) + '"></div></div><p class="hint">' +
-      t("VisibilityDepthHint", "En unités de scène. Le sommet du token disparaît lorsqu’il atteint cette profondeur.") +
-      '</p><div class="form-group"><label>' +
-      t("KeepWaterVisible", "Ne pas masquer la surface comme une toiture") +
-      '</label><div class="form-fields"><input name="keepVisible" type="checkbox"' +
-      (first.keepVisible ? " checked" : "") +
-      '></div></div><p class="hint">' +
-      t("KeepWaterVisibleHint", "Une tuile de surface reste visible depuis le dessus, selon la vision normale de Foundry. Son ancien mode d’occlusion sera restauré si elle est dissociée.") +
-      '</p></div>',
-    ok: {
-      label: t("LinkConfirm", "Lier à la surface d’eau"),
-      icon: "fa-solid fa-water",
-      callback: (_event, button) => ({
-        regionId: String(button.form.elements.regionId.value),
-        syncElevation: Boolean(button.form.elements.syncElevation.checked),
-        visibilityDepth: Number(button.form.elements.visibilityDepth.value),
-        keepVisible: Boolean(button.form.elements.keepVisible?.checked)
-      })
-    },
-    rejectClose: false, modal: true
-  });
-  if (!result) return;
-  if (!regions.some((r) => r.id === result.regionId)) {
-    return ui.notifications.warn(t("NoRegions", "Region aquatique introuvable."));
-  }
-  if (!Number.isFinite(result.visibilityDepth) || result.visibilityDepth < 0) {
-    return ui.notifications.warn(t("InvalidVisibilityDepth",
-      "La profondeur de visibilité doit être positive ou nulle."));
-  }
-  for (const doc of chosen) {
-    await doc.setFlag(MODULE_ID, FLAG, {
-      enabled: true, bodyId:null, regionId: result.regionId, syncElevation: result.syncElevation,
-      visibilityDepth: result.visibilityDepth, keepVisible: result.keepVisible,
-      previousOcclusionMode: getWaterSurfaceData(doc).previousOcclusionMode
-    });
-    if (result.syncElevation) await syncWaterSurfaceElevation(doc);
-    await syncWaterSurfaceVisibility(doc);
-  }
-  ui.notifications.info(chosen.length + " " + t("Linked", "surface(s) visuelle(s) associée(s)."));
 }
 /**
  * Register a Tile or Drawing as visual surface of an entire Scene water body.
@@ -276,7 +187,7 @@ export async function assignSelectedSurfacesToBody(type) {
   for(const doc of chosen){
     await doc.setFlag(MODULE_ID,FLAG,{
       ...getWaterSurfaceData(doc),
-      enabled:true,regionId:null,bodyId:result.bodyId,
+      enabled:true,bodyId:result.bodyId,
       syncElevation:result.syncElevation,
       visibilityDepth:result.visibilityDepth,
       keepVisible:result.keepVisible
@@ -293,16 +204,16 @@ export async function clearSelectedWaterSurfaces(type) {
   if (!chosen.length) return ui.notifications.warn(t("SelectSurface", "Sélectionnez une tuile ou un dessin."));
   for (const doc of chosen) {
     await doc.setFlag(MODULE_ID, FLAG, {
-      ...getWaterSurfaceData(doc), enabled:false, bodyId:null, regionId:null
+      ...getWaterSurfaceData(doc), enabled:false, bodyId:null
     });
     await syncWaterSurfaceVisibility(doc);
   }
   ui.notifications.info(chosen.length + " " + t("Unlinked", "surface(s) visuelle(s) dissociée(s)."));
 }
 export function registerWaterSurfaceSceneControls(controls) {
-  for (const [layer, type, configure, clear] of [
-    ["tiles", "Tile", "TileLinkTool", "TileUnlinkTool"],
-    ["drawings", "Drawing", "DrawingLinkTool", "DrawingUnlinkTool"]
+  for (const [layer,type,clear] of [
+    ["tiles","Tile","TileUnlinkTool"],
+    ["drawings","Drawing","DrawingUnlinkTool"]
   ]) {
     const group = controls?.[layer];
     if (!group?.tools) continue;
@@ -314,14 +225,9 @@ export function registerWaterSurfaceSceneControls(controls) {
       visible:Boolean(game.user?.isGM),
       onChange:()=>void assignSelectedSurfacesToBody(type)
     };
-    group.tools["pf1Waters" + configure] = {
-      name: "pf1Waters" + configure, title: t(configure, "Lier à la surface d’eau"),
-      icon: "fa-solid fa-link", order: order+1, button: true, visible: Boolean(game.user?.isGM),
-      onChange: () => void configureSelectedWaterSurfaces(type)
-    };
     group.tools["pf1Waters" + clear] = {
       name: "pf1Waters" + clear, title: t(clear, "Dissocier la surface d’eau"),
-      icon: "fa-solid fa-unlink", order: order + 2, button: true,
+      icon: "fa-solid fa-unlink", order: order + 1, button: true,
       visible: Boolean(game.user?.isGM),
       onChange: () => void clearSelectedWaterSurfaces(type)
     };

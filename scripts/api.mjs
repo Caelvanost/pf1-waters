@@ -1,10 +1,9 @@
 import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, hasInteriorWaterViewer, canSeeWaterTokenFromInterior, getWaterObserverEyeElevation, isWaterObserverSubmerged, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
-import { getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion, configureSelectedWaterSurfaces, assignSelectedSurfacesToBody, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
+import { getWaterSurfaceData, getWaterSurfacesForRegion, assignSelectedSurfacesToBody, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import {
   getWaterRegionData, getWaterBottomElevation, isWaterRegion,
   configureSelectedWaterRegions, clearSelectedWaterRegions,
-  attachSelectedWaterRegionsToBody, detachSelectedWaterRegionsFromBody,
-  migrateLegacyWaterRegions
+  attachSelectedWaterRegionsToBody, detachSelectedWaterRegionsFromBody
 } from "./water-regions.mjs";
 import {
   getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
@@ -70,7 +69,7 @@ export const WATER_API = Object.freeze({
   getNativeSwimmingStatusId, syncTokenWaterMovement,
   measureProjectileWaterDistance, syncTokenUnderwaterFlag,
   syncSceneUnderwaterFlags, configureSelectedWaterRegions,
-  clearSelectedWaterRegions, migrateLegacyWaterRegions,
+  clearSelectedWaterRegions,
   refreshWaterSurfaceMarkers,
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
@@ -81,8 +80,7 @@ export const WATER_API = Object.freeze({
   refreshNativeWaterDarkness, nativeWaterDarknessDiagnostics,
   planWaterDepthBands, getWaterDepthBandInfo, waterDepthBandDiagnostics,
   syncSceneWaterDepthBands,
-  getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
-  configureSelectedWaterSurfaces, assignSelectedSurfacesToBody,
+  getWaterSurfaceData,getWaterSurfacesForRegion,assignSelectedSurfacesToBody,
   clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,
   calculateWaterVisualElevation, surfaceContainsTokenCenter,

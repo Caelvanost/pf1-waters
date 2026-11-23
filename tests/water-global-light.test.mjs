@@ -30,14 +30,17 @@ globalThis.Hooks={on:(id,fn)=>hooks.set(id,fn)};
 function setup({light=true,limit=36,halfDepth=null}={}) {
  const sc={id:"sc",grid:{size:100,distance:1.5,units:"m"},
   environment:{globalLight:{enabled:light}},
-  regions:[],tokens:[]};
+  regions:[],tokens:[],
+  flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+  getFlag(ns,key){return this.flags?.[ns]?.[key];}
+ };
  const region={id:"lake",parent:sc,elevation:0,
   triangulation:{
    vertices:new Float32Array([0,0,200,0,200,200,0,200]),
    indices:new Uint16Array([0,1,2,0,2,3])
   },
   getFlag(ns,key){return ns==="pf1-waters"&&key==="waterRegion"?
-    {enabled:true,surface:0,depth:200,visibilityDepth:limit,
+    {enabled:true,bodyId:"body",depth:200,visibilityDepth:limit,
       ...(halfDepth===null?{}:{sunlightHalfDepth:halfDepth})}:undefined;},
   testPoint({x,y}){return x>=0&&x<200&&y>=0&&y<200;}
  };
@@ -152,7 +155,7 @@ test("elevation-banded native darkness suppresses the legacy black overlay",()=>
  const {region,viewer,interfaceGroup}=setup();
  region.getFlag=(namespace,key)=>
    namespace==="pf1-waters"&&key==="waterRegion"
-   ? {enabled:true,surface:0,depth:200,visibilityDepth:36,
+   ? {enabled:true,bodyId:"body",depth:200,visibilityDepth:36,
       sunlightHalfDepth:5,darknessBands:true,darknessBandCount:12}
    : undefined;
  viewer.document.elevation=-19.5;
@@ -214,7 +217,7 @@ test("a non-global-light Scene never creates attenuation",()=>{
 test("a deep Region removes the last 5% of global sunlight at 20× distance",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:10});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
-   ?{enabled:true,surface:0,depth:1000,visibilityDepth:10}:undefined;
+   ?{enabled:true,bodyId:"body",depth:1000,visibilityDepth:10}:undefined;
  viewer.document.elevation=-201.5; // eyes at top -200m
  const states=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(states.length,1);

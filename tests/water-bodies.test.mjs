@@ -67,7 +67,7 @@ function tile(s,{id="water-art",x=0,width=200,kind="Tile"}={}){
   const t={
     id,parent:s,documentName:kind,x,y:0,width,height:100,elevation:99,
     flags:{"pf1-waters":{waterSurface:{enabled:true,bodyId:"bay",
-      regionId:null,syncElevation:true,keepVisible:true}}},
+      syncElevation:true,keepVisible:true}}},
     occlusion:{mode:1},
     getFlag(scope,key){return this.flags?.[scope]?.[key];},
     async setFlag(scope,key,value){
@@ -186,7 +186,6 @@ test("Tile/Drawing association tool binds a full body, not just one Region",asyn
   }finally{foundry.applications.api.DialogV2.prompt=old;}
   for(const obj of [t,d]){
     assert.equal(getWaterSurfaceData(obj).bodyId,"bay");
-    assert.equal(getWaterSurfaceData(obj).regionId,null);
     assert.equal(obj.elevation,0);
   }
   assert.equal(t.occlusion.mode,0);
