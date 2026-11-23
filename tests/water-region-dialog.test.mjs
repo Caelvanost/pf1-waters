@@ -31,8 +31,8 @@ test("Region editor is viewport-bounded, scrollable, and keeps FilePicker non-mo
   assert.match(options.content,/class="standard-form pf1-waters-region-fields"/);
   assert.match(options.content,/name="sunlightHalfDepth"/);
   assert.match(options.content,/<file-picker[^>]*name="ringPng"/);
-  assert.equal((options.content.match(/<div\\b/g)??[]).length,
-    (options.content.match(/<\\/div>/g)??[]).length,"balanced field containers");
+  assert.equal(options.content.split("<div").length,
+    options.content.split("</div>").length,"balanced field containers");
   const css=readFileSync(new URL("../styles/pf1-waters.css",import.meta.url),"utf8");
   assert.match(css,/\.application\.pf1-waters-region-dialog\s*\{[^}]*max-height:/s);
   assert.match(css,/\.pf1-waters-region-fields\s*\{[^}]*max-height:/s);
