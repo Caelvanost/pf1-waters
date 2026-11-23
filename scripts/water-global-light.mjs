@@ -22,6 +22,38 @@ let layer = null;
 let refreshing = false;
 const warnings = new Set();
 
+// Physical light is unchanged; unaided sight cannot resolve details when
+// the remaining global illumination is extremely faint.
+const DARK_SIGHT_FLOOR = 0.12;
+const DARK_SIGHT_TWILIGHT = 0.20;
+
+export function hasWaterDarkvision(token) {
+  const mode = String(token?.document?.sight?.visionMode ??
+    token?.vision?.visionMode?.id ?? "").toLowerCase();
+  if (mode.includes("darkvision")) return true;
+  const detection = token?.document?.detectionModes ?? [];
+  return [...detection].some(data => {
+    const id = String(data?.id ?? "").toLowerCase();
+    return id.includes("darkvision") && data.enabled !== false &&
+      (data.range === undefined || Number(data.range) > 0);
+  });
+}
+
+/**
+ * User-specific visual perception, distinct from the GM's ambient-light curve.
+ * At ≤12% sunlight, an ordinary-sighted token cannot see by that sunlight.
+ * Smooth dusk transition from 20% to 12% prevents abrupt screen changes.
+ * Darkvision remains handled by the PF1/Foundry sight system.
+ */
+export function perceivedWaterGlobalLightFactor(factor, darkvision=false) {
+  if (darkvision) return 1;
+  const f = Math.max(0, Math.min(1, finite(factor, 0)));
+  if (f <= DARK_SIGHT_FLOOR) return 0;
+  if (f >= DARK_SIGHT_TWILIGHT) return f;
+  return f * (f - DARK_SIGHT_FLOOR) /
+    (DARK_SIGHT_TWILIGHT - DARK_SIGHT_FLOOR);
+}
+
 function warnOnce(message, error) {
   if (warnings.has(message)) return;
   warnings.add(message);
@@ -116,12 +148,17 @@ export function getWaterRegionGlobalLightStates(
     const depth = Math.max(0, state.surface - eye);
     const visibilityDepth = getWaterRegionData(state.region).visibilityDepth;
     const factor = globalWaterLightFactor(depth, visibilityDepth);
+    const darkvision = hasWaterDarkvision(token);
+    const perceivedFactor = perceivedWaterGlobalLightFactor(
+      factor, darkvision
+    );
     const previous = states.get(state.region.id);
-    if (!previous || factor > previous.factor) {
+    if (!previous || perceivedFactor > previous.perceivedFactor) {
       states.set(state.region.id, {
         region: state.region, regionId: state.region.id,
         depth, visibilityDepth, cutoff: 20*visibilityDepth,
-        factor, darkness: 1-factor
+        factor, perceivedFactor, darkvision,
+        darkness: 1-perceivedFactor
       });
     }
   }
@@ -149,16 +186,13 @@ function ensureLayer() {
   layer.name = MODULE_ID + "-underwater-global-light";
   layer.eventMode = "none";
   layer.interactiveChildren = false;
-  // The interface pass is always rendered on screen, even if the cached
-  // PrimaryCanvasGroup does not redraw after a token elevation change.
-  // Place the darkness before foreground replicas of emerged tokens.
-  const parent = canvas.interface;
-  const replicas = parent.children?.findIndex?.(
-    x => x.name === MODULE_ID + "-emerged-token-overlays"
-  ) ?? -1;
-  if (replicas >= 0 && typeof parent.addChildAt === "function")
-    parent.addChildAt(layer, replicas);
-  else parent.addChild(layer);
+  // In Foundry v13 the Interface group renders after the map. Insert at
+  // its end, ABOVE earlier ripple/foreground token replicas: those copies
+  // must not keep the same brightness when global light becomes too weak.
+  layer.zIndex = 1000000;
+  layer.visible = true;
+  layer.renderable = true;
+  canvas.interface.addChild(layer);
   return layer;
 }
 
@@ -171,7 +205,10 @@ function drawRegionDarkness(graphic, region) {
   if (!geometry?.vertices?.length || !geometry?.indices?.length ||
       geometry.indices.length % 3 !== 0 ||
       typeof graphic.poly !== "function" ||
-      typeof graphic.fill !== "function") return false;
+      typeof graphic.fill !== "function") {
+    warnOnce("Triangulation de Region aquatique absente : assombrissement impossible");
+    return false;
+  }
   graphic.clear?.();
   const v = geometry.vertices, indices = geometry.indices;
   try {
@@ -187,6 +224,35 @@ function drawRegionDarkness(graphic, region) {
     warnOnce("Impossible de dessiner la zone de lumière aquatique",error);
     return false;
   }
+}
+
+/** Read-only per-client diagnostic for real Foundry scenes. */
+export function waterLightingDiagnostics() {
+  const canvas=globalThis.canvas;
+  const viewers=localWaterViewers();
+  const states=getWaterRegionGlobalLightStates(canvas?.scene,viewers);
+  return {
+    globalLightEnabled:hasSceneGlobalIllumination(canvas?.scene),
+    selectedTokenCount:canvas?.tokens?.controlled?.length ?? 0,
+    observers:viewers.map(token=>({
+      id:token.document?.id,
+      elevation:token.document?.elevation,
+      losHeight:token.losHeight,
+      visionMode:token.document?.sight?.visionMode ?? null,
+      darkvision:hasWaterDarkvision(token),
+      inWater:getTokenWaterState(token.document).inWater
+    })),
+    regions:states.map(item=>({
+      regionId:item.regionId,depth:item.depth,
+      visibilityDepth:item.visibilityDepth,
+      physicalLightPercent:100*item.factor,
+      perceivedLightPercent:100*item.perceivedFactor,
+      darknessAlpha:item.darkness,
+      darkvision:item.darkvision
+    })),
+    overlayAttached:layer?.parent===canvas?.interface,
+    overlayCount:shades.size
+  };
 }
 
 /** Refresh local, visual-only darkness without changing Foundry's light sources. */
@@ -230,6 +296,7 @@ export function refreshWaterGlobalLighting() {
       }
       graphic.alpha=item.darkness;
       graphic.visible=true;
+      graphic.renderable=true;
       count++;
     }
     // InterfaceCanvasGroup is live: changes to PIXI.Graphics alpha are
