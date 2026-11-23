@@ -12,7 +12,9 @@
 import { MODULE_ID, WATER_REGION_FLAG, LEGACY_MODULE_ID, finite } from "./constants.mjs";
 import { getWaterRegionData, isWaterRegion, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { globalWaterLightFactor, hasSceneGlobalIllumination } from "./water-global-light.mjs";
-import { calculateNativeWaterDarkness } from "./water-native-darkness.mjs";
+import {
+  calculateNativeWaterDarkness, syncNativeWaterDarknessBandExclusivity
+} from "./water-native-darkness.mjs";
 
 const BAND_FLAG = "waterDepthLightBand";
 const MAX_BANDS = 40;
@@ -176,7 +178,13 @@ async function synchronizeScene(scene) {
     if (isWaterDepthBand(region)) continue;
     const ownFlag = region.getFlag?.(MODULE_ID, WATER_REGION_FLAG) ??
       region.getFlag?.(LEGACY_MODULE_ID, WATER_REGION_FLAG);
-    if (ownFlag !== undefined && isWaterRegion(region)) sources.set(region.id, region);
+    if (ownFlag !== undefined) {
+      // The parent must stop applying darkness BEFORE the light-only
+      // strata are created. Restore its previous state when banding
+      // is switched off or the water Region itself is disabled.
+      await syncNativeWaterDarknessBandExclusivity(region);
+      if (isWaterRegion(region)) sources.set(region.id, region);
+    }
   }
   const ids = new Set(sources.keys());
   for (const region of scene.regions ?? []) {
@@ -223,6 +231,15 @@ export function registerWaterDepthBandHooks() {
       if (ownFlag !== undefined) scheduleScene(region.parent);
     });
   }
+  Hooks.on("updateRegionBehavior", behavior => {
+    const parent=behavior?.parent;
+    if (!parent || isWaterDepthBand(parent)) return;
+    // Also repair a manual re-enable of "Obscurité selon profondeur".
+    if (getWaterDepthBandSettings(parent).enabled &&
+        behavior?.getFlag?.(MODULE_ID,"nativeWaterDepth")===true) {
+      scheduleScene(parent.parent);
+    }
+  });
   Hooks.on("updateScene", (scene, changes) => {
     if (changes?.environment || changes?.grid) scheduleScene(scene);
   });

@@ -15,7 +15,7 @@ import { getTokenWaterState } from "./water-state.mjs";
 import {
   getWaterObserverEyeElevation, isWaterObserverSubmerged
 } from "./water-visual-depth.mjs";
-import { getWaterRegionData } from "./water-regions.mjs";
+import { getWaterRegionData, getWaterDepthBandSettings } from "./water-regions.mjs";
 
 const shades = new Map();
 let layer = null;
@@ -270,6 +270,9 @@ export function refreshWaterGlobalLighting() {
     // sprite entirely. Native darkness participates in Foundry light/vision.
     const active=getWaterRegionGlobalLightStates(canvas.scene)
       .filter(item=>item.darkness>0 &&
+        // Static elevation bands already darken the native Foundry canvas.
+        // Never stack our legacy black overlay on top of their lighting.
+        !getWaterDepthBandSettings(item.region).enabled &&
         ![...(item.region?.behaviors??[])].some(b=>
           b.type==="adjustDarknessLevel" && b.disabled!==true &&
           (b.getFlag?.(MODULE_ID,"nativeWaterDepth") ??

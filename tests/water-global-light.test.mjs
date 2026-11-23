@@ -148,6 +148,19 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(interfaceGroup.children.length,0);
 });
+test("elevation-banded native darkness suppresses the legacy black overlay",()=>{
+ const {region,viewer,interfaceGroup}=setup();
+ region.getFlag=(namespace,key)=>
+   namespace==="pf1-waters"&&key==="waterRegion"
+   ? {enabled:true,surface:0,depth:200,visibilityDepth:36,
+      sunlightHalfDepth:5,darknessBands:true,darknessBandCount:12}
+   : undefined;
+ viewer.document.elevation=-19.5;
+ assert.equal(getWaterRegionGlobalLightStates(canvas.scene,[viewer]).length,1);
+ assert.equal(refreshWaterGlobalLighting(),0,
+   "native OVERRIDE regions must never receive a second darkness overlay");
+ assert.equal(interfaceGroup.children.length,0);
+});
 test("turning global light off removes local overlays without changing scene",()=>{
  const {sc,viewer,interfaceGroup}=setup();
  viewer.document.elevation=-37.5;

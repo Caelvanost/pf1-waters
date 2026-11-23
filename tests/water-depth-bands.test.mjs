@@ -47,8 +47,25 @@ function fixture({depth:nullOrDepth=null, halfDepth=5, count=24, enabled=true,
       {type:"polygon",points:[10,10,20,10,15,20],hole:true}
     ]};}
   };
+  // Model the native darkness behavior automatically attached to a water
+  // Region by PF1 Waters, and verify the synchronization is persisted.
+  const managed={type:"adjustDarknessLevel",disabled:false,
+    system:{mode:2,modifier:0,updateSource(value){Object.assign(this,value);}},
+    flags:{"pf1-waters":{nativeWaterDepth:true}},
+    getFlag(scope,key){return this.flags?.[scope]?.[key];},
+    updates:0,
+    async update(changes) {
+      this.updates++;
+      if(Object.hasOwn(changes,"disabled"))this.disabled=changes.disabled;
+      for(const [key,value] of Object.entries(changes)){
+        if(!key.startsWith("flags.pf1-waters."))continue;
+        this.flags["pf1-waters"][key.slice("flags.pf1-waters.".length)]=value;
+      }
+    }
+  };
+  region.behaviors=[managed];
   scene.regions.push(region);
-  return {scene,region};
+  return {scene,region,managed};
 }
 
 test("bands follow decreasing sunlight in real, adjacent V13 elevation ranges",()=>{
@@ -98,8 +115,11 @@ test("disabled, unlit scenes and water body with zero depth get no bands",()=>{
 });
 
 test("GM creates persistent native OVERRIDE darkness Regions, idempotently",async()=>{
-  const {scene,region}=fixture();
+  const {scene,region,managed}=fixture();
   const first=await syncSceneWaterDepthBands(scene);
+  assert.equal(managed.disabled,true,
+    "the parent Region behavior must not compete with lighting bands");
+  assert.equal(managed.getFlag("pf1-waters","depthBandsManaged"),true);
   assert.equal(first.created,25);
   const lights=scene.regions.filter(isWaterDepthBand);
   assert.equal(lights.length,25);
@@ -112,12 +132,13 @@ test("GM creates persistent native OVERRIDE darkness Regions, idempotently",asyn
   assert.ok(lights.every(b=>getWaterDepthBandInfo(b).sourceId===region.id));
   assert.ok(lights.every(b=>typeof getWaterDepthBandInfo(b).signature==="string"));
   assert.equal((await syncSceneWaterDepthBands(scene)).created,0);
+  assert.equal(managed.updates,1,"idempotent parent behavior sync");
   assert.equal(scene.regions.filter(isWaterDepthBand).length,25);
   assert.equal(waterDepthBandDiagnostics(scene).length,25);
 });
 
 test("changing water depth, scenery darkness, or disabling mode regenerates and cleans up",async()=>{
-  const {scene,region}=fixture({count:8,depth:10});
+  const {scene,region,managed}=fixture({count:8,depth:10});
   assert.equal((await syncSceneWaterDepthBands(scene)).created,8);
   scene.environment.darknessLevel=.4;
   const updated=await syncSceneWaterDepthBands(scene);
@@ -126,8 +147,30 @@ test("changing water depth, scenery darkness, or disabling mode regenerates and 
   region.flags["pf1-waters"].waterRegion.darknessBands=false;
   assert.equal((await syncSceneWaterDepthBands(scene)).removed,8);
   assert.equal(scene.regions.length,1);
+  assert.equal(managed.disabled,false,
+    "turning off bands must restore native parent darkness");
 });
 
+test("manual re-enabling parent darkness is repaired during band synchronization",async()=>{
+  const {scene,managed}=fixture({count:8});
+  await syncSceneWaterDepthBands(scene);
+  managed.disabled=false;
+  const updated=await syncSceneWaterDepthBands(scene);
+  assert.equal(managed.disabled,true);
+  assert.equal(updated.created,0,"correcting parent must not regenerate bands");
+  assert.equal(updated.removed,0);
+});
+test("the module never alters another independent manual darkness behavior",async()=>{
+  const {scene,region,managed}=fixture({count:8});
+  const manual={
+    type:"adjustDarknessLevel",disabled:false,flags:{},
+    getFlag(){return undefined;}
+  };
+  region.behaviors.push(manual);
+  await syncSceneWaterDepthBands(scene);
+  assert.equal(managed.disabled,true);
+  assert.equal(manual.disabled,false);
+});
 test("a player never creates or removes lighting Regions",async()=>{
   const {scene}=fixture();
   game.user.isGM=false;

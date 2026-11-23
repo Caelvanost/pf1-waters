@@ -1,3 +1,11 @@
+# 1.4.18 — Exclusion mutuelle de l'obscurité de la Region parente et des tranches
+
+- Correction du conflit entre le comportement « PF1 Waters — Obscurité selon profondeur » de la Region parente et les comportements natifs « Remplacer l'obscurité » des tranches d'élévation.
+- Lorsque les tranches sont activées, le comportement parent géré par PF1 Waters est désactivé de manière persistante dans Foundry V13. Une réactivation manuelle est automatiquement corrigée par la synchronisation des tranches.
+- L'état initial (activé ou désactivé) du comportement parent est sauvegardé puis restauré lorsque les tranches sont désactivées. Les comportements d'obscurité créés manuellement ne sont jamais modifiés.
+- Suppression du calque graphique d'obscurité historique pour toute Region utilisant les tranches, afin d'éviter un double assombrissement côté client.
+- Tests de non-régression couvrant les Regions préexistantes, nouvellement créées, réactivées manuellement, et le retour à l'état antérieur du comportement parent.
+
 # 1.4.17 — Obscurité sous-marine native par tranches d'élévation
 
 - Ajout du mode facultatif « Obscurité native par tranches d'élévation » sur chaque Region d'eau (4 à 40 tranches, 24 par défaut), pour remplacer l'assombrissement dynamique non fonctionnel sur certaines installations Foundry V13.

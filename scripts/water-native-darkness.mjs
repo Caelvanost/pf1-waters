@@ -21,6 +21,8 @@ import {
 
 const TYPE="adjustDarknessLevel";
 const FLAG="nativeWaterDepth";
+const BANDS_OWNED_FLAG="depthBandsManaged";
+const BANDS_PRIOR_FLAG="depthBandsPreviouslyDisabled";
 const MODE_OVERRIDE=0;
 const MODE_DARKEN=2;
 const EPS=1e-4;
@@ -49,16 +51,62 @@ export function getNativeWaterDarknessBehavior(region) {
   return null;
 }
 
+/**
+ * Persistently prevent the parent water Region's native darkness behavior
+ * from competing with the independent, altitude-banded OVERRIDE behaviors.
+ *
+ * A management flag remembers whether the GM had previously disabled this
+ * behavior. Re-enabling ordinary lighting restores that original state.
+ * Do not modify unrelated/manual Region behaviors.
+ */
+export async function syncNativeWaterDarknessBandExclusivity(region) {
+  if (!game.user?.isGM || !region) return false;
+  const behavior=getNativeWaterDarknessBehavior(region);
+  if (!behavior || typeof behavior.update!=="function") return false;
+  const banded=isWaterRegion(region) && getWaterDepthBandSettings(region).enabled;
+  const managed=(behavior.getFlag?.(MODULE_ID,BANDS_OWNED_FLAG) ??
+    behavior.flags?.[MODULE_ID]?.[BANDS_OWNED_FLAG])===true;
+  const previouslyDisabled=(behavior.getFlag?.(MODULE_ID,BANDS_PRIOR_FLAG) ??
+    behavior.flags?.[MODULE_ID]?.[BANDS_PRIOR_FLAG])===true;
+  if (banded) {
+    if (managed && behavior.disabled) return false;
+    const changes={disabled:true};
+    if (!managed) {
+      changes[`flags.${MODULE_ID}.${BANDS_OWNED_FLAG}`]=true;
+      changes[`flags.${MODULE_ID}.${BANDS_PRIOR_FLAG}`]=behavior.disabled===true;
+    }
+    await behavior.update(changes);
+    return true;
+  }
+  if (!managed) return false;
+  // Reset any local OVERRIDE left by the former dynamic-lighting mode
+  // before allowing the core behavior to become active again.
+  if (typeof behavior.system?.updateSource==="function")
+    behavior.system.updateSource({mode:MODE_DARKEN,modifier:0});
+  await behavior.update({
+    disabled:previouslyDisabled,
+    [`flags.${MODULE_ID}.${BANDS_OWNED_FLAG}`]:false
+  });
+  return true;
+}
+
 export async function ensureNativeWaterDarknessBehavior(region){
   if(!game.user?.isGM||!isWaterRegion(region)||
       typeof region.createEmbeddedDocuments!=="function")return null;
   let current=getNativeWaterDarknessBehavior(region);
-  if(current)return current;
+  if(current){
+    await syncNativeWaterDarknessBandExclusivity(region);
+    return current;
+  }
+  const banded=getWaterDepthBandSettings(region).enabled;
   const added=await region.createEmbeddedDocuments("RegionBehavior",[{
     name:"PF1 Waters — Obscurité selon profondeur",
-    type:TYPE,disabled:false,
+    type:TYPE,disabled:banded,
     system:{mode:MODE_DARKEN,modifier:0},
-    flags:{[MODULE_ID]:{[FLAG]:true}}
+    flags:{[MODULE_ID]:{
+      [FLAG]:true,
+      ...(banded ? {[BANDS_OWNED_FLAG]:true,[BANDS_PRIOR_FLAG]:false} : {})
+    }}
   }]);
   return added?.[0]??null;
 }
@@ -68,8 +116,12 @@ export async function ensureSceneNativeWaterDarkness(scene=globalThis.canvas?.sc
   let count=0;
   try{
     for(const region of scene.regions??[]){
-      if(!isWaterRegion(region)||getNativeWaterDarknessBehavior(region))continue;
-      try{if(await ensureNativeWaterDarknessBehavior(region))count++;}
+      if(!isWaterRegion(region))continue;
+      try{
+        if(getNativeWaterDarknessBehavior(region)){
+          await syncNativeWaterDarknessBandExclusivity(region);
+        }else if(await ensureNativeWaterDarknessBehavior(region))count++;
+      }
       catch(e){warn("Création du comportement natif d'obscurité impossible",e);}
     }
   }finally{ensuring=false;}
@@ -183,6 +235,14 @@ export function refreshNativeWaterDarkness(){
     for(const region of c.scene.regions??[]){
       const b=getNativeWaterDarknessBehavior(region);
       if(!b)continue;
+      // A banded source has its own persisted OVERRIDE Regions. If the
+      // parent was erroneously re-enabled by the GM, never adjust it
+      // locally; the GM synchronizer will persist the disabled state.
+      if(getWaterDepthBandSettings(region).enabled){
+        transitions.delete(region.id);
+        cached.delete(region.id);
+        continue;
+      }
       seen.add(region.id);
       const t=target.get(region.id);
       const level=t&&t.darkness>t.base+EPS?t.darkness:null;

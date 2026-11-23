@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.17
+# PF1 Waters — v1.4.18
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -83,6 +83,7 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 - Le MJ choisit **4 à 40 tranches** (24 par défaut). Leur répartition suit la variation de luminosité, avec des bandes plus fines lorsque l'atténuation est rapide.
 - PF1 Waters crée des **Regions auxiliaires verrouillées** ayant les mêmes formes 2D et trous que la Region d'eau, mais avec des intervalles d'élévation distincts. Chacune possède un comportement Foundry natif **Adjust Darkness Level**, mode **OVERRIDE** (« Remplacer l'obscurité »), et une valeur fixe calculée à partir de la profondeur de son intervalle.
 - Les Regions auxiliaires portent exclusivement le flag `flags.pf1-waters.waterDepthLightBand` et **ne sont pas des Regions d'eau**. La nage, le fond, les projectiles, les surfaces visuelles et les limites de visibilité conservent leur Region source.
+- **Depuis la v1.4.18, les deux systèmes d'obscurité sont mutuellement exclusifs.** Quand les tranches sont activées, PF1 Waters désactive et enregistre l'état désactivé de son comportement « Obscurité selon profondeur » sur la Region d'eau parente, sans toucher aux comportements créés manuellement par le MJ. Si le comportement est réactivé pendant que les tranches fonctionnent, il est de nouveau désactivé automatiquement lors de la synchronisation. En désactivant les tranches, l'état précédent du comportement parent est restauré, y compris s'il était déjà désactivé avant l'activation. Aucun calque de noirceur graphique secondaire ne se superpose aux tranches.
 - La lumière restante suit toujours la courbe solaire existante : 50 % à `sunlightHalfDepth`, 25 % à 2×, 5 % à 5×, extinction à 20×. Les obscurités de tranches tiennent compte de l'obscurité initiale de la scène.
 - Toutes les données d'obscurité de ces tranches sont **persistantes**, identiques pour les joueurs, et Foundry utilise leurs limites d'élévation. Ce système ne dépend pas de `RegionBehavior.system.updateSource()`. PF1 Waters désactive l'assombrissement dynamique sur la Region d'eau source lorsque ce mode est activé.
 - Le calcul est refait par le MJ après un changement des paramètres de la Region ou de la luminosité de la scène ; la désactivation de l'option et la suppression d'une Region d'eau suppriment les tranches auxiliaires associées. Les Regions existantes ne sont pas modifiées tant que cette option n'est pas activée.

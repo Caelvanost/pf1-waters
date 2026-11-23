@@ -5,7 +5,8 @@ import {
   ensureSceneNativeWaterDarkness,getNativeWaterDarknessTargets,
   calculateNativeWaterDarkness,applyNativeWaterDarkness,
   refreshNativeWaterDarkness,resetNativeWaterDarkness,
-  nativeWaterDarknessDiagnostics,registerNativeWaterDarknessHooks
+  nativeWaterDarknessDiagnostics,registerNativeWaterDarknessHooks,
+  syncNativeWaterDarknessBandExclusivity
 } from "../scripts/water-native-darkness.mjs";
 
 const calls=[];
@@ -65,6 +66,69 @@ test("GM creates exactly one neutral core Adjust Darkness Level behavior",async(
   assert.equal(behavior.getFlag("pf1-waters","nativeWaterDepth"),true);
   assert.equal(await ensureNativeWaterDarknessBehavior(region),behavior);
   assert.equal(calls.filter(c=>c[0]==="createBehavior").length,1);
+  clean();
+});
+test("banded mode persistently disables only the PF1 Waters parent darkness behavior",async()=>{
+  clean();
+  const {region}=makeRegion();
+  const behavior=await ensureNativeWaterDarknessBehavior(region);
+  const manuallyConfigured={type:"adjustDarknessLevel",disabled:false,
+    flags:{},getFlag(){return undefined;}};
+  region.behaviors.push(manuallyConfigured);
+  behavior.update=async function(changes){
+    if(Object.hasOwn(changes,"disabled"))this.disabled=changes.disabled;
+    for(const [path,value] of Object.entries(changes)){
+      if(!path.startsWith("flags.pf1-waters."))continue;
+      this.flags["pf1-waters"][path.slice("flags.pf1-waters.".length)]=value;
+    }
+    calls.push(["persist",changes]);
+  };
+  region.flags["pf1-waters"].waterRegion.darknessBands=true;
+  assert.equal(await syncNativeWaterDarknessBandExclusivity(region),true);
+  assert.equal(behavior.disabled,true);
+  assert.equal(behavior.getFlag("pf1-waters","depthBandsManaged"),true);
+  assert.equal(behavior.getFlag("pf1-waters","depthBandsPreviouslyDisabled"),false);
+  assert.equal(manuallyConfigured.disabled,false,"unrelated GM behaviors are not modified");
+  assert.equal(await syncNativeWaterDarknessBandExclusivity(region),false,
+    "the sync must be idempotent");
+  // Even a manual re-enable cannot leave conflicting overrides active.
+  behavior.disabled=false;
+  assert.equal(await syncNativeWaterDarknessBandExclusivity(region),true);
+  assert.equal(behavior.disabled,true);
+  region.flags["pf1-waters"].waterRegion.darknessBands=false;
+  assert.equal(await syncNativeWaterDarknessBandExclusivity(region),true);
+  assert.equal(behavior.disabled,false);
+  assert.equal(behavior.getFlag("pf1-waters","depthBandsManaged"),false);
+  assert.equal(await syncNativeWaterDarknessBandExclusivity(region),false);
+  clean();
+});
+test("originally disabled parent behavior stays disabled after turning off bands",async()=>{
+  clean();
+  const {region}=makeRegion();
+  const behavior=await ensureNativeWaterDarknessBehavior(region);
+  behavior.disabled=true;
+  behavior.update=async function(changes){
+    if(Object.hasOwn(changes,"disabled"))this.disabled=changes.disabled;
+    for(const [path,value] of Object.entries(changes)){
+      if(path.startsWith("flags.pf1-waters."))
+        this.flags["pf1-waters"][path.slice("flags.pf1-waters.".length)]=value;
+    }
+  };
+  region.flags["pf1-waters"].waterRegion.darknessBands=true;
+  await syncNativeWaterDarknessBandExclusivity(region);
+  region.flags["pf1-waters"].waterRegion.darknessBands=false;
+  await syncNativeWaterDarknessBandExclusivity(region);
+  assert.equal(behavior.disabled,true);
+  clean();
+});
+test("a newly-created parent behavior begins disabled when banding is enabled",async()=>{
+  clean();
+  const {region}=makeRegion();
+  region.flags["pf1-waters"].waterRegion.darknessBands=true;
+  const behavior=await ensureNativeWaterDarknessBehavior(region);
+  assert.equal(behavior.disabled,true);
+  assert.equal(behavior.getFlag("pf1-waters","depthBandsManaged"),true);
+  assert.equal(behavior.getFlag("pf1-waters","depthBandsPreviouslyDisabled"),false);
   clean();
 });
 test("persisted elevation bands disable the ineffective client-only darkness override",()=>{
