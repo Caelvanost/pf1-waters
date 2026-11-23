@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.11 : LOS des tokens floating au-dessus de l'eau soumis à la visibilité extérieure ; assombrissement sous-marin rendu visible.",
+  "description": "PF1 Waters v1.4.11 : la hauteur réelle de LOS détermine la limite de visibilité depuis la surface ; assombrissement subaquatique visible.",
   "version": "1.4.11",
   "authors": [
     {
