@@ -14,7 +14,10 @@ import { MODULE_ID, finite } from "./constants.mjs";
 import { getWaterRegionData, isWaterRegion } from "./water-regions.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { isWaterObserverSubmerged, getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
-import { globalWaterLightFactor, hasSceneGlobalIllumination } from "./water-global-light.mjs";
+import {
+  globalWaterLightFactor, hasSceneGlobalIllumination,
+  refreshWaterGlobalLighting
+} from "./water-global-light.mjs";
 
 const TYPE="adjustDarknessLevel";
 const FLAG="nativeWaterDepth";
@@ -147,6 +150,9 @@ export function refreshNativeWaterDarkness(){
       applyNativeWaterDarkness(b,null);
       cached.delete(id);
     }
+    // Once a native Region behavior is present, remove any legacy darkness
+    // overlay that was created before the GM installed that behavior.
+    refreshWaterGlobalLighting();
     if(updates){
       // Core perception re-evaluates global-light thresholds and token vision.
       c.perception?.update?.({

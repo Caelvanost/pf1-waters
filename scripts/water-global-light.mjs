@@ -270,7 +270,7 @@ export function refreshWaterGlobalLighting() {
     const active=getWaterRegionGlobalLightStates(canvas.scene)
       .filter(item=>item.darkness>0 &&
         ![...(item.region?.behaviors??[])].some(b=>
-          b.type==="adjustDarknessLevel" &&
+          b.type==="adjustDarknessLevel" && b.disabled!==true &&
           (b.getFlag?.(MODULE_ID,"nativeWaterDepth") ??
            b.flags?.[MODULE_ID]?.nativeWaterDepth) === true
         )
