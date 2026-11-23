@@ -4,7 +4,8 @@ import { getTokenWaterState } from "../scripts/water-state.mjs";
 import {
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates,refreshWaterGlobalLighting,
-  registerWaterGlobalLightingHooks
+  registerWaterGlobalLightingHooks, hasWaterDarkvision,
+  perceivedWaterGlobalLightFactor, waterLightingDiagnostics
 } from "../scripts/water-global-light.mjs";
 
 class Container {
@@ -127,7 +128,8 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.equal(gfx.alpha,.75,"25% sunlight remains at the second milestone");
  viewer.document.elevation=-181.5; // top -180 = 5× visibility
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.ok(Math.abs(gfx.alpha-.95)<1e-12,"5% sunlight remains at 5×");
+ assert.equal(gfx.alpha,1,
+   "5% of physical sunlight cannot illuminate an observer with normal sight");
  viewer.document.elevation=-201.5; // observer's volume extends beyond Region depth
  assert.equal(refreshWaterGlobalLighting(),0,"outside a Region: no attenuation overlay");
  assert.equal(interfaceGroup.children.length,0);
@@ -228,15 +230,15 @@ test("floating with eyes above surface gets no underwater darkness",()=>{
  assert.equal(refreshWaterGlobalLighting(),1);
  assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
 });
-test("darkness layer is inserted below emerged foreground sprites",()=>{
+test("darkness layer is inserted above emerged foreground sprites",()=>{
  const {viewer,interfaceGroup}=setup();
  viewer.document.elevation=-37.5;
  const overlay=new Container();
  overlay.name="pf1-waters-emerged-token-overlays";
  interfaceGroup.addChild(overlay);
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children[0].name,"pf1-waters-underwater-global-light");
- assert.equal(interfaceGroup.children[1],overlay);
+ assert.equal(interfaceGroup.children[0],overlay);
+ assert.equal(interfaceGroup.children[1].name,"pf1-waters-underwater-global-light");
 });
 
 test("controlled diver has priority over separate shallow vision sources",()=>{
@@ -247,4 +249,70 @@ test("controlled diver has priority over separate shallow vision sources",()=>{
  assert.equal(refreshWaterGlobalLighting(),1);
  assert.equal(interfaceGroup.children[0].children[0].alpha,.5,
    "selected diver at 36m sees 50% light despite shallow sight source");
+});
+
+test("darkvision and low-light vision are not confused",()=>{
+ assert.equal(hasWaterDarkvision({document:{sight:{visionMode:"darkvision"}}}),true);
+ assert.equal(hasWaterDarkvision({document:{sight:{visionMode:"pf1Darkvision"}}}),true);
+ assert.equal(hasWaterDarkvision({document:{sight:{visionMode:"basic"}}}),false);
+ assert.equal(hasWaterDarkvision({document:{sight:{visionMode:"lowlight"}}}),false);
+ assert.equal(hasWaterDarkvision({document:{detectionModes:[
+  {id:"darkvision",enabled:true,range:18}
+ ]}}),true);
+ assert.equal(hasWaterDarkvision({document:{detectionModes:[
+  {id:"darkvision",enabled:false,range:18}
+ ]}}),false);
+});
+test("10.6% physical sunlight at 150m does not give unaided sight",()=>{
+ const physical=globalWaterLightFactor(150,36);
+ assert.ok(physical>.1&&physical<.12);
+ assert.equal(perceivedWaterGlobalLightFactor(physical,false),0);
+ assert.equal(perceivedWaterGlobalLightFactor(physical,true),1);
+ assert.equal(perceivedWaterGlobalLightFactor(.25,false),.25);
+ assert.ok(perceivedWaterGlobalLightFactor(.15,false)>0);
+ assert.ok(perceivedWaterGlobalLightFactor(.15,false)<.15);
+ assert.equal(perceivedWaterGlobalLightFactor(.12,false),0);
+ assert.equal(perceivedWaterGlobalLightFactor(0,false),0);
+});
+test("selected ordinary-sighted observer at -150m gets a black screen",()=>{
+ const {sc,region,viewer,interfaceGroup}=setup({limit:36});
+ region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
+  ?{enabled:true,surface:0,depth:1000,visibilityDepth:36}:undefined;
+ viewer.document.elevation=-151.5;
+ viewer.document.sight={visionMode:"basic"};
+ const state=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(state.length,1);
+ assert.ok(state[0].factor>.1);
+ assert.equal(state[0].perceivedFactor,0);
+ assert.equal(state[0].darkness,1);
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(interfaceGroup.children.at(-1).children[0].alpha,1);
+ assert.equal(interfaceGroup.children.at(-1).zIndex,1000000);
+ const diagnostics=waterLightingDiagnostics();
+ assert.equal(diagnostics.overlayAttached,true);
+ assert.equal(diagnostics.overlayCount,1);
+ assert.equal(diagnostics.regions[0].perceivedLightPercent,0);
+});
+test("a darkvision observer at -150m is not visually blacked out",()=>{
+ const {sc,region,viewer,interfaceGroup}=setup({limit:36});
+ region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
+  ?{enabled:true,surface:0,depth:1000,visibilityDepth:36}:undefined;
+ viewer.document.elevation=-151.5;
+ viewer.document.sight={visionMode:"darkvision"};
+ const state=getWaterRegionGlobalLightStates(sc,[viewer]);
+ assert.equal(state[0].darkvision,true);
+ assert.equal(state[0].perceivedFactor,1);
+ assert.equal(state[0].darkness,0);
+ assert.equal(refreshWaterGlobalLighting(),0);
+ assert.equal(interfaceGroup.children.length,0);
+});
+test("the water darkness layer renders above foreground replica images",()=>{
+ const {viewer,interfaceGroup}=setup();
+ viewer.document.elevation=-37.5;
+ const replica=new Container();
+ replica.name="pf1-waters-emerged-token-overlays";
+ interfaceGroup.addChild(replica);
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(interfaceGroup.children[0],replica);
+ assert.equal(interfaceGroup.children[1].name,"pf1-waters-underwater-global-light");
 });
