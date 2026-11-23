@@ -13,6 +13,9 @@ import {
   registerNativeWaterDarknessHooks, refreshNativeWaterDarkness,
   ensureSceneNativeWaterDarkness
 } from "./water-native-darkness.mjs";
+import {
+  registerWaterDepthBandHooks, syncSceneWaterDepthBands
+} from "./water-depth-bands.mjs";
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "partialSurfaceDepth", {
@@ -28,6 +31,7 @@ Hooks.once("init", () => {
   registerWaterRenderingHooks();
   registerWaterGlobalLightingHooks();
   registerNativeWaterDarknessHooks();
+  registerWaterDepthBandHooks();
   registerWaterVisualDepthHooks();
   registerWaterSurfaceHooks();
   registerWaterRegionHooks(async (scene) => {
@@ -51,6 +55,7 @@ Hooks.once("ready", async () => {
     await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);
     refreshSceneWaterVisualDepth();
     await ensureSceneNativeWaterDarkness(globalThis.canvas?.scene);
+    await syncSceneWaterDepthBands(globalThis.canvas?.scene);
     refreshNativeWaterDarkness();
     refreshWaterGlobalLighting();
     await refreshWaterSurfaceMarkers();

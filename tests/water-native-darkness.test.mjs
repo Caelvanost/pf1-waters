@@ -67,6 +67,15 @@ test("GM creates exactly one neutral core Adjust Darkness Level behavior",async(
   assert.equal(calls.filter(c=>c[0]==="createBehavior").length,1);
   clean();
 });
+test("persisted elevation bands disable the ineffective client-only darkness override",()=>{
+  clean();
+  const {scene,region,observer}=makeRegion();
+  region.flags["pf1-waters"].waterRegion.darknessBands=true;
+  assert.equal(getNativeWaterDarknessTargets(scene,[observer]).size,0);
+  region.flags["pf1-waters"].waterRegion.darknessBands=false;
+  assert.equal(getNativeWaterDarknessTargets(scene,[observer]).size,1);
+  clean();
+});
 test("independent sunlight half-depth modifies native darkness, not token sight",()=>{
   clean();
   const {scene,region,observer}=makeRegion({distance:36,sunlightHalfDepth:18});

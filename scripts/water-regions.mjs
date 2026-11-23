@@ -56,6 +56,21 @@ function parseRegionFlag(raw, scene) {
   };
 }
 
+/**
+ * The static banded lighting mode is opt-in; all existing water Regions retain
+ * their previous lighting behavior until the GM enables this setting.
+ */
+export function getWaterDepthBandSettings(region) {
+  const canonical = readRegionFlag(region, MODULE_ID);
+  const raw = canonical !== undefined ? canonical : readRegionFlag(region, LEGACY_MODULE_ID);
+  const value = Number(raw?.darknessBandCount);
+  return {
+    enabled: raw?.darknessBands === true,
+    count: Number.isFinite(value) && value >= 4
+      ? Math.min(40, Math.max(4, Math.round(value))) : 24
+  };
+}
+
 export function getWaterRegionData(region) {
   const canonical = readRegionFlag(region, MODULE_ID);
   // An explicit canonical disabled value overrides any old enabled value.
@@ -135,6 +150,10 @@ export async function migrateLegacyWaterRegions() {
 
 export function registerWaterRegionHooks(resync) {
   const onRegion = (region) => {
+    // Generated lighting-only Regions must not retrigger swimming state
+    // synchronization dozens of times during band creation.
+    if ((region?.getFlag?.(MODULE_ID, "waterDepthLightBand") ??
+         region?.flags?.[MODULE_ID]?.waterDepthLightBand)?.sourceId) return;
     if (region?.parent?.id === globalThis.canvas?.scene?.id) {
       void Promise.resolve(resync(region.parent)).catch((error) =>
         console.warn(MODULE_ID + " | Resynchronisation Region impossible", error));
@@ -156,6 +175,7 @@ export async function configureSelectedWaterRegions() {
   const regions = selectedWaterRegionDocuments();
   if (!regions.length) return ui.notifications.warn(t("SelectRegion", "Sélectionnez une Region sur la couche Regions."));
   const first = getWaterRegionData(regions[0]);
+  const lightingBands = getWaterDepthBandSettings(regions[0]);
   const visibilityDepth = first.visibilityDepth;
   const units = foundry.utils.escapeHTML(globalThis.canvas?.scene?.grid?.units ?? "");
   const result = await foundry.applications.api.DialogV2.prompt({
@@ -182,6 +202,13 @@ export async function configureSelectedWaterRegions() {
       '<div class="form-fields"><input name="sunlightHalfDepth" type="number" min="0" step="any" value="' +
       first.sunlightHalfDepth + '"><span class="units">' + units + '</span></div></div>' +
       '<p class="hint">50 % de lumière à cette profondeur, 25 % au double, 5 % à cinq fois et extinction à vingt fois. Indépendant de la visibilité sous-marine.</p>' +
+      '<div class="form-group"><label>Obscurité native par tranches d’élévation</label>' +
+      '<div class="form-fields"><input name="darknessBands" type="checkbox" ' +
+      (lightingBands.enabled ? 'checked ' : '') + '></div></div>' +
+      '<p class="hint">Crée des Regions d’éclairage auxiliaires, chacune avec une élévation limitée et « Remplacer l’obscurité ». À utiliser si l’obscurité dynamique ne fonctionne pas. Les Regions d’eau physiques restent inchangées.</p>' +
+      '<div class="form-group"><label>Nombre de tranches (4 à 40)</label>' +
+      '<div class="form-fields"><input name="darknessBandCount" type="number" step="1" min="4" max="40" value="' +
+      lightingBands.count + '"></div></div>' +
       '<div class="form-group"><label>' +
       t("RingPng", "Image PNG des remous (facultatif)") +
       '</label><div class="form-fields"><file-picker type="image" name="ringPng" value="' +
@@ -207,6 +234,8 @@ export async function configureSelectedWaterRegions() {
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
         const sunlightRaw = String(button.form.elements.sunlightHalfDepth?.value ?? "").trim();
         const sunlightHalfDepth = sunlightRaw === "" ? NaN : Number(sunlightRaw);
+        const darknessBands = Boolean(button.form.elements.darknessBands?.checked);
+        const darknessBandCount = Number(button.form.elements.darknessBandCount?.value);
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
         const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -220,13 +249,20 @@ export async function configureSelectedWaterRegions() {
         if (!Number.isFinite(sunlightHalfDepth) || sunlightHalfDepth < 0) {
           throw new Error("La profondeur pour 50 % de lumière naturelle doit être positive ou nulle.");
         }
+        if (!Number.isInteger(darknessBandCount) ||
+            darknessBandCount < 4 || darknessBandCount > 40) {
+          throw new Error("Le nombre de tranches d’obscurité doit être compris entre 4 et 40.");
+        }
         if (!Number.isFinite(ringScale) || ringScale <= 0) {
           throw new Error(t("InvalidRingScale", "Le ratio des remous doit être strictement positif."));
         }
         if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
-        return { surface, depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth };
+        return {
+          surface, depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth,
+          darknessBands, darknessBandCount
+        };
       }
     },
     rejectClose: false,
@@ -244,7 +280,9 @@ export async function configureSelectedWaterRegions() {
         ? result.ringScale : first.ringScale,
       visibilityDepth:
         Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth,
-      sunlightHalfDepth: result.sunlightHalfDepth
+      sunlightHalfDepth: result.sunlightHalfDepth,
+      darknessBands: result.darknessBands,
+      darknessBandCount: result.darknessBandCount
     });
     try { await ensureNativeWaterDarknessBehavior(region); }
     catch(e) { console.warn(MODULE_ID+" | Region sans comportement d'obscurité natif",e); }
@@ -259,7 +297,10 @@ export async function clearSelectedWaterRegions() {
   for (const region of regions) {
     // Do not unset canonical flags: old enabled flags must not be reactivated.
     await region.setFlag(MODULE_ID, WATER_REGION_FLAG, {
-      ...getWaterRegionData(region), enabled: false
+      ...getWaterRegionData(region),
+      darknessBands: getWaterDepthBandSettings(region).enabled,
+      darknessBandCount: getWaterDepthBandSettings(region).count,
+      enabled: false
     });
   }
   ui.notifications.info(regions.length + " " + t("Cleared", "corps d'eau désactivé(s)."));

@@ -1,3 +1,11 @@
+# 1.4.17 — Obscurité sous-marine native par tranches d'élévation
+
+- Ajout du mode facultatif « Obscurité native par tranches d'élévation » sur chaque Region d'eau (4 à 40 tranches, 24 par défaut), pour remplacer l'assombrissement dynamique non fonctionnel sur certaines installations Foundry V13.
+- Régions auxiliaires distinctes, avec formes et trous copiés et limites verticales non chevauchantes ; chaque tranche utilise le comportement natif « Remplacer l'obscurité » avec une valeur persistante. Répartition suivant une progression de luminosité régulière plutôt qu'une distance uniforme.
+- Respect du fond physique, des eaux sans fond, de l'obscurité de scène et de la courbe d'atténuation solaire. Ni tokens ni mécanique de nage ne sont modifiés par ces Regions d'éclairage.
+- Synchronisation au démarrage côté MJ, sur mise à jour de la Region ou de la scène ; nettoyage des tranches à la désactivation ou suppression de la Region source. Le mode dynamique client-local est désactivé pour les Regions en mode statique.
+- Tests de planification des intervalles, de géométrie, d'idempotence, de retrait et de non-mutation des Regions d'eau. Validation du rendu et des seuils de vision encore nécessaire dans une vraie scène Foundry V13.
+
 # 1.4.16 — Fenêtre de configuration des Regions aquatiques défilable
 
 - Correction du formulaire « PF1 Waters — Corps d'eau » qui dépassait de l'écran avec ses nouveaux paramètres d'éclairage.

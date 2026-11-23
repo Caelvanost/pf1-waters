@@ -30,6 +30,8 @@ test("Region editor is viewport-bounded, scrollable, and keeps FilePicker non-mo
   assert.equal(options.modal,false,"native file picker must remain clickable");
   assert.match(options.content,/class="standard-form pf1-waters-region-fields"/);
   assert.match(options.content,/name="sunlightHalfDepth"/);
+  assert.match(options.content,/name="darknessBands"/);
+  assert.match(options.content,/name="darknessBandCount"/);
   assert.match(options.content,/<file-picker[^>]*name="ringPng"/);
   assert.match(options.content,/<\/p><\/div><div class="form-group"><label>/,
     "ripple scale field must not nest inside the PNG field");

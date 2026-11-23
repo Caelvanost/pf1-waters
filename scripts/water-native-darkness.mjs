@@ -11,7 +11,7 @@
  * and native special vision modes.
  */
 import { MODULE_ID, finite } from "./constants.mjs";
-import { getWaterRegionData, isWaterRegion } from "./water-regions.mjs";
+import { getWaterRegionData, getWaterDepthBandSettings, isWaterRegion } from "./water-regions.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { isWaterObserverSubmerged, getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
 import {
@@ -103,7 +103,8 @@ export function getNativeWaterDarknessTargets(
   for(const token of views){
     const s=getTokenWaterState(token.document);
     if(!isWaterObserverSubmerged(token,s)||!s.region||
-        s.region.parent?.id!==scene?.id)continue;
+        s.region.parent?.id!==scene?.id ||
+        getWaterDepthBandSettings(s.region).enabled)continue;
     const depth=Math.max(0,s.surface-getWaterObserverEyeElevation(token,s));
     const sunlightHalfDepth=getWaterRegionData(s.region).sunlightHalfDepth;
     const fraction=globalWaterLightFactor(depth,sunlightHalfDepth);

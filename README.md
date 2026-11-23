@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.16
+# PF1 Waters — v1.4.17
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -75,6 +75,21 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Obscurité sous-marine par tranches d'élévation (v1.4.17)
+
+**Mode natif alternatif, sans module tiers.** Si « Remplacer l'obscurité » fonctionne lorsqu'il est configuré manuellement dans Foundry mais que l'obscurité dynamique de PF1 Waters ne se met pas à jour, activer **« Obscurité native par tranches d'élévation »** dans la configuration de la Region d'eau.
+
+- Le MJ choisit **4 à 40 tranches** (24 par défaut). Leur répartition suit la variation de luminosité, avec des bandes plus fines lorsque l'atténuation est rapide.
+- PF1 Waters crée des **Regions auxiliaires verrouillées** ayant les mêmes formes 2D et trous que la Region d'eau, mais avec des intervalles d'élévation distincts. Chacune possède un comportement Foundry natif **Adjust Darkness Level**, mode **OVERRIDE** (« Remplacer l'obscurité »), et une valeur fixe calculée à partir de la profondeur de son intervalle.
+- Les Regions auxiliaires portent exclusivement le flag `flags.pf1-waters.waterDepthLightBand` et **ne sont pas des Regions d'eau**. La nage, le fond, les projectiles, les surfaces visuelles et les limites de visibilité conservent leur Region source.
+- La lumière restante suit toujours la courbe solaire existante : 50 % à `sunlightHalfDepth`, 25 % à 2×, 5 % à 5×, extinction à 20×. Les obscurités de tranches tiennent compte de l'obscurité initiale de la scène.
+- Toutes les données d'obscurité de ces tranches sont **persistantes**, identiques pour les joueurs, et Foundry utilise leurs limites d'élévation. Ce système ne dépend pas de `RegionBehavior.system.updateSource()`. PF1 Waters désactive l'assombrissement dynamique sur la Region d'eau source lorsque ce mode est activé.
+- Le calcul est refait par le MJ après un changement des paramètres de la Region ou de la luminosité de la scène ; la désactivation de l'option et la suppression d'une Region d'eau suppriment les tranches auxiliaires associées. Les Regions existantes ne sont pas modifiées tant que cette option n'est pas activée.
+- Une Region peut avoir un fond limité ou illimité. En profondeur illimitée, la dernière bande s'étend vers le bas après extinction complète de la lumière naturelle. Avec une profondeur solaire nulle, une unique tranche obscurcit toute la colonne d'eau.
+- **Limite :** l'atténuation devient une succession de paliers, pas une interpolation temporelle parfaitement continue. Les Regions restent des volumes 3D projetés sur un Canvas 2D ; leur rendu réel selon l'élévation du token doit être vérifié dans Foundry V13. La compatibilité avec des modules modifiant l'éclairage, et le comportement de plusieurs observateurs à différentes profondeurs, doivent aussi être testés.
+
+**Diagnostic :** `game.modules.get("pf1-waters").api.waterDepthBandDiagnostics()` retourne les tranches créées, leurs élévations et valeurs d'obscurité. `game.modules.get("pf1-waters").api.syncSceneWaterDepthBands()` force leur resynchronisation depuis la console du MJ.
 
 ## Obscurité native de Foundry dans les Regions aquatiques (v1.4.13)
 

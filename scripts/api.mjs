@@ -26,6 +26,10 @@ import {
   getNativeWaterDarknessTargets, calculateNativeWaterDarkness,
   refreshNativeWaterDarkness, nativeWaterDarknessDiagnostics
 } from "./water-native-darkness.mjs";
+import {
+  planWaterDepthBands, getWaterDepthBandInfo, waterDepthBandDiagnostics,
+  syncSceneWaterDepthBands
+} from "./water-depth-bands.mjs";
 
 export const WATER_AUTOMATION = Object.freeze({
   flagScope: "world",
@@ -65,6 +69,8 @@ export const WATER_API = Object.freeze({
   getNativeWaterDarknessBehavior, ensureNativeWaterDarknessBehavior,
   getNativeWaterDarknessTargets, calculateNativeWaterDarkness,
   refreshNativeWaterDarkness, nativeWaterDarknessDiagnostics,
+  planWaterDepthBands, getWaterDepthBandInfo, waterDepthBandDiagnostics,
+  syncSceneWaterDepthBands,
   getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
   configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,
