@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.13 : obscurité native par Region suivant le niveau d'obscurité de la scène et la profondeur de vision.",
+  "description": "PF1 Waters v1.4.13 : obscurité native selon profondeur par Region, synchronisée avec l'Obscurité de scène et la vision Foundry.",
   "version": "1.4.13",
   "authors": [
     {

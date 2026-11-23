@@ -48,8 +48,8 @@ function clean(){resetNativeWaterDarkness();calls.length=0;game.user.isGM=true;}
 test("calculation is anchored to the Scene darkness and the sunlight knots",()=>{
   assert.equal(calculateNativeWaterDarkness(0,1),0);
   assert.equal(calculateNativeWaterDarkness(0,.5),.5);
-  assert.ok(Math.abs(calculateNativeWaterDarkness(.2-.6)<1e-12);
-  assert.ok(Math.abs(calculateNativeWaterDarkness(.2-.8)<1e-12);
+  assert.ok(Math.abs(calculateNativeWaterDarkness(.2,.5)-.6)<1e-12);
+  assert.ok(Math.abs(calculateNativeWaterDarkness(.2,.25)-.8)<1e-12);
   assert.equal(calculateNativeWaterDarkness(.2,0),1);
   assert.equal(calculateNativeWaterDarkness(.7,1),.7);
   assert.equal(calculateNativeWaterDarkness(1,.5),1);
