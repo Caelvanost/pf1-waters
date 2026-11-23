@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.27
+# PF1 Waters — v1.4.28
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -27,17 +27,33 @@ game.modules.get("pf1-waters").api.waterLightingDiagnostics()
 
 Vérifier en particulier `regions[].depth`, `regions[].physicalLightPercent`, `regions[].darknessAlpha`, `overlayAttached` et `overlayCount`. Si `overlayCount=0` malgré une obscurité attendue, vérifier **l'éclairage global de la scène**, que la Region appartienne bien à un corps d'eau, et que les yeux du token soient sous la surface.
 
+## Visibilité alignée sur les cases de 1,5 m (v1.4.28)
+
+Les **cinq niveaux de clarté** utilisent désormais des portées maximales de visibilité qui sont **toutes des multiples exacts de 1,5 m** (une case de grille métrique PF1) :
+
+| Niveau | Portée maximale | Cases de 1,5 m |
+|---|---:|---:|
+| Très claire | 40,5 m | 27 |
+| Claire | 25,5 m | 17 |
+| Légèrement trouble | 12 m | 8 |
+| Trouble | 6 m | 4 |
+| Vaseuse | 1,5 m | 1 |
+
+Les portées antérieures (40 m, 25 m, 12 m, 6 m et 2 m) ont été **arrondies au multiple de 1,5 m le plus proche**, sans modifier l'ordre des niveaux. Le changement s'applique aussi aux corps d'eau existants qui ont déjà un profil `waterClarity` ; leurs portées sont dérivées de ce profil. Les corps d'eau hérités qui n'ont pas encore de profil continuent de conserver leurs valeurs numériques historiques jusqu'à l'enregistrement d'un niveau de clarté. Les scènes exprimées en pieds conservent leur conversion en unités natives.
+
+La courbe de lumière naturelle de Beer-Lambert (`Kd`) et les règles de vision dans le noir, distance 3D entre tokens et brouillard de guerre restent **inchangées**.
+
 ## Nouveau réglage de clarté de l'eau (v1.4.27)
 
 Dans la barre d'outils Foundry, ouvrir **PF1 Waters → Corps d'eau → Créer/Modifier**. L'interface ne demande **plus de valeurs numériques de portée, de profondeur lumineuse ou de coefficient** : elle demande une unique caractéristique de l'eau, sélectionnée dans une liste.
 
 | Clarté sélectionnée | Visibilité indicative | Coefficient solaire Kd (m⁻¹) |
 |---|---:|---:|
-| Très claire — océan limpide | 40 m | 0,035 |
-| Claire — mer claire | 25 m | 0,070 |
+| Très claire — océan limpide | 40,5 m | 0,035 |
+| Claire — mer claire | 25,5 m | 0,070 |
 | Légèrement trouble — eau côtière | 12 m | 0,150 |
 | Trouble — baie ou estuaire | 6 m | 0,300 |
-| Vaseuse — port vaseux | 2 m | 0,700 |
+| Vaseuse — port vaseux | 1,5 m | 0,700 |
 
 Les valeurs ci-dessus sont des **valeurs indicatives de jeu** : la transparence horizontale dépend des particules, de l'éclairage et du contraste, et ne se déduit pas directement d'un coefficient solaire universel. La liste conserve un ordre réaliste : plus l'eau est trouble, moins le plongeur voit loin et moins la lumière pénètre.
 

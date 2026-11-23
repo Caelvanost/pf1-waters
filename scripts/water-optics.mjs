@@ -10,15 +10,15 @@
  */
 export const WATER_LIGHT_PROFILES=Object.freeze([
   Object.freeze({id:"crystal",label:"Très claire",description:"Océan limpide",
-    kd:0.035,visibilityMeters:40}),
+    kd:0.035,visibilityMeters:40.5}),
   Object.freeze({id:"clear",label:"Claire",description:"Mer claire",
-    kd:0.07,visibilityMeters:25}),
+    kd:0.07,visibilityMeters:25.5}),
   Object.freeze({id:"slightlyMurky",label:"Légèrement trouble",description:"Eau côtière",
     kd:0.15,visibilityMeters:12}),
   Object.freeze({id:"murky",label:"Trouble",description:"Baie ou estuaire",
     kd:0.30,visibilityMeters:6}),
   Object.freeze({id:"silty",label:"Vaseuse",description:"Port vaseux",
-    kd:0.70,visibilityMeters:2})
+    kd:0.70,visibilityMeters:1.5})
 ]);
 export const DEFAULT_WATER_CLARITY="clear";
 

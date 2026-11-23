@@ -1,3 +1,10 @@
+# 1.4.28 — Visibilité alignée sur les cases de 1,5 m
+
+- Portées maximales des profils de clarté arrondies aux multiples de 1,5 m les plus proches : très claire **40,5 m** (27 cases), claire **25,5 m** (17 cases), légèrement trouble **12 m** (8 cases), trouble **6 m** (4 cases), vaseuse **1,5 m** (1 case).
+- La seule configuration MJ reste le choix qualitatif de clarté du corps d'eau. Les portées des corps d'eau avec `waterClarity` enregistré reflètent automatiquement les nouvelles valeurs ; les anciens corps d'eau sans ce champ conservent leurs valeurs numériques.
+- Les coefficients physiques `Kd`, l'atténuation solaire de Beer-Lambert, la vision dans le noir, la visibilité 3D, la conversion en pieds et le brouillard temporaire sont inchangés.
+- Tests de régression : portées multiples de 1,5 m, nombre de cases, conservation des coefficients `Kd` et conversion métrique/impériale.
+
 # 1.4.27 — Un seul réglage de clarté de l'eau
 
 - Remplacement des entrées numériques de portée et de demi-profondeur dans le gestionnaire de corps d'eau par **une liste unique de cinq niveaux**, de « Très claire » à « Vaseuse ».

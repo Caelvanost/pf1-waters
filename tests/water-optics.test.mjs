@@ -23,8 +23,18 @@ test("five progressively murkier profiles control BOTH visibility and sunlight",
       WATER_LIGHT_PROFILES[i].visibilityMeters);
   }
   assert.equal(getWaterClarityProfile("unknown"),null);
+  const expectedRanges=[40.5,25.5,12,6,1.5];
+  assert.deepEqual(WATER_LIGHT_PROFILES.map(profile=>profile.visibilityMeters),expectedRanges);
+  assert.deepEqual(WATER_LIGHT_PROFILES.map(profile=>
+    profile.visibilityMeters/1.5),[27,17,8,4,1]);
+  assert.equal(WATER_LIGHT_PROFILES.every(profile=>
+    Number.isInteger(profile.visibilityMeters/1.5)),true,
+    "all predefined visibility distances must align with 1.5 m grid squares");
+  // The sunlight Kd values must not be changed by rounding sight distance.
+  assert.deepEqual(WATER_LIGHT_PROFILES.map(profile=>profile.kd),
+    [.035,.07,.15,.30,.70]);
   const clear=getWaterClaritySettings(scene("m"),"clear");
-  near(clear.visionRange,25);
+  near(clear.visionRange,25.5);
   near(clear.visionHalfDepth,Math.LN2/.07);
   assert.equal(clear.waterClarity,"clear");
   assert.equal(getWaterClaritySettings(scene("m"),"unknown"),null);

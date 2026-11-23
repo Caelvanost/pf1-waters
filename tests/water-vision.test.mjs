@@ -155,7 +155,7 @@ test("registering body vision settings preserves old registry values while allow
   const {scene}=fixture();
   assert.equal(getSceneWaterBodies(scene)[0].visionRange,40);
   assert.equal(getSceneWaterBodies(scene)[1].visionHalfDepth,4);
-  assert.ok(Math.abs(getDefaultWaterVisionRange({grid:{units:"feet"}})-25/.3048)<1e-10);
+  assert.ok(Math.abs(getDefaultWaterVisionRange({grid:{units:"feet"}})-25.5/.3048)<1e-10);
   await saveSceneWaterBody(scene,{id:"bay",name:"Baie corrigée",surface:2});
   assert.equal(getSceneWaterBody(scene,"bay").visionRange,40);
   assert.equal(getSceneWaterBody(scene,"bay").visionHalfDepth,8);
@@ -175,10 +175,10 @@ test("per-scene settings default to scene units for previously created body reco
   const body=getSceneWaterBody(scene,"raw");
   assert.equal(body.visionEnabled,true);
   assert.equal(body.waterClarity,null,"old body remains unchanged until edited");
-  assert.equal(body.visionRange,25);
+  assert.equal(body.visionRange,25.5);
   assert.ok(Math.abs(body.visionHalfDepth-Math.LN2/.07)<1e-10);
   scene.grid.units="ft";
-  assert.ok(Math.abs(getSceneWaterBody(scene,"raw").visionRange-25/.3048)<1e-10);
+  assert.ok(Math.abs(getSceneWaterBody(scene,"raw").visionRange-25.5/.3048)<1e-10);
   assert.ok(Math.abs(getSceneWaterBody(scene,"raw").visionHalfDepth-
     Math.LN2/.07/.3048)<1e-10);
 });
@@ -201,7 +201,7 @@ test("body manager asks only a qualitative water clarity, never numeric optical 
   assert.doesNotMatch(seen[1],/name="visionHalfDepth"/);
   assert.doesNotMatch(seen[1],/name="visionEnabled"/);
   assert.equal(getSceneWaterBody(scene,"bay").waterClarity,"silty");
-  assert.equal(getSceneWaterBody(scene,"bay").visionRange,2);
+  assert.equal(getSceneWaterBody(scene,"bay").visionRange,1.5);
   assert.ok(Math.abs(getSceneWaterBody(scene,"bay").visionHalfDepth-
     Math.LN2/.7)<1e-10);
 });
@@ -212,11 +212,11 @@ test("GM clarity choice updates physical visibility and solar attenuation togeth
  await saveSceneWaterBody(scene,{id:"bay",name:"Baie",surface:0,
    waterClarity:"crystal"});
  const clear=getTokenUnderwaterVisionLimit(token);
- assert.equal(clear.range,40);
+ assert.equal(clear.range,40.5);
  await saveSceneWaterBody(scene,{id:"bay",name:"Baie",surface:0,
    waterClarity:"silty"});
  const silty=getTokenUnderwaterVisionLimit(token);
- assert.equal(silty.range,2);
+ assert.equal(silty.range,1.5);
  assert.ok(silty.lightFraction<clear.lightFraction);
  assert.equal(silty.darkvision,false);
 });
