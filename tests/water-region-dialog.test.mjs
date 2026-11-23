@@ -31,6 +31,8 @@ test("Region editor is viewport-bounded, scrollable, and keeps FilePicker non-mo
   assert.match(options.content,/class="standard-form pf1-waters-region-fields"/);
   assert.match(options.content,/name="sunlightHalfDepth"/);
   assert.match(options.content,/<file-picker[^>]*name="ringPng"/);
+  assert.match(options.content,/<\/p><\/div><div class="form-group"><label>/,
+    "ripple scale field must not nest inside the PNG field");
   assert.equal(options.content.split("<div").length,
     options.content.split("</div>").length,"balanced field containers");
   const css=readFileSync(new URL("../styles/pf1-waters.css",import.meta.url),"utf8");
