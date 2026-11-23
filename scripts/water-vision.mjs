@@ -13,11 +13,12 @@ import { getSceneWaterBody, getRegionWaterBodyId } from "./water-bodies.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
 import { hasWaterDarkvision } from "./water-senses.mjs";
-import { waterSunlightTransmission } from "./water-optics.mjs";
+import { waterSunlightTransmission, waterVisualLightResponse } from "./water-optics.mjs";
 
 const PATCHED = Symbol.for("pf1-waters.vision-source-patched");
 const RANGE_PATCHED = Symbol.for("pf1-waters.token-range-patched");
 const MIN_SOURCE_PIXELS = 1; // V13 interprets a zero polygon radius as unbounded.
+const preparedBrightness=new WeakMap();
 let pendingAll = false;
 const pendingTokens = new Set();
 let scheduled = false;
@@ -64,6 +65,34 @@ export function getTokenUnderwaterVisionLimit(token) {
   };
 }
 
+/**
+ * Depth-sensitive perceived brightness for Foundry V13 PointVisionSource.
+ * It uses the optical sunlight fraction, but never reduces water visibility
+ * radius, modifies TokenDocument.sight, or interferes with PF1 darkvision.
+ *
+ * Native brightness is on [-1,1]. This gamma-adjusted ambient approximation
+ * should not be mistaken for a true 3D per-light underwater shader.
+ */
+export function getUnderwaterVisionBrightness(nativeBrightness,limit){
+  const original=Number(nativeBrightness);
+  const base=Number.isFinite(original)?Math.max(-1,Math.min(1,original)):0;
+  if(!limit||limit.darkvision)return base;
+  const daylight=Math.max(0,Math.min(1,Number(limit.lightFraction)||0));
+  const correction=1-waterVisualLightResponse(daylight);
+  return Math.max(-1,Math.min(1,base-correction));
+}
+
+/** Is the live token's V13 vision source already using the new brightness? */
+export function hasAppliedUnderwaterVisionBrightness(token){
+  const limit=getTokenUnderwaterVisionLimit(token);
+  if(!limit||limit.darkvision)return false;
+  const source=token?.vision??token?.visionSource;
+  const actual=source?.data?.brightness;
+  if(!Number.isFinite(actual))return false;
+  const prepared=preparedBrightness.get(token);
+  return Number.isFinite(prepared)&&Math.abs(actual-prepared)<0.01;
+}
+
 export function waterVisionPixels(range, scene) {
   const size = Number(scene?.grid?.size ?? globalThis.canvas?.grid?.size);
   const distance = Number(scene?.grid?.distance ?? globalThis.canvas?.grid?.distance);
@@ -100,6 +129,14 @@ export function constrainWaterVisionSourceData(token, data) {
     const radius=Number(data.radius);
     capped.radius=data.radius===null||data.radius===undefined||
         !Number.isFinite(radius)||radius<=0?pixels:Math.min(radius,pixels);
+  }
+  // Changing a visual overlay is not the same as changing Token vision.
+  // V13 exposes the brightness of the REAL vision source independently
+  // from the Scene's globalLight switch and from vision range.
+  const sourceMode=String(data.visionMode??"").toLowerCase();
+  if(!limit.darkvision&&!sourceMode.includes("darkvision")){
+    capped.brightness=getUnderwaterVisionBrightness(data.brightness,limit);
+    if(token&&typeof token==="object")preparedBrightness.set(token,capped.brightness);
   }
   return capped;
 }
@@ -196,7 +233,9 @@ export function refreshWaterVisionSources(scene = globalThis.canvas?.scene, toke
   }
   if (count) {
     // Re-render light perception and fog with the new source polygons.
-    canvas.perception?.update?.({refreshVision:true, refreshLighting:true});
+    canvas.perception?.update?.({
+      initializeVision:true,refreshVision:true,refreshLighting:true
+    });
   }
   return count;
 }
@@ -224,7 +263,13 @@ export function waterVisionDiagnostics(scene = globalThis.canvas?.scene) {
       controlled:Boolean(token.controlled),
       limit:getTokenUnderwaterVisionLimit(token),
       radius:token.vision?.radius ?? token.visionSource?.radius ?? null,
-      lightRadius:token.vision?.lightRadius ?? token.visionSource?.lightRadius ?? null
+      lightRadius:token.vision?.lightRadius ?? token.visionSource?.lightRadius ?? null,
+      configuredBrightness:token.document.sight?.brightness??0,
+      expectedBrightness:getUnderwaterVisionBrightness(
+        token.document.sight?.brightness??0,getTokenUnderwaterVisionLimit(token)),
+      visionSourceBrightness:token.vision?.data?.brightness??
+        token.visionSource?.data?.brightness??null,
+      visionSourceUpdated:hasAppliedUnderwaterVisionBrightness(token)
     }));
 }
 
@@ -256,5 +301,9 @@ export function registerWaterVisionHooks() {
       changes?.[`flags.${MODULE_ID}`]?.waterBodies;
     if (flags !== undefined || changes?.grid) scheduleWaterVisionRefresh();
   });
-  Hooks.on("canvasReady", () => scheduleWaterVisionRefresh());
+  Hooks.on("canvasReady", () => {
+    // PF1 may finish registering its custom Token class after init.
+    patchWaterTokenVision();
+    scheduleWaterVisionRefresh();
+  });
 }

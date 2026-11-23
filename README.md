@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.28
+# PF1 Waters — v1.4.29
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -26,6 +26,28 @@ game.modules.get("pf1-waters").api.waterLightingDiagnostics()
 ```
 
 Vérifier en particulier `regions[].depth`, `regions[].physicalLightPercent`, `regions[].darknessAlpha`, `overlayAttached` et `overlayCount`. Si `overlayCount=0` malgré une obscurité attendue, vérifier **l'éclairage global de la scène**, que la Region appartienne bien à un corps d'eau, et que les yeux du token soient sous la surface.
+
+## Luminosité du champ de vision selon la profondeur (v1.4.29)
+
+**Correctif :** les versions antérieures calculaient correctement la lumière solaire restante mais ne transmettaient pas cette atténuation à la **luminosité native de la vision du token**. Le voile de secours était en outre limité aux scènes avec éclairage global, ce qui pouvait donner l'impression que l'élévation ne changeait rien.
+
+PF1 Waters modifie désormais **`VisionSourceData.brightness`** au moment de construire la source de vision du token avec `Token._getVisionSourceData()`, sans modifier ni enregistrer `TokenDocument.sight`. La correction est recalculée quand le token change de position ou d'élévation, lors de la sélection, des modifications de corps d'eau et lors de l'ouverture du canvas. La source de vision est réinitialisée et le moteur de perception V13 est rafraîchi.
+
+- Le **rayon de vision** reste plafonné par le profil de clarté du corps d'eau et les capacités natives PF1 ; **il ne diminue pas** quand le plongeur descend.
+- Un token **sans vision dans le noir** reçoit une correction de luminosité de plus en plus négative en profondeur. Le facteur physique suit Beer-Lambert, avec une correction graphique de perception `lumière^(1/2,2)`.
+- Un token avec **vision dans le noir** garde la luminosité de son mode natif et sa portée propre, plafonnée par la transparence de l'eau.
+- Si la nouvelle luminosité est effectivement active dans la source de vision, le vieux **voile PIXI** est désactivé pour cette vue, afin d'éviter de cumuler deux assombrissements. Le voile reste disponible en secours lorsque la source native n'a pas été mise à jour.
+- Cette correction agit aussi lorsque **l'éclairage global de la scène est désactivé**, car elle s'applique au token et non à la lumière globale.
+
+**Limite technique :** le paramètre `VisionSourceData.brightness` assombrit le champ de vision du token et n'est pas une simulation volumétrique différenciant parfaitement lumière naturelle et lumière artificielle. Les torches, lumières et modes de vision spéciaux doivent être vérifiés en conditions réelles sur Foundry V13 avec PF1 v11.11.
+
+Pour diagnostiquer, sélectionner le token puis lancer dans la console :
+
+```js
+game.modules.get("pf1-waters").api.waterVisionDiagnostics()
+```
+
+Comparer `limit.depth`, `limit.lightFraction`, `expectedBrightness`, `visionSourceBrightness` et `visionSourceUpdated`. Ce dernier indicateur confirme que la valeur a effectivement atteint la source de vision.
 
 ## Visibilité alignée sur les cases de 1,5 m (v1.4.28)
 

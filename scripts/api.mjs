@@ -2,6 +2,7 @@ import {
   waterVisionFraction, getTokenUnderwaterVisionLimit, waterVisionPixels,
   constrainWaterVisionSourceData, patchWaterTokenVision,
   patchWaterTokenRanges, capWaterTokenPixelRange,
+  getUnderwaterVisionBrightness,hasAppliedUnderwaterVisionBrightness,
   refreshWaterVisionSources, waterVisionDiagnostics
 } from "./water-vision.mjs";
 import {
@@ -74,6 +75,7 @@ export const WATER_API = Object.freeze({
   waterVisionFraction, getTokenUnderwaterVisionLimit,
   waterVisionPixels, constrainWaterVisionSourceData, patchWaterTokenVision,
   patchWaterTokenRanges, capWaterTokenPixelRange,
+  getUnderwaterVisionBrightness,hasAppliedUnderwaterVisionBrightness,
   refreshWaterVisionSources, waterVisionDiagnostics,
   getActiveFogObservers, hasUnderwaterFogObserver,
   patchWaterFogExploration, waterFogDiagnostics,

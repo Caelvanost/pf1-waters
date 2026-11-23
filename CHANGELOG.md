@@ -1,3 +1,12 @@
+# 1.4.29 — Luminosité native de la vision selon la profondeur
+
+- Correction du manque de variation visuelle : PF1 Waters calcule maintenant la luminosité à la profondeur des yeux **dans les données natives `VisionSourceData.brightness`**, plutôt que de s'appuyer uniquement sur une surcouche graphique dépendante de l'éclairage global.
+- La valeur est corrigée sur le client, jamais persistée dans `TokenDocument.sight`, et rafraîchie via l'initialisation des sources de vision et les événements de mouvement, élévation, sélection et mise à jour des corps d'eau.
+- La courbe exponentielle Beer-Lambert du corps d'eau est conservée. Le profil de clarté fixe toujours la distance maximale, indépendamment de la profondeur ; la vision dans le noir est exemptée de la correction de luminosité.
+- Le voile noir graphique de secours ne s'affiche plus quand la luminosité modifiée est déjà appliquée dans la source native du token, afin d'éviter un double assombrissement.
+- Diagnostics enrichis : valeur native de luminosité, valeur attendue, valeur réellement initialisée et statut de mise à jour ; réinstallation de la surcharge après initialisation du canvas.
+- Nouveaux tests de régression couvrant les scènes sans éclairage global, plusieurs profondeurs, le retour à la surface, la portée constante, les modes de vision dans le noir, la conservation des valeurs personnalisées et l'absence d'écriture persistante.
+
 # 1.4.28 — Visibilité alignée sur les cases de 1,5 m
 
 - Portées maximales des profils de clarté arrondies aux multiples de 1,5 m les plus proches : très claire **40,5 m** (27 cases), claire **25,5 m** (17 cases), légèrement trouble **12 m** (8 cases), trouble **6 m** (4 cases), vaseuse **1,5 m** (1 case).

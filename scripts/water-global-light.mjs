@@ -17,6 +17,7 @@ import {
 } from "./water-visual-depth.mjs";
 import { getWaterRegionData, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { hasWaterDarkvision } from "./water-senses.mjs";
+import { hasAppliedUnderwaterVisionBrightness } from "./water-vision.mjs";
 import { waterSunlightTransmission, waterVisualLightResponse } from "./water-optics.mjs";
 export { hasWaterDarkvision } from "./water-senses.mjs";
 
@@ -108,7 +109,7 @@ export function getWaterRegionGlobalLightStates(
     const previous = states.get(state.region.id);
     if (!previous || perceivedFactor > previous.perceivedFactor) {
       states.set(state.region.id, {
-        region: state.region, regionId: state.region.id,
+        region: state.region, regionId: state.region.id, observer:token,
         depth, visibilityDepth, sunlightHalfDepth, cutoff: 20*sunlightHalfDepth,
         factor, perceivedFactor, darkvision,
         darkness: 1-perceivedFactor
@@ -206,7 +207,11 @@ export function waterLightingDiagnostics() {
     })),
     overlayAttached:layer?.parent===canvas?.interface,
     overlayCount:shades.size,
-    overlayMode:"client-visual-fallback",
+    overlayMode:"client-visual-fallback-only-when-source-is-unavailable",
+    nativeBrightnessApplied:states.map(item=>({
+      regionId:item.regionId,
+      applied:hasAppliedUnderwaterVisionBrightness(item.observer)
+    })),
     sourceRegions:states.map(s=>s.regionId)
   };
 }
@@ -234,7 +239,11 @@ export function refreshWaterGlobalLighting() {
     // lighting/vision engine still handles native light sources and sight;
     // this layer is an aesthetic fallback and never changes the world Scene.
     const active=getWaterRegionGlobalLightStates(canvas.scene)
-      .filter(item=>item.darkness>0);
+      .filter(item=>item.darkness>0 &&
+        // When Foundry's real VisionSourceData.brightness already reflects
+        // this observer's depth, a late PIXI black fill would darken lights
+        // a SECOND time. Retain it only as a fallback for missing sources.
+        !hasAppliedUnderwaterVisionBrightness(item.observer));
     if (!active.length) {
       clearLayer();
       return 0;
