@@ -208,11 +208,11 @@ export async function configureSceneWaterBodies() {
       '<div class="form-fields"><input name="visionRange" type="number" required min="0" step="any" value="'+
       localEscape(old?.visionRange??getDefaultWaterVisionRange(scene))+'"><span class="units">'+
       localEscape(scene.grid?.units??"")+'</span></div></div>'+
-      '<div class="form-group"><label>Profondeur divisant la distance de vision par deux</label>'+
+      '<div class="form-group"><label>Demi-profondeur d’atténuation lumineuse</label>'+
       '<div class="form-fields"><input name="visionHalfDepth" type="number" required min="0" step="any" value="'+
       localEscape(old?.visionHalfDepth??getDefaultWaterVisionSettings(scene).visionHalfDepth)+
       '"><span class="units">'+localEscape(scene.grid?.units??"")+'</span></div></div>'+
-      '<p class="hint">La vision normale et la perception des lumières sont plafonnées par cette distance. Le rayon diminue progressivement avec la profondeur des yeux : 50 % à la profondeur indiquée, 25 % au double, 5 % à cinq fois et 0 % à vingt fois. Les sources de lumière ne sont pas modifiées.</p>'+
+      '<p class="hint">La distance maximale fixe la transparence physique de l’eau, identique à toutes les profondeurs. La demi-profondeur règle l’assombrissement progressif de la lumière naturelle (50 % à la profondeur indiquée), sans raccourcir le champ de vision. La vision dans le noir et les lumières locales conservent leurs règles natives PF1 et restent limitées par la transparence de l’eau.</p>'+
       '</div>',
     ok:{
       label:old?"Enregistrer":"Créer",icon:"fa-solid fa-water",

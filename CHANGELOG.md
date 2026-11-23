@@ -1,3 +1,12 @@
+# 1.4.25 — Portée physique fixe et assombrissement selon profondeur
+
+- La profondeur ne réduit plus la portée de vision : `visionRange` est désormais la limite de transparence **constante** du corps d'eau, quel que soit le mode de vision du token. La limite native PF1 et les murs continuent de s'appliquer.
+- `visionHalfDepth` pilote exclusivement l'**atténuation de la lumière naturelle** par profondeur (100 %, 50 %, 25 %, 5 %, 0 %). Cette demi-profondeur est maintenant commune à toutes les Regions d'un même corps d'eau, où elle remplace l'ancien paramètre local `sunlightHalfDepth` devenu redondant.
+- L'obscurité de Foundry V13 (Region native ou tranches verticales, avec secours graphique local) traite la vision ordinaire, la vision dans le noir et les sources de lumière selon leurs mécanismes respectifs. Le détecteur darkvision est mutualisé dans `water-senses.mjs`.
+- Les protections de visibilité 3D entre tokens immergés ainsi que le brouillard noir temporaire restent actives, désormais avec le rayon physique fixe.
+- L'interface du gestionnaire des corps d'eau clarifie la distinction « distance de visibilité » / « profondeur de demi-lumière » ; le réglage lumineux redondant de chaque Region devient une valeur affichée en lecture seule.
+- Tests de régression révisés pour séparer atténuation lumineuse et rayon de perception, y compris profondeurs extrêmes, vision dans le noir, tranches d'obscurité et visibilité 3D.
+
 # 1.4.24 — Distance de vision 3D, brouillard noir pendant l'immersion, boutons épurés
 
 - Correction du test de visibilité entre tokens immergés : la distance utilise désormais **X, Y et Z**. Le décalage vertical entre les yeux du plongeur et la partie la plus proche de la cible compte dans la portée maximale configurable du corps d'eau.

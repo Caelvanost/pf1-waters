@@ -68,14 +68,17 @@ test("depth curve has exact knots and zero beyond the extinction depth",()=>{
   assert.equal(waterVisionFraction(0,0),1);
 });
 
-test("limits are per token and per Scene water body, independent of Region bottom",()=>{
+test("water transparency range stays fixed at all depths and differs by water body",()=>{
   const {viewer}=fixture();
   const shallow=viewer("shallow",{x:10,elevation:-9.5,losHeight:-8});
   const deep=viewer("deep",{x:120,elevation:-17.5,losHeight:-16});
   const river=viewer("river",{x:210,elevation:-5.5,losHeight:-4});
-  assert.equal(getTokenUnderwaterVisionLimit(shallow).range,20);
-  assert.equal(getTokenUnderwaterVisionLimit(deep).range,10);
-  assert.equal(getTokenUnderwaterVisionLimit(river).range,4);
+  assert.equal(getTokenUnderwaterVisionLimit(shallow).range,40);
+  assert.equal(getTokenUnderwaterVisionLimit(deep).range,40);
+  assert.equal(getTokenUnderwaterVisionLimit(river).range,8);
+  assert.equal(getTokenUnderwaterVisionLimit(shallow).lightFraction,.5);
+  assert.equal(getTokenUnderwaterVisionLimit(deep).lightFraction,.25);
+  assert.equal(getTokenUnderwaterVisionLimit(river).lightFraction,.5);
   assert.equal(getTokenUnderwaterVisionLimit(shallow).bodyName,"Baie");
 });
 
@@ -95,8 +98,8 @@ test("source data clips BOTH vision and light perception without mutating Token 
   const input={radius:5000,lightRadius:7500,brightness:0,contrast:0,saturation:1,visionMode:"basic"};
   const output=constrainWaterVisionSourceData(token,input);
   assert.equal(waterVisionPixels(20,token.document.parent),1000);
-  assert.equal(output.radius,1000);
-  assert.equal(output.lightRadius,1000);
+  assert.equal(output.radius,2000);
+  assert.equal(output.lightRadius,2000);
   assert.equal(output.visionMode,"basic");
   assert.equal(output.brightness,0);
   assert.equal(input.radius,5000);
@@ -110,8 +113,8 @@ test("a stricter PF1 sight radius remains stricter and magic lights cannot incre
   const token=viewer("plongeur");
   const source=constrainWaterVisionSourceData(token,{radius:700,lightRadius:5000});
   assert.equal(source.radius,700);
-  assert.equal(source.lightRadius,1000);
-  assert.equal(constrainWaterVisionSourceData(token,{radius:null,lightRadius:null}).radius,1000);
+  assert.equal(source.lightRadius,2000);
+  assert.equal(constrainWaterVisionSourceData(token,{radius:null,lightRadius:null}).radius,2000);
   const air=viewer("air",{elevation:2,losHeight:3});
   const normal={radius:4200,lightRadius:9000};
   assert.equal(constrainWaterVisionSourceData(air,normal),normal);
@@ -138,8 +141,8 @@ test("no light sources or TokenDocuments are written during per-client source in
   }
   canvas.tokens.placeables=[a,b,c];
   assert.equal(refreshWaterVisionSources(scene),3);
-  assert.deepEqual(originals.map(x=>x.radius),[1000,500,200]);
-  assert.deepEqual(originals.map(x=>x.lightRadius),[1000,500,200]);
+  assert.deepEqual(originals.map(x=>x.radius),[2000,2000,400]);
+  assert.deepEqual(originals.map(x=>x.lightRadius),[2000,2000,400]);
   assert.equal(originals.every(x=>x.visionMode==="darkvision"),true);
   assert.deepEqual(updates,[{refreshVision:true,refreshLighting:true}]);
   assert.equal(waterVisionDiagnostics(scene).length,3);
@@ -209,11 +212,11 @@ test("V13 native sight/light perception getters enforce the cap (source data has
   assert.equal(patchWaterTokenRanges(PF1Token),true);
   const diver=viewer("deep",{losHeight:-16,elevation:-17.5});
   Object.setPrototypeOf(diver,PF1Token.prototype);
-  assert.equal(diver.sightRange,500);
-  assert.equal(diver.lightPerceptionRange,500);
-  assert.equal(diver.optimalSightRange,500);
+  assert.equal(diver.sightRange,2000);
+  assert.equal(diver.lightPerceptionRange,2000);
+  assert.equal(diver.optimalSightRange,2000);
   const data=diver._getVisionSourceData();
-  assert.equal(data.lightRadius,500);
+  assert.equal(data.lightRadius,2000);
   assert.equal(Object.hasOwn(data,"radius"),false,
     "Foundry V13 VisionSourceData does not define radius");
   diver.losHeight=3;diver.document.elevation=2;
@@ -222,17 +225,18 @@ test("V13 native sight/light perception getters enforce the cap (source data has
   assert.equal(diver.optimalSightRange,10000);
 });
 
-test("twenty times the half-depth remains limited: native zero means unbounded",()=>{
+test("extreme depths affect light, not water transparency radius",()=>{
   const {viewer}=fixture();
   const diver=viewer("extreme",{losHeight:-160,elevation:-161});
-  assert.equal(getTokenUnderwaterVisionLimit(diver).range,0);
+  assert.equal(getTokenUnderwaterVisionLimit(diver).lightFraction,0);
+  assert.equal(getTokenUnderwaterVisionLimit(diver).range,40);
   assert.equal(waterVisionPixels(0,diver.document.parent),1);
-  assert.equal(capWaterTokenPixelRange(diver,Infinity),1);
-  assert.equal(capWaterTokenPixelRange(diver,0),1,
+  assert.equal(capWaterTokenPixelRange(diver,Infinity),2000);
+  assert.equal(capWaterTokenPixelRange(diver,0),2000,
     "a zero-radius V13 polygon must never be interpreted as unlimited");
   const data=constrainWaterVisionSourceData(diver,{lightRadius:9999});
-  assert.equal(data.lightRadius,1,
-    "the extreme depth must never restore unlimited light perception");
+  assert.equal(data.lightRadius,2000,
+    "the water's physical transparency remains 40 m even without daylight");
 });
 
 test("native 36m cap does not touch another, dry token source",()=>{
@@ -250,4 +254,35 @@ test("native 36m cap does not touch another, dry token source",()=>{
   assert.equal(dry.sightRange,Infinity);
   assert.equal(dry.lightPerceptionRange,Infinity);
   assert.equal(dry._getVisionSourceData().lightRadius,10000);
+});
+
+test("ordinary sight, low-light and darkvision share the same optical water cap",()=>{
+  const {viewer}=fixture();
+  const normal=viewer("ordinary",{losHeight:-160,elevation:-161});
+  const low=viewer("low-light",{losHeight:-160,elevation:-161});
+  low.document.sight.visionMode="lowlight";
+  const dark=viewer("darkvision",{losHeight:-160,elevation:-161});
+  dark.document.sight.visionMode="darkvision";
+  for(const token of [normal,low,dark]){
+    const limit=getTokenUnderwaterVisionLimit(token);
+    assert.equal(limit.range,40);
+    assert.equal(limit.lightFraction,0);
+    assert.equal(capWaterTokenPixelRange(token,10000),2000);
+  }
+  assert.equal(getTokenUnderwaterVisionLimit(normal).darkvision,false);
+  assert.equal(getTokenUnderwaterVisionLimit(low).darkvision,false);
+  assert.equal(getTokenUnderwaterVisionLimit(dark).darkvision,true);
+  assert.equal(capWaterTokenPixelRange(dark,900),900,
+    "the PF1 native darkvision radius remains the stronger limit");
+});
+
+test("changing body half-depth only alters natural-light factor, not sight radius",()=>{
+  const {viewer,scene}=fixture();
+  const token=viewer("diver",{losHeight:-8});
+  const first=getTokenUnderwaterVisionLimit(token);
+  scene.flags["pf1-waters"].waterBodies[0].visionHalfDepth=2;
+  const second=getTokenUnderwaterVisionLimit(token);
+  assert.equal(first.range,second.range);
+  assert.equal(first.range,40);
+  assert.ok(first.lightFraction>second.lightFraction);
 });

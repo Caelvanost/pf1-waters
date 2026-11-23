@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.24
+# PF1 Waters — v1.4.25
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -9,6 +9,21 @@ https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json
 
 Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 
+## Vision sous-marine : portée physique fixe, obscurité croissante (v1.4.25)
+
+**La profondeur n'affecte plus le rayon maximal de vision sous l'eau.** Le corps d'eau possède deux réglages complémentaires :
+
+- **Distance maximale de visibilité de l'eau** (`visionRange`) : transparence physique du milieu, indépendante de la profondeur. Elle s'applique à tous les tokens, avec ou sans vision dans le noir, et reste plafonnée par leurs capacités natives PF1. Elle sert également à limiter la visibilité des autres tokens en **3D** (distance horizontale et différence d'élévation).
+- **Demi-profondeur d'atténuation lumineuse** (`visionHalfDepth`) : profondeur où la lumière naturelle est réduite de 50 %. L'éclairage naturel passe à 25 % au double, à 5 % à cinq fois cette profondeur, puis s'éteint à vingt fois. **Ce facteur ne raccourcit jamais le rayon de vision** ; il pilote l'obscurité visuelle et les comportements natifs d'éclairage des Regions associées.
+
+La profondeur de l'observateur est calculée à partir de l'élévation de ses yeux sous la surface commune du corps d'eau. Le système utilise les comportements `Adjust Darkness Level` (et les tranches verticales, si le MJ les a activées) pour intégrer l'obscurité à Foundry. Un effet de secours visuel local peut être utilisé quand aucun comportement natif n'est applicable.
+
+**Personnages et sources lumineuses :** la vision dans le noir fonctionne selon PF1 et n'est pas assombrie par l'effet visuel de secours ; la vision ordinaire dépend de la lumière naturelle restante et des lumières locales. La vision nocturne/faible luminosité reste distincte de la vision dans le noir. Les torches et les sorts lumineux ne sont pas désactivés. **Limite connue :** si le rendu de secours par filtre graphique est actif plutôt que l'obscurité native, il peut également assombrir visuellement les lumières locales ; le test en situation réelle sous Foundry V13 reste nécessaire.
+
+**Exemple :** pour une eau avec une portée maximale de **36 m** et une demi-profondeur de **9 m**, un plongeur à **18 m** conserve un rayon géométrique de **36 m**, mais ne reçoit que **25 % de lumière naturelle**. Une vision dans le noir capable de porter à 18 m continue de voir jusqu'à 18 m (sa portée native) ; une capacité de 60 m reste plafonnée à 36 m par la transparence du corps d'eau.
+
+Le réglage se fait exclusivement dans **PF1 Waters → Corps d'eau → Modifier**. La profondeur d'atténuation solaire apparaît en lecture seule dans les paramètres de chaque Region membre, pour garantir une seule courbe lumineuse par corps d'eau.
+
 ## Gestion des corps d'eau — bouton principal de la barre d'outils (v1.4.22)
 
 PF1 Waters possède désormais une **entrée principale « PF1 Waters — Corps d'eau »** dans la barre de contrôles de scène, **au même niveau que Tokens, Regions, Tuiles et Levels**. L'icône de vague apparaît pour le **MJ** dès qu'une scène est ouverte.
@@ -17,7 +32,7 @@ PF1 Waters possède désormais une **entrée principale « PF1 Waters — Corps 
 - Lorsque la palette « PF1 Waters » est déjà sélectionnée, cliquer sur **« Ouvrir la gestion des corps d'eau »** (icône de liste) dans ses outils pour ouvrir à nouveau le menu.
 - Cette interface fonctionne indépendamment de la couche Regions. Elle n'impose pas de changer de couche pour modifier un corps d'eau existant.
 - Les actions qui nécessitent une sélection de formes restent dans les outils natifs **Regions** ; celles qui nécessitent des Tuiles ou Dessins restent dans leurs propres couches.
-- Le bouton « Corps d'eau de la scène » demeure aussi dans les outils Regions, comme accès alternatif.
+- Le bouton de gestion redondant dans Regions a été supprimé depuis la v1.4.24.
 
 ### Créer et configurer l'eau
 
@@ -57,7 +72,7 @@ Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting`
 
 Lorsque l'**éclairage global de la scène** est activé dans Foundry v13, la luminosité ambiante à l'intérieur de la Region d'eau diminue **progressivement avec la profondeur du point de vue immergé**.
 
-La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Region (36 mètres ou 120 pieds par défaut), configurable indépendamment de la distance maximale de visibilité des tokens. Pour les anciennes Regions, cette profondeur reprend automatiquement la valeur de visibilité existante.
+La courbe utilise la **demi-profondeur d'atténuation lumineuse du corps d'eau** (9 mètres ou 30 pieds par défaut). Elle est indépendante de la distance maximale de visibilité, qui reste constante avec la profondeur.
 
 | Profondeur sous la surface | Lumière globale visible |
 |---|---|
@@ -69,7 +84,7 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 | Cinq profondeurs de visibilité | **5 %** |
 | Vingt profondeurs de visibilité et au-delà | **0 %** |
 
-**Exemple :** pour une Region dont la visibilité vaut 36 m, la lumière globale passe à **50 % à 36 m**, **25 % à 72 m**, **5 % à 180 m**, puis **0 % à 720 m et au-delà**. Dans une scène en pieds (visibilité de 120 pieds), ces seuils sont **120**, **240**, **600** et **2 400 pieds**. L'interpolation est linéaire entre les paliers ; la lumière ne s'éteint qu'au vingtième facteur.
+**Exemple :** pour un corps d'eau dont la demi-profondeur lumineuse vaut 9 m, la lumière naturelle passe à **50 % à 9 m**, **25 % à 18 m**, **5 % à 45 m**, puis **0 % à 180 m et au-delà**. La portée maximale de visibilité de l'eau reste indépendante de ces niveaux lumineux.
 
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
@@ -108,10 +123,10 @@ game.modules.get("pf1-waters").api.waterFogDiagnostics()
 Chaque **corps d'eau enregistré dans une scène** possède désormais une configuration de portée de vision **indépendante des autres corps d'eau**. Dans **barre d'outils → PF1 Waters → Modifier un corps d'eau**, régler :
 
 - **Limiter la vision sous-marine :** activation ou désactivation de la limitation pour ce corps d'eau.
-- **Distance maximale de vision à la surface :** portée plafond, dans les unités de distance de la scène (36 m ou 120 pieds par défaut).
-- **Profondeur divisant la distance de vision par deux :** profondeur à laquelle cette portée est réduite de 50 % (9 m ou 30 pieds par défaut).
+- **Distance maximale de visibilité de l'eau :** plafond physique constant, dans les unités de distance de la scène (36 m ou 120 pieds par défaut).
+- **Demi-profondeur d'atténuation lumineuse :** profondeur à laquelle la lumière naturelle restante atteint 50 % (9 m ou 30 pieds par défaut), sans diminution du rayon de vision.
 
-**Formule :** la profondeur du regard `d = surface commune du corps d'eau − élévation des yeux du token` (seulement si les yeux sont sous l'eau). La courbe vaut 100 % à la surface, 50 % à une fois la demi-profondeur, 25 % à deux fois, 5 % à cinq fois et 0 % à vingt fois la demi-profondeur. Le rayon réel est le minimum entre les portées natives du token et ce plafond. Exemple : portée à la surface **40 m**, demi-profondeur **8 m** ⇒ portée sous l'eau **20 m à 8 m de profondeur**, **10 m à 16 m** et **2 m à 40 m**.
+**Depuis v1.4.25 :** la portée est désormais **fixe** et vaut le minimum entre la visibilité maximale du corps d'eau et la portée native du token. La courbe 100 / 50 / 25 / 5 / 0 % représente **la lumière naturelle restante**, et non une réduction du rayon.
 
 **Technique :** PF1 Waters enveloppe `Token._getVisionSourceData()` (Foundry V13) sur la classe de Token active et contraint **les rayons de vision et de perception des zones éclairées**, séparément pour chaque source. Le changement intervient côté client, avec réinitialisation de vision sur mouvement horizontal, changement d'élévation, changement de sélection, modification de Region ou du corps d'eau. La visibilité normale, les murs, la lumière et les modes de détection existants continuent de s'appliquer à l'intérieur du rayon permis. Un nageur qui a les yeux hors de l'eau conserve sa vision normale.
 

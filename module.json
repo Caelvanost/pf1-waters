@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.24 : visibilité sous-marine 3D avec limites verticales, brouillard noir hors du champ de vision courant, boutons Regions simplifiés.",
-  "version": "1.4.24",
+  "description": "PF1 Waters v1.4.25 : limite physique de visibilité fixe dans chaque corps d'eau et obscurité naturelle croissante avec la profondeur, compatible avec vision dans le noir et sources lumineuses.",
+  "version": "1.4.25",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.24/pf1-waters-v1.4.24.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.25/pf1-waters-v1.4.25.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

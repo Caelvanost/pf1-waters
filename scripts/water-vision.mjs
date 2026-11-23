@@ -12,6 +12,7 @@ import { MODULE_ID, EPSILON } from "./constants.mjs";
 import { getSceneWaterBody, getRegionWaterBodyId } from "./water-bodies.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
+import { hasWaterDarkvision } from "./water-senses.mjs";
 
 const PATCHED = Symbol.for("pf1-waters.vision-source-patched");
 const RANGE_PATCHED = Symbol.for("pf1-waters.token-range-patched");
@@ -21,9 +22,9 @@ const pendingTokens = new Set();
 let scheduled = false;
 let warningIssued = false;
 
-/** Water clarity curve: 100% at the surface, 50% at 1x, 25% at 2x,
- *  5% at 5x and zero at 20x the configured half-depth.
- *  This is a visibility cap, not a change to light emitted by a token.
+/** Natural-light curve: 100% at surface, 50% at 1x, 25% at 2x,
+ * 5% at 5x, 0% at 20x. This is NOT an optical-range reduction.
+ * Visual darkness and PF1 light perception are processed separately.
  */
 export function waterVisionFraction(depth, halfDepth) {
   if (!Number.isFinite(depth) || depth <= 0) return 1;
@@ -62,13 +63,18 @@ export function getTokenUnderwaterVisionLimit(token) {
   if (!Number.isFinite(eyeElevation) ||
       eyeElevation >= state.surface - EPSILON) return null;
 
-  const depth = state.surface - eyeElevation;
-  const fraction = waterVisionFraction(depth, body.visionHalfDepth);
-  const range = Math.max(0, body.visionRange * fraction);
+  const depth=state.surface-eyeElevation;
+  const lightFraction=waterVisionFraction(depth,body.visionHalfDepth);
+  // Optical transparency and natural light are distinct:
+  // a diver with darkvision, a lantern or low-light perception can use
+  // whatever illumination the native engine permits, but cannot see
+  // beyond this fixed physical water-clarity radius.
+  const darkvision=hasWaterDarkvision(placeable);
   return {
-    bodyId, bodyName: body.name, surface: state.surface, eyeElevation,
-    depth, range, maxRange: body.visionRange, halfDepth: body.visionHalfDepth,
-    fraction
+    bodyId,bodyName:body.name,surface:state.surface,eyeElevation,
+    depth,range:body.visionRange,maxRange:body.visionRange,
+    halfDepth:body.visionHalfDepth,lightFraction,darkvision,
+    fraction:1
   };
 }
 

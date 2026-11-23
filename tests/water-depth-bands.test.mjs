@@ -14,7 +14,7 @@ function fixture({depth:nullOrDepth=null, halfDepth=5, count=24, enabled=true,
     id:"scene-bands", environment:{
       darknessLevel:darkness, globalLight:{enabled:globalLight}
     }, grid:{size:100,distance:1.5,units:"m"}, regions:[],
-    flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+    flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0,visionHalfDepth:halfDepth}]}},
     getFlag(ns,key){return this.flags?.[ns]?.[key];},
     async createEmbeddedDocuments(type, values) {
       assert.equal(type,"Region");

@@ -16,6 +16,8 @@ import {
   getWaterObserverEyeElevation, isWaterObserverSubmerged
 } from "./water-visual-depth.mjs";
 import { getWaterRegionData, getWaterDepthBandSettings } from "./water-regions.mjs";
+import { hasWaterDarkvision } from "./water-senses.mjs";
+export { hasWaterDarkvision } from "./water-senses.mjs";
 
 const shades = new Map();
 let layer = null;
@@ -26,18 +28,6 @@ const warnings = new Set();
 // the remaining global illumination is extremely faint.
 const DARK_SIGHT_FLOOR = 0.12;
 const DARK_SIGHT_TWILIGHT = 0.20;
-
-export function hasWaterDarkvision(token) {
-  const mode = String(token?.document?.sight?.visionMode ??
-    token?.vision?.visionMode?.id ?? "").toLowerCase();
-  if (mode.includes("darkvision")) return true;
-  const detection = token?.document?.detectionModes ?? [];
-  return [...detection].some(data => {
-    const id = String(data?.id ?? "").toLowerCase();
-    return id.includes("darkvision") && data.enabled !== false &&
-      (data.range === undefined || Number(data.range) > 0);
-  });
-}
 
 /**
  * User-specific visual perception, distinct from the GM's ambient-light curve.

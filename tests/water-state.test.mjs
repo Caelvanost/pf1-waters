@@ -40,14 +40,17 @@ function token(s,props={}) {
     async update(c) {Object.assign(this,c);} };
   d.uuid="Scene.scene.Token."+d.id;s.tokens.push(d);return d;
 }
-test("legacy Regions retain their sunlight curve; custom light depth is separate",()=>{
+test("the body provides the shared light-depth scale, independent of Region visibility",()=>{
  const s=scene();const r=region(s);
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,36);
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,9);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,12);
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,9);
  r.flags["pf1-waters"].waterRegion.sunlightHalfDepth=3;
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,9,
+   "obsolete local sunlight fields must not override the body");
+ s.flags["pf1-waters"].waterBodies[0].visionHalfDepth=5;
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,5);
  assert.equal(getWaterRegionData(r).visibilityDepth,12);
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,3);
 });
 test("1x1 at surface -0.75 is half submerged, not underwater",()=>{
   const s=scene();const r=region(s);const d=token(s,{elevation:-0.75});

@@ -31,7 +31,7 @@ function setup({light=true,limit=36,halfDepth=null}={}) {
  const sc={id:"sc",grid:{size:100,distance:1.5,units:"m"},
   environment:{globalLight:{enabled:light}},
   regions:[],tokens:[],
-  flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+  flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0,visionHalfDepth:halfDepth??limit}]}},
   getFlag(ns,key){return this.flags?.[ns]?.[key];}
  };
  const region={id:"lake",parent:sc,elevation:0,

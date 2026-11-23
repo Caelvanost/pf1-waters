@@ -36,13 +36,14 @@ function parseRegionFlag(raw, scene) {
   const depthRaw = raw?.depth;
   const parsedDepth = depthRaw === "" || depthRaw === null || depthRaw === undefined
     ? null : Number(depthRaw);
-  // Independent natural-light scale. Existing water Regions fall back to sight depth.
+  // Natural light is a property of the entire water body, not of its
+  // individual bathymetric Regions. All members share its attenuation curve.
   const visibilityDepth = typeof raw?.visibilityDepth === "number" &&
     Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
     ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene);
-  const sunlightHalfDepth = typeof raw?.sunlightHalfDepth === "number" &&
-    Number.isFinite(raw.sunlightHalfDepth) && raw.sunlightHalfDepth >= 0
-    ? raw.sunlightHalfDepth : visibilityDepth;
+  const sunlightHalfDepth = typeof body?.visionHalfDepth === "number" &&
+    Number.isFinite(body.visionHalfDepth) && body.visionHalfDepth >= 0
+    ? body.visionHalfDepth : visibilityDepth;
   return {
     enabled: Boolean(raw?.enabled && body),
     surface,
@@ -277,10 +278,11 @@ export async function configureSelectedWaterRegions() {
       visibilityDepth + '"><span class="units">' + units + '</span></div></div><p class="hint">' +
       t("RegionVisibilityDepthHint", "Seuil appliqué au sommet des créatures immergées. Leurs images restent sous la tuile transparente.") +
       '</p>' +
-      '<div class="form-group"><label>Profondeur pour 50 % de lumière naturelle</label>' +
-      '<div class="form-fields"><input name="sunlightHalfDepth" type="number" min="0" step="any" value="' +
-      first.sunlightHalfDepth + '"><span class="units">' + units + '</span></div></div>' +
-      '<p class="hint">50 % de lumière à cette profondeur, 25 % au double, 5 % à cinq fois et extinction à vingt fois. Indépendant de la visibilité sous-marine.</p>' +
+      '<div class="form-group"><label>Demi-profondeur de lumière naturelle (corps d’eau)</label>' +
+      '<div class="form-fields"><input type="number" value="' +
+      first.sunlightHalfDepth + '" disabled><span class="units">' + units +
+      '</span></div></div>' +
+      '<p class="hint">Réglable dans le menu principal des corps d’eau. L’obscurité augmente avec la profondeur sans réduire la portée maximale dans l’eau.</p>' +
       '<div class="form-group"><label>Obscurité native par tranches d’élévation</label>' +
       '<div class="form-fields"><input name="darknessBands" type="checkbox" ' +
       (lightingBands.enabled ? 'checked ' : '') + '></div></div>' +
@@ -310,8 +312,6 @@ export async function configureSelectedWaterRegions() {
         const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
-        const sunlightRaw = String(button.form.elements.sunlightHalfDepth?.value ?? "").trim();
-        const sunlightHalfDepth = sunlightRaw === "" ? NaN : Number(sunlightRaw);
         const darknessBands = Boolean(button.form.elements.darknessBands?.checked);
         const darknessBandCount = Number(button.form.elements.darknessBandCount?.value);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -320,9 +320,6 @@ export async function configureSelectedWaterRegions() {
         }
         if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
           throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
-        }
-        if (!Number.isFinite(sunlightHalfDepth) || sunlightHalfDepth < 0) {
-          throw new Error("La profondeur pour 50 % de lumière naturelle doit être positive ou nulle.");
         }
         if (!Number.isInteger(darknessBandCount) ||
             darknessBandCount < 4 || darknessBandCount > 40) {
@@ -335,7 +332,7 @@ export async function configureSelectedWaterRegions() {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
         return {
-          depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth,
+          depth, ringPng, ringScale, visibilityDepth,
           darknessBands, darknessBandCount
         };
       }
@@ -356,7 +353,6 @@ export async function configureSelectedWaterRegions() {
         ? result.ringScale : first.ringScale,
       visibilityDepth:
         Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth,
-      sunlightHalfDepth: result.sunlightHalfDepth,
       darknessBands: result.darknessBands,
       darknessBandCount: result.darknessBandCount
     });

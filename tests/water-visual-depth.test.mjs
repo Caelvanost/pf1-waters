@@ -794,3 +794,22 @@ test("3D underwater range correctly combines horizontal and vertical distance",(
   assert.equal(isWithinUnderwaterVisionRange(viewer,target),true,
     "80px horizontal + 3m vertical fits within cap");
 });
+
+test("physical 3D water transparency is identical for darkvision and ordinary vision",()=>{
+ const {scene,region}=makeScene();
+ region.depth=200;
+ region.testPoint=({x,y})=>x>=0&&x<5000&&y>=0&&y<200;
+ scene.flags["pf1-waters"].waterBodies[0].visionRange=36;
+ scene.flags["pf1-waters"].waterBodies[0].visionHalfDepth=2;
+ const observer=makeToken(scene,-90);
+ observer.losHeight=-88.5;
+ const target=makeToken(scene,-90);
+ target.document.x=1600;
+ target.center={x:1650,y:60};
+ assert.equal(isWithinUnderwaterVisionRange(observer,target),true,
+   "lack of sunlight must not shrink the water transparency radius");
+ observer.document.sight={visionMode:"darkvision"};
+ assert.equal(isWithinUnderwaterVisionRange(observer,target),true);
+ target.document.x=4000;target.center={x:4050,y:60};
+ assert.equal(isWithinUnderwaterVisionRange(observer,target),false);
+});

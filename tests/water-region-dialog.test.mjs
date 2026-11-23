@@ -33,7 +33,9 @@ test("Region editor is viewport-bounded, scrollable, and keeps FilePicker non-mo
   assert.equal(options.position.width,520);
   assert.equal(options.modal,false,"native file picker must remain clickable");
   assert.match(options.content,/class="standard-form pf1-waters-region-fields"/);
-  assert.match(options.content,/name="sunlightHalfDepth"/);
+  assert.doesNotMatch(options.content,/name="sunlightHalfDepth"/,
+    "light attenuation is edited in the water body manager");
+  assert.match(options.content,/Demi-profondeur de lumière naturelle/);
   assert.match(options.content,/name="darknessBands"/);
   assert.match(options.content,/name="darknessBandCount"/);
   assert.match(options.content,/<file-picker[^>]*name="ringPng"/);

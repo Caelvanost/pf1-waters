@@ -15,7 +15,7 @@ globalThis.Hooks={on:(name,cb)=>calls.push([name,cb])};
 function makeRegion({distance=36,sunlightHalfDepth=null,water=true,depth=1000}={}) {
   const scene={id:"sc",environment:{darknessLevel:.2,globalLight:{enabled:true,darkness:{max:.8}}},
     grid:{size:100,distance:1.5,units:"m"},regions:[],tokens:[],
-    flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0}]}},
+    flags:{"pf1-waters":{waterBodies:[{id:"body",name:"Lac",surface:0,visionHalfDepth:sunlightHalfDepth??distance}]}},
     getFlag(ns,key){return this.flags?.[ns]?.[key];}
   };
   const region={id:"r1",parent:scene,behaviors:[],elevation:0,
