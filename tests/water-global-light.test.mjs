@@ -27,7 +27,7 @@ globalThis.game={user:{id:"p1",isGM:false}};
 const hooks=new Map();
 globalThis.Hooks={on:(id,fn)=>hooks.set(id,fn)};
 
-function setup({light=true,limit=36}={}) {
+function setup({light=true,limit=36,halfDepth=null}={}) {
  const sc={id:"sc",grid:{size:100,distance:1.5,units:"m"},
   environment:{globalLight:{enabled:light}},
   regions:[],tokens:[]};
@@ -37,7 +37,8 @@ function setup({light=true,limit=36}={}) {
    indices:new Uint16Array([0,1,2,0,2,3])
   },
   getFlag(ns,key){return ns==="pf1-waters"&&key==="waterRegion"?
-    {enabled:true,surface:0,depth:200,visibilityDepth:limit}:undefined;},
+    {enabled:true,surface:0,depth:200,visibilityDepth:limit,
+      ...(halfDepth===null?{}:{sunlightHalfDepth:halfDepth})}:undefined;},
   testPoint({x,y}){return x>=0&&x<200&&y>=0&&y<200;}
  };
  sc.regions.push(region);
@@ -87,6 +88,15 @@ test("observer depth and custom water visibility determine attenuation",()=>{
  assert.equal(state[0].depth,18);
  assert.equal(state[0].factor,.75);
  assert.equal(state[0].cutoff,720);
+});
+test("natural-light attenuation scale is independent of sight distance",()=>{
+ const {sc}=setup({limit:36,halfDepth:18});
+ const s=getWaterRegionGlobalLightStates(sc,canvas.tokens.controlled)[0];
+ assert.equal(s.visibilityDepth,36);
+ assert.equal(s.sunlightHalfDepth,18);
+ assert.equal(s.depth,18);
+ assert.equal(s.factor,.5);
+ assert.equal(s.cutoff,360);
 });
 test("outside or no-global-light scenes show no underwater shading",()=>{
  const {sc,viewer}=setup();

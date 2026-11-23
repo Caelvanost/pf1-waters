@@ -24,7 +24,12 @@ const FLAG="nativeWaterDepth";
 const MODE_OVERRIDE=0;
 const MODE_DARKEN=2;
 const EPS=1e-4;
+const TRANSITION_MS=450;
+const MIN_TICK_MS=75;
 const cached=new Map();
+const transitions=new Map();
+let ticker=null;
+let lastTick=0;
 let syncing=false;
 let ensuring=false;
 const warnings=new Set();
@@ -100,13 +105,12 @@ export function getNativeWaterDarknessTargets(
     if(!isWaterObserverSubmerged(token,s)||!s.region||
         s.region.parent?.id!==scene?.id)continue;
     const depth=Math.max(0,s.surface-getWaterObserverEyeElevation(token,s));
-    const fraction=globalWaterLightFactor(
-      depth,getWaterRegionData(s.region).visibilityDepth
-    );
+    const sunlightHalfDepth=getWaterRegionData(s.region).sunlightHalfDepth;
+    const fraction=globalWaterLightFactor(depth,sunlightHalfDepth);
     const darkness=calculateNativeWaterDarkness(base,fraction);
     const old=values.get(s.region.id);
     if(!old||darkness<old.darkness)
-      values.set(s.region.id,{region:s.region,depth,fraction,darkness,base});
+      values.set(s.region.id,{region:s.region,depth,fraction,darkness,base,sunlightHalfDepth});
   }
   return values;
 }
@@ -128,6 +132,45 @@ export function applyNativeWaterDarkness(behavior,darkness=null){
     return true;
   }catch(e){warn("Mise à jour locale du niveau d'obscurité impossible",e);return false;}
 }
+function refreshNativePerception(){
+  globalThis.canvas?.perception?.update?.({
+    initializeLighting:true,initializeVision:true,
+    refreshLighting:true,refreshVision:true
+  });
+}
+function stopTicker(){
+  ticker?.remove?.(tickNativeWaterDarkness);
+  ticker=null;
+}
+function startTicker(){
+  const candidate=globalThis.canvas?.app?.ticker;
+  if(!candidate?.add||!candidate?.remove)return false;
+  if(ticker===candidate)return true;
+  stopTicker();
+  ticker=candidate;
+  ticker.add(tickNativeWaterDarkness);
+  return true;
+}
+/** Animate native Region darkness without persisting data or affecting other clients. */
+function tickNativeWaterDarkness(){
+  const now=Date.now();
+  if(now-lastTick<MIN_TICK_MS)return;
+  lastTick=now;
+  let updates=0;
+  for(const [id,transition] of transitions){
+    if(transition.behavior.disabled){
+      transitions.delete(id);
+      continue;
+    }
+    const progress=clamp((now-transition.startedAt)/TRANSITION_MS);
+    const eased=progress*progress*(3-2*progress);
+    const value=transition.from+(transition.to-transition.from)*eased;
+    if(applyNativeWaterDarkness(transition.behavior,value))updates++;
+    if(progress>=1)transitions.delete(id);
+  }
+  if(updates)refreshNativePerception();
+  if(!transitions.size)stopTicker();
+}
 export function refreshNativeWaterDarkness(){
   const c=globalThis.canvas;
   if(!c?.ready||!c.scene||syncing)return 0;
@@ -142,28 +185,42 @@ export function refreshNativeWaterDarkness(){
       seen.add(region.id);
       const t=target.get(region.id);
       const level=t&&t.darkness>t.base+EPS?t.darkness:null;
-      if(applyNativeWaterDarkness(b,level))updates++;
+      const transition=transitions.get(region.id);
+      if(level===null){
+        transitions.delete(region.id);
+        if(applyNativeWaterDarkness(b,null))updates++;
+      }else if(transition&&transition.behavior===b&&Math.abs(transition.to-level)<EPS){
+        // Repeated sight refreshes must not restart an existing transition.
+      }else{
+        const from=b.system.mode===MODE_OVERRIDE
+          ?clamp(finite(b.system.modifier,t.base)):t.base;
+        if(Math.abs(from-level)<EPS||!startTicker()){
+          transitions.delete(region.id);
+          if(applyNativeWaterDarkness(b,level))updates++;
+        }else{
+          transitions.set(region.id,{behavior:b,from,to:level,startedAt:Date.now()});
+          if(applyNativeWaterDarkness(b,from))updates++;
+        }
+      }
       cached.set(region.id,b);
     }
     for(const [id,b] of cached){
       if(seen.has(id))continue;
+      transitions.delete(id);
       applyNativeWaterDarkness(b,null);
       cached.delete(id);
     }
     // Once a native Region behavior is present, remove any legacy darkness
     // overlay that was created before the GM installed that behavior.
     refreshWaterGlobalLighting();
-    if(updates){
-      // Core perception re-evaluates global-light thresholds and token vision.
-      c.perception?.update?.({
-        initializeLighting:true,initializeVision:true,
-        refreshLighting:true,refreshVision:true
-      });
-    }
+    if(!transitions.size)stopTicker();
+    if(updates)refreshNativePerception();
   }finally{syncing=false;}
   return updates;
 }
 export function resetNativeWaterDarkness(){
+  transitions.clear();
+  stopTicker();
   for(const b of cached.values())applyNativeWaterDarkness(b,null);
   cached.clear();
 }
@@ -173,8 +230,11 @@ export function nativeWaterDarknessDiagnostics(){
     sceneDarkness:c?.scene?.environment?.darknessLevel??null,
     globalLight:c?.scene?.environment?.globalLight??null,
     regions:[...getNativeWaterDarknessTargets(c?.scene)].map(([id,v])=>({
-      id,depth:v.depth,physicalLightPercent:100*v.fraction,
+      id,depth:v.depth,sunlightHalfDepth:v.sunlightHalfDepth,
+      physicalLightPercent:100*v.fraction,
       nativeDarkness:v.darkness,
+      appliedDarkness:getNativeWaterDarknessBehavior(v.region)?.system?.modifier??null,
+      transitioning:transitions.has(id),
       behaviorReady:Boolean(getNativeWaterDarknessBehavior(v.region))
     }))
   };

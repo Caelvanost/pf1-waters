@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.14
+# PF1 Waters — v1.4.15
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -58,7 +58,7 @@ Cela ne change pas les bonus d'abri de PF1AE, les flags `floating`, `hasFooting`
 
 Lorsque l'**éclairage global de la scène** est activé dans Foundry v13, la luminosité ambiante à l'intérieur de la Region d'eau diminue **progressivement avec la profondeur du point de vue immergé**.
 
-La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres ou 120 pieds par défaut ; sinon la valeur définie par le MJ).
+La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Region (36 mètres ou 120 pieds par défaut), configurable indépendamment de la distance maximale de visibilité des tokens. Pour les anciennes Regions, cette profondeur reprend automatiquement la valeur de visibilité existante.
 
 | Profondeur sous la surface | Lumière globale visible |
 |---|---|
@@ -89,7 +89,9 @@ La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres o
 
 **Exemple :** obscurité de scène 0,20 et visibilité aquatique 36 m. À 36 m de profondeur, la Region prend une obscurité locale de 0,60 ; à 72 m, 0,80 ; à 180 m, 0,96. Avec un seuil d'illumination globale fixé à 0,80, Foundry désactive l'illumination globale de cette Region à partir de ce seuil, tout en conservant les effets des sources de lumière et modes de vision qu'il autorise.
 
-**Diagnostic :** `game.modules.get("pf1-waters").api.nativeWaterDarknessDiagnostics()` fournit la valeur d'obscurité de la scène, la profondeur du point de vue et l'obscurité calculée pour la Region.
+**Transition progressive (v1.4.15) :** à chaque changement d'élévation de l'observateur, l'obscurité native rejoint sa nouvelle valeur en 450 ms avec une interpolation douce. La perception Foundry est actualisée au plus toutes les 75 ms. L'animation fonctionne si le ticker de scène est disponible, sinon la valeur cible est appliquée immédiatement. La sortie de l'eau restaure immédiatement le comportement neutre. Le champ « Profondeur pour 50 % de lumière naturelle » est indépendant de « Profondeur de visibilité ». Attention au **seuil d'illumination globale** : s'il est inférieur à 1, le basculement mécanique de la lumière globale peut paraître brusque. Un seuil à 1 repousse l'extinction mécanique au noir complet.
+
+**Diagnostic :** `game.modules.get("pf1-waters").api.nativeWaterDarknessDiagnostics()` inclut la valeur de scène, la profondeur du regard, la profondeur de demi-atténuation, la valeur cible et appliquée, et l'état de la transition.
 
 **Compatibilité :** l'actualisation instantanée d'un comportement de Region par `updateSource()` est un ajustement local dont l'effet réel sur les passes de rendu et les seuils de Foundry v13 doit encore être validé dans une scène de jeu. Aucun niveau d'obscurité calculé ne se propage aux autres clients, mais une mise à jour ou un autre module peut réinitialiser le modèle local, auquel cas PF1 Waters le resynchronise.
 

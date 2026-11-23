@@ -146,8 +146,8 @@ export function getWaterRegionGlobalLightStates(
         state.region.parent?.id !== scene?.id) continue;
     const eye = getWaterObserverEyeElevation(token, state);
     const depth = Math.max(0, state.surface - eye);
-    const visibilityDepth = getWaterRegionData(state.region).visibilityDepth;
-    const factor = globalWaterLightFactor(depth, visibilityDepth);
+    const { visibilityDepth, sunlightHalfDepth } = getWaterRegionData(state.region);
+    const factor = globalWaterLightFactor(depth, sunlightHalfDepth);
     const darkvision = hasWaterDarkvision(token);
     const perceivedFactor = perceivedWaterGlobalLightFactor(
       factor, darkvision
@@ -156,7 +156,7 @@ export function getWaterRegionGlobalLightStates(
     if (!previous || perceivedFactor > previous.perceivedFactor) {
       states.set(state.region.id, {
         region: state.region, regionId: state.region.id,
-        depth, visibilityDepth, cutoff: 20*visibilityDepth,
+        depth, visibilityDepth, sunlightHalfDepth, cutoff: 20*sunlightHalfDepth,
         factor, perceivedFactor, darkvision,
         darkness: 1-perceivedFactor
       });
@@ -245,6 +245,7 @@ export function waterLightingDiagnostics() {
     regions:states.map(item=>({
       regionId:item.regionId,depth:item.depth,
       visibilityDepth:item.visibilityDepth,
+      sunlightHalfDepth:item.sunlightHalfDepth,
       physicalLightPercent:100*item.factor,
       perceivedLightPercent:100*item.perceivedFactor,
       darknessAlpha:item.darkness,

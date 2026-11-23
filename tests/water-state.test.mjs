@@ -35,6 +35,15 @@ function token(s,props={}) {
     async update(c) {Object.assign(this,c);} };
   d.uuid="Scene.scene.Token."+d.id;s.tokens.push(d);return d;
 }
+test("legacy Regions retain their sunlight curve; custom light depth is separate",()=>{
+ const s=scene();const r=region(s);
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,36);
+ r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,12);
+ r.flags["pf1-waters"].waterRegion.sunlightHalfDepth=3;
+ assert.equal(getWaterRegionData(r).visibilityDepth,12);
+ assert.equal(getWaterRegionData(r).sunlightHalfDepth,3);
+});
 test("1x1 at surface -0.75 is half submerged, not underwater",()=>{
   const s=scene();const r=region(s);const d=token(s,{elevation:-0.75});
   const w=getTokenWaterState(d);

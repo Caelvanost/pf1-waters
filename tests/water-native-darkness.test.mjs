@@ -11,11 +11,12 @@ import {
 const calls=[];
 globalThis.game={user:{id:"GM",isGM:true}};
 globalThis.Hooks={on:(name,cb)=>calls.push([name,cb])};
-function makeRegion({distance=36,water=true,depth=1000}={}) {
+function makeRegion({distance=36,sunlightHalfDepth=null,water=true,depth=1000}={}) {
   const scene={id:"sc",environment:{darknessLevel:.2,globalLight:{enabled:true,darkness:{max:.8}}},
     grid:{size:100,distance:1.5,units:"m"},regions:[],tokens:[]};
   const region={id:"r1",parent:scene,behaviors:[],elevation:0,
-    flags:{"pf1-waters":{waterRegion:{enabled:water,surface:0,depth,visibilityDepth:distance}}},
+    flags:{"pf1-waters":{waterRegion:{enabled:water,surface:0,depth,visibilityDepth:distance,
+      ...(sunlightHalfDepth===null?{}:{sunlightHalfDepth})}}},
     getFlag(ns,key){return this.flags?.[ns]?.[key];},
     testPoint({x,y}){return x>=0&&x<100&&y>=0&&y<100;},
     async createEmbeddedDocuments(type,defs){
@@ -66,6 +67,16 @@ test("GM creates exactly one neutral core Adjust Darkness Level behavior",async(
   assert.equal(calls.filter(c=>c[0]==="createBehavior").length,1);
   clean();
 });
+test("independent sunlight half-depth modifies native darkness, not token sight",()=>{
+  clean();
+  const {scene,region,observer}=makeRegion({distance:36,sunlightHalfDepth:18});
+  const t=getNativeWaterDarknessTargets(scene,[observer]).get(region.id);
+  assert.equal(t.depth,36);
+  assert.equal(t.sunlightHalfDepth,18);
+  assert.equal(t.fraction,.25);
+  assert.ok(Math.abs(t.darkness-.8)<1e-12);
+  clean();
+});
 test("a player cannot create or persist a Region behavior",async()=>{
   clean();const {region}=makeRegion();game.user.isGM=false;
   assert.equal(await ensureNativeWaterDarknessBehavior(region),null);
@@ -103,6 +114,35 @@ test("per-client native behavior changes source and triggers Foundry perception,
   assert.equal(behavior.system.modifier,0);
   assert.equal(calls.filter(c=>c[0]==="perception").length,2);
   clean();
+});
+test("depth changes cause smooth native darkness interpolation on canvas ticker",async()=>{
+  clean();
+  const {region,observer}=makeRegion();
+  const behavior=await ensureNativeWaterDarknessBehavior(region);
+  const callbacks=new Set();
+  canvas.app={ticker:{add(fn){callbacks.add(fn);},remove(fn){callbacks.delete(fn);}}};
+  const originalNow=Date.now;
+  let now=1000;
+  Date.now=()=>now;
+  try{
+    assert.equal(refreshNativeWaterDarkness(),1);
+    assert.equal(behavior.system.mode,0);
+    assert.equal(behavior.system.modifier,.2);
+    assert.equal(callbacks.size,1);
+    now=1150;
+    [...callbacks][0]();
+    assert.ok(behavior.system.modifier>.2&&behavior.system.modifier<.6);
+    observer.document.elevation=-73.5;
+    observer.losHeight=-72;
+    assert.equal(refreshNativeWaterDarkness(),0);
+    now=1700;
+    [...callbacks][0]();
+    assert.ok(Math.abs(behavior.system.modifier-.8)<1e-12);
+    assert.equal(callbacks.size,0);
+  }finally{
+    Date.now=originalNow;
+    clean();
+  }
 });
 test("native darkness is independent of token darkvision because Foundry checks it",async()=>{
   clean();const {region,observer}=makeRegion();

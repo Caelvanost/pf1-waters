@@ -1,3 +1,10 @@
+# 1.4.15 — Obscurité native progressive et profondeur solaire indépendante
+
+- À chaque changement d'élévation du regard, l'obscurité native d'une Region rejoint sa valeur cible par une interpolation locale douce de 450 ms, avec recalcul de perception toutes les 75 ms au maximum.
+- Nouveau réglage « Profondeur pour 50 % de lumière naturelle » indépendant de la profondeur de visibilité des tokens, pour contrôler l'assombrissement selon le type et la profondeur du corps d'eau.
+- Les anciennes Regions conservent automatiquement leur courbe solaire d'origine. Courbe 100 % / 50 % / 25 % / 5 % / 0 % et calcul 3D du regard inchangés.
+- Diagnostic et tests étendus ; sorties de l'eau et caméra MJ libre conservent le retour immédiat à l'obscurité normale. Aucun changement serveur des valeurs d'obscurité temporaires.
+
 # 1.4.14 — Masquage complet des tokens trop profonds pour la vision extérieure
 
 - Un token entièrement immergé au-delà du seuil de visibilité de sa Region est désormais masqué via **`token.visible = false`** plutôt que seulement `token.mesh.alpha = 0`.

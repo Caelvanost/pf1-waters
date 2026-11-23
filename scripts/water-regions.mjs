@@ -31,6 +31,13 @@ function parseRegionFlag(raw, scene) {
   const depthRaw = raw?.depth;
   const parsedDepth = depthRaw === "" || depthRaw === null || depthRaw === undefined
     ? null : Number(depthRaw);
+  // Independent natural-light scale. Existing water Regions fall back to sight depth.
+  const visibilityDepth = typeof raw?.visibilityDepth === "number" &&
+    Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
+    ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene);
+  const sunlightHalfDepth = typeof raw?.sunlightHalfDepth === "number" &&
+    Number.isFinite(raw.sunlightHalfDepth) && raw.sunlightHalfDepth >= 0
+    ? raw.sunlightHalfDepth : visibilityDepth;
   return {
     enabled: Boolean(raw?.enabled),
     surface,
@@ -44,9 +51,8 @@ function parseRegionFlag(raw, scene) {
       ? raw.ringScale : 1.5,
     // A null/missing/invalid value means 36 m (metric) or 120 ft (imperial).
     // Explicit zero is valid; it means no subsurface image visibility.
-    visibilityDepth: typeof raw?.visibilityDepth === "number" &&
-      Number.isFinite(raw.visibilityDepth) && raw.visibilityDepth >= 0
-      ? raw.visibilityDepth : getDefaultWaterVisibilityDepth(scene)
+    visibilityDepth,
+    sunlightHalfDepth
   };
 }
 
@@ -168,6 +174,10 @@ export async function configureSelectedWaterRegions() {
       visibilityDepth + '"><span class="units">' + units + '</span></div></div><p class="hint">' +
       t("RegionVisibilityDepthHint", "Seuil appliqué au sommet des créatures immergées. Leurs images restent sous la tuile transparente.") +
       '</p>' +
+      '<div class="form-group"><label>Profondeur pour 50 % de lumière naturelle</label>' +
+      '<div class="form-fields"><input name="sunlightHalfDepth" type="number" min="0" step="any" value="' +
+      first.sunlightHalfDepth + '"><span class="units">' + units + '</span></div></div>' +
+      '<p class="hint">50 % de lumière à cette profondeur, 25 % au double, 5 % à cinq fois et extinction à vingt fois. Indépendant de la visibilité sous-marine.</p>' +
       '<div class="form-group"><label>' +
       t("RingPng", "Image PNG des remous (facultatif)") +
       '</label><div class="form-fields"><file-picker type="image" name="ringPng" value="' +
@@ -191,6 +201,8 @@ export async function configureSelectedWaterRegions() {
         const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
+        const sunlightRaw = String(button.form.elements.sunlightHalfDepth?.value ?? "").trim();
+        const sunlightHalfDepth = sunlightRaw === "" ? NaN : Number(sunlightRaw);
         if (String(surfaceRaw).trim() === "") throw new Error(t("InvalidSurface", "Surface requise."));
         const surface = Number(surfaceRaw);
         const depth = depthRaw === "" ? null : Number(depthRaw);
@@ -201,13 +213,16 @@ export async function configureSelectedWaterRegions() {
         if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
           throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
         }
+        if (!Number.isFinite(sunlightHalfDepth) || sunlightHalfDepth < 0) {
+          throw new Error("La profondeur pour 50 % de lumière naturelle doit être positive ou nulle.");
+        }
         if (!Number.isFinite(ringScale) || ringScale <= 0) {
           throw new Error(t("InvalidRingScale", "Le ratio des remous doit être strictement positif."));
         }
         if (ringPng && !/\.png(?:[?#].*)?$/i.test(ringPng)) {
           throw new Error(t("InvalidRingPng", "Choisissez un fichier PNG ou laissez ce champ vide."));
         }
-        return { surface, depth, ringPng, ringScale, visibilityDepth };
+        return { surface, depth, ringPng, ringScale, visibilityDepth, sunlightHalfDepth };
       }
     },
     rejectClose: false,
@@ -224,7 +239,8 @@ export async function configureSelectedWaterRegions() {
       ringScale: Number.isFinite(result.ringScale) && result.ringScale > 0
         ? result.ringScale : first.ringScale,
       visibilityDepth:
-        Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth
+        Number.isFinite(result.visibilityDepth) ? result.visibilityDepth : visibilityDepth,
+      sunlightHalfDepth: result.sunlightHalfDepth
     });
     try { await ensureNativeWaterDarknessBehavior(region); }
     catch(e) { console.warn(MODULE_ID+" | Region sans comportement d'obscurité natif",e); }
