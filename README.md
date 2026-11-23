@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.13
+# PF1 Waters — v1.4.14
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -116,6 +116,18 @@ Cette distinction est une **simulation graphique 2D** : elle ne modifie pas les 
 **Éclairage :** pour résoudre les scènes où le plongeur ne voyait pas la luminosité diminuer, l'effet d'assombrissement utilise maintenant le **groupe InterfaceCanvasGroup**, qui est affiché en continu, plutôt que le `PrimaryCanvasGroup` mis en cache. Le dégradé reste calculé selon la hauteur des yeux de la créature immergée, avec la courbe 100 % → 50 % à 1× → 25 % à 2× → 5 % à 5× → 0 % à 20× la visibilité de la Region. Un `floating` avec les yeux dans l'air ne reçoit aucun assombrissement sous-marin.
 
 **Limites :** il s'agit d'un effet graphique 2D **par client**, délimité par la triangulation de la Region. En étant appliqué après la composition native des effets du Canvas, il peut également assombrir visuellement certaines lumières locales dans la zone, même si leur configuration, leur portée et les règles de vision ne sont pas modifiées. Ce rendu doit être confirmé dans une scène réelle Foundry v13.
+
+## Masquage complet du token hors limite de visibilité aquatique (v1.4.14)
+
+Lorsqu'un observateur depuis la surface regarde une créature **entièrement immergée au-delà de la profondeur de visibilité de la Region**, PF1 Waters masque désormais **le Token placeable entier** à l'aide de `token.visible = false`, plutôt que de réduire seulement `token.mesh.alpha` à zéro. Le nom, le texte d'élévation, les icônes d'effets, les barres et les autres éléments HUD appartenant au token ne doivent donc plus rester visibles isolément.
+
+- Ce masquage est **local au client**, sans écriture de `TokenDocument.hidden` ni changement de permissions, pour que les autres joueurs et le MJ puissent avoir leur propre point de vue.
+- Il ne s'applique pas lorsque l'observateur voit réellement la cible depuis l'intérieur de la même Region aquatique, ni lorsque la cible remonte dans la profondeur visible.
+- Lorsqu'un token **dépasse la surface**, seule son image native est occultée derrière la tuile : son portrait superposé en premier plan et son HUD restent normalement visibles.
+- Les états visuels natifs de Foundry sont restaurés en sortant de l'eau, en changeant d'observateur et lors de la fermeture de la scène.
+- Un MJ en caméra libre ne subit pas ce masquage automatique.
+
+L'occultation est évaluée selon **la profondeur du sommet physique du token** et la visibilité de la Region, y compris sur les scènes où la limite par défaut est de **36 m ou 120 pieds**.
 
 ## Visibilité entre créatures immergées (v1.4.8)
 

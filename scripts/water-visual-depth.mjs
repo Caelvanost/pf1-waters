@@ -305,11 +305,36 @@ export function canSeeWaterTokenFromExterior(token, state = undefined) {
  * For a proven exterior LOS, allow its native primary mesh to render below
  * transparent water as usual. Reset when water/vision conditions cease.
  */
-function syncWaterTokenVisibility(placeable, canShow) {
+/**
+ * Show/hide the WHOLE native Token placeable, not just TokenMesh.alpha.
+ * A fully occluded creature still had a visible parent container and
+ * therefore leaked its name, status icons, elevation tooltip and HUD.
+ *
+ * Do not use TokenDocument.hidden: it is a persistent, shared world flag.
+ * Token.visible is purely client-local and hides all PIXI descendants.
+ * The original visibility of the placeable and mesh is preserved so the
+ * module restores it correctly after resurfacing or changing observers.
+ */
+function syncWaterTokenVisibility(placeable, canShow, forceHide = false) {
   if (!placeable?.document) return false;
   const existing = nativeVisibilityOverrides.get(placeable);
   const native = typeof placeable.isVisible === "boolean"
     ? placeable.isVisible : (existing?.nativeVisible ?? placeable.visible !== false);
+
+  if (forceHide) {
+    if (!existing) nativeVisibilityOverrides.set(placeable, {
+      nativeVisible: placeable.visible !== false,
+      meshVisible: placeable.mesh?.visible !== false
+    });
+    const changed = placeable.visible !== false ||
+      (placeable.mesh && placeable.mesh.visible !== false);
+    // Do not alter individual child flags. Parent visibility removes the
+    // token portrait and all its labels/HUD/status elements in one operation.
+    placeable.visible = false;
+    if (placeable.mesh) placeable.mesh.visible = false;
+    return Boolean(changed);
+  }
+
   if (canShow && !native) {
     if (!existing) nativeVisibilityOverrides.set(placeable, {
       nativeVisible: placeable.visible !== false,
@@ -321,14 +346,17 @@ function syncWaterTokenVisibility(placeable, canShow) {
     if (placeable.mesh) placeable.mesh.visible = true;
     return Boolean(changed);
   }
+
   if (existing) {
     nativeVisibilityOverrides.delete(placeable);
     const desired = typeof placeable.isVisible === "boolean"
       ? native : existing.nativeVisible;
-    const changed = placeable.visible !== desired;
+    const desiredMesh = desired && existing.meshVisible;
+    const changed = placeable.visible !== desired ||
+      (placeable.mesh && placeable.mesh.visible !== desiredMesh);
     placeable.visible = desired;
-    if (placeable.mesh) placeable.mesh.visible = desired && existing.meshVisible;
-    return changed;
+    if (placeable.mesh) placeable.mesh.visible = desiredMesh;
+    return Boolean(changed);
   }
   return false;
 }
@@ -472,12 +500,24 @@ export function refreshTokenWaterVisualDepth(token) {
     canSeeWaterTokenFromInterior(placeable, water);
   const showEmerged = enabled && state?.mode === "emerged";
   const withinDepth = state?.mode === "submerged" && state.opacity > 0;
-  const originalAllowed = placeable.isVisible === true ||
-    (placeable.isVisible === undefined && placeable.visible !== false);
+  // A preceding depth refresh may have locally hidden the Token. Use the
+  // saved native visibility rather than treating our override as a native
+  // Foundry LOS rejection.
+  const native = nativeVisibilityOverrides.get(placeable);
+  const originalAllowed = typeof placeable.isVisible === "boolean"
+    ? placeable.isVisible
+    : (native?.nativeVisible ?? placeable.visible !== false);
   const exteriorAllowed = enabled && (showEmerged || withinDepth) &&
     canSeeWaterTokenFromExterior(placeable);
+  // Restrict only when the underwater target lies beyond its exterior
+  // visibility range, no valid underwater viewer shares its Region and a
+  // water-facing view is active. A free-camera GM can still inspect tokens.
+  const exteriorTooDeep = enabled && state?.mode === "submerged" &&
+    state.opacity <= 0 && !interiorAllowed &&
+    (!game.user?.isGM ||
+      getLocalWaterObservers().length > 0);
   let changed = syncWaterTokenVisibility(
-    placeable, interiorAllowed || exteriorAllowed
+    placeable, interiorAllowed || exteriorAllowed, exteriorTooDeep
   );
   const allowed = (originalAllowed || exteriorAllowed) &&
     (!doc.hidden || Boolean(game.user?.isGM));

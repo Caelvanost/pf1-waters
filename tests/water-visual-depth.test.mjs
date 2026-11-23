@@ -44,7 +44,7 @@ function makeScene(){
  const region={id:"r1",parent:scene,name:"Lac",elevation:0,
    getFlag(ns,key){
      if(ns==="pf1-waters"&&key==="waterRegion")
-       return {enabled:true,surface:0,depth:10,visibilityDepth:this.visibilityDepth??null};
+       return {enabled:true,surface:0,depth:this.depth??10,visibilityDepth:this.visibilityDepth??null};
      return undefined;
    },
    testPoint({x,y}){return x>=0&&x<200&&y>=0&&y<200;}
@@ -543,4 +543,91 @@ test("floating swimmer with no LOS height falls back to physical top, not base",
  assert.equal(state.floating,true);
  assert.equal(getWaterObserverEyeElevation(swimmer,state),0.75);
  assert.equal(isWaterObserverSubmerged(swimmer,state),false);
+});
+
+
+test("surface observer cannot see underwater token's HUD, elevation or effects beyond visibility",()=>{
+ const {scene,region}=makeScene();
+ region.depth=100;
+ region.visibilityDepth=36;
+ makeVisual(scene,"Tile");
+ const target=makeToken(scene,-49.5);
+ // Foundry draws these graphical children even when only mesh.alpha=0.
+ // Hiding the parent Token is required to occlude the whole display tree.
+ target.children=[
+   {name:"tooltip-elevation",visible:true},
+   {name:"effects",visible:true},
+   {name:"bars",visible:true},
+   {name:"nameplate",visible:true}
+ ];
+ target.mesh.visible=true;
+ target.visible=true;
+ const observer=underwaterViewer(scene,{elevation:-0.97});
+ observer.losHeight=.53;
+ canvas.tokens.controlled=[observer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ assert.equal(getTokenWaterVisualDisplay(target).opacity,0);
+ assert.equal(isWaterObserverSubmerged(observer),false);
+ assert.equal(refreshTokenWaterVisualDepth(target),true);
+ assert.equal(target.visible,false,"parent Token is hidden, not just its mesh");
+ assert.equal(target.mesh.visible,false);
+ assert.equal(target.document.hidden,undefined,"never set shared TokenDocument.hidden");
+ assert.ok(target.children.every(c=>c.visible),
+   "child display flags remain intact; invisible PIXI parent hides them all");
+ resetViewerTests();
+});
+
+test("moving a surface observer underwater restores target AND its HUD with no document write",()=>{
+ const {scene,region}=makeScene();region.depth=100;region.visibilityDepth=3;
+ makeVisual(scene);
+ const target=makeToken(scene,-20);
+ target.children=[{visible:true,name:"elevation"},{visible:true,name:"status"}];
+ const viewer=underwaterViewer(scene,{elevation:-0.75});
+ viewer.losHeight=.35;
+ canvas.tokens.controlled=[viewer];
+ canvas.visibility={testVisibility(){return true;}};
+ game.user.isGM=false;
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,false);
+ assert.equal(target.mesh.visible,false);
+ viewer.document.elevation=-4;viewer.losHeight=-3;
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,true);
+ assert.equal(target.mesh.visible,true);
+ assert.equal(target.mesh.alpha,1);
+ assert.ok(target.children.every(child=>child.visible));
+ viewer.document.elevation=-0.75;viewer.losHeight=.35;
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,false);
+ target.document.elevation=-2;
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,true,"within exterior depth, HUD and image return");
+ assert.equal(target.mesh.visible,true);
+ assert.equal(target.document.hidden,undefined);
+ resetViewerTests();
+});
+
+test("an emerged water token keeps its native HUD while its portrait uses foreground replica",()=>{
+ const {scene}=makeScene();makeVisual(scene);
+ const token=makeToken(scene,-0.75);
+ token.children=[{name:"elevation",visible:true},{name:"effects",visible:true}];
+ token.visible=true;
+ refreshTokenWaterVisualDepth(token);
+ assert.equal(token.visible,true,"emerged token parent must not be hidden");
+ assert.equal(token.mesh.alpha,0,"only native image is hidden behind the tile");
+ assert.ok(token.children.every(child=>child.visible),
+   "HUD stays visible on emerged token");
+});
+
+test("a free-camera GM does not receive a client-local Token hide from exterior depth",()=>{
+ const {scene,region}=makeScene();region.depth=100;region.visibilityDepth=3;
+ makeVisual(scene);
+ const target=makeToken(scene,-20);
+ target.visible=true;target.mesh.visible=true;
+ game.user.isGM=true;
+ canvas.tokens.controlled=[];
+ refreshTokenWaterVisualDepth(target);
+ assert.equal(target.visible,true);
+ assert.equal(target.document.hidden,undefined);
 });

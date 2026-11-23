@@ -1,3 +1,13 @@
+# 1.4.14 — Masquage complet des tokens trop profonds pour la vision extérieure
+
+- Un token entièrement immergé au-delà du seuil de visibilité de sa Region est désormais masqué via **`token.visible = false`** plutôt que seulement `token.mesh.alpha = 0`.
+- Le conteneur Token invisible ne laisse plus apparaître le texte d'élévation, le nom, le HUD, les icônes d'effets ou les barres de statut.
+- Aucune modification de `TokenDocument.hidden` : le masquage reste propre au client et n'affecte pas les autres joueurs.
+- Restauration de la visibilité native au retour sous l'eau de l'observateur, à la remontée du token cible ou à la sortie de la Region.
+- Les tokens émergés conservent leur copie graphique au premier plan et les éléments d'interface d'origine.
+- Le MJ avec caméra libre n'est pas soumis à cette occultation.
+- Tests de régression : observateur à −0,97 m avec les yeux au-dessus de la surface, cible à −49,5 m, élévation et HUD, changement d'observateur, réémergence et caméra MJ.
+
 # 1.4.13 — Obscurité native de Foundry selon la profondeur dans une Region d'eau
 
 - Le calcul de profondeur utilise désormais la **valeur Obscurité de la scène** et un comportement natif `adjustDarknessLevel` associé à chaque Region d'eau.
