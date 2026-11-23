@@ -19,8 +19,6 @@ import {
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
   hasWaterDarkvision, perceivedWaterGlobalLightFactor,
-  waterLightingDiagnostics,
-  hasWaterDarkvision, perceivedWaterGlobalLightFactor,
   waterLightingDiagnostics
 } from "./water-global-light.mjs";
 
@@ -57,6 +55,8 @@ export const WATER_API = Object.freeze({
   refreshWaterSurfaceMarkers,
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
+  hasWaterDarkvision, perceivedWaterGlobalLightFactor,
+  waterLightingDiagnostics,
   getWaterSurfaceData, resolveWaterSurfaceRegion, getWaterSurfacesForRegion,
   configureSelectedWaterSurfaces, clearSelectedWaterSurfaces,
   syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations,

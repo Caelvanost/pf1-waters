@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.12 : sous l'eau, l'éclairage résiduel inférieur à 12 % n'éclaire plus la vision ordinaire ; vision dans le noir préservée.",
+  "description": "PF1 Waters v1.4.12 : correction de la pénombre sous-marine perçue par les tokens sans vision dans le noir, sans modifier la lumière physique.",
   "version": "1.4.12",
   "authors": [
     {
