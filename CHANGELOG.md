@@ -1,3 +1,12 @@
+# 1.4.22 — Accès principal à la gestion des corps d'eau
+
+- Ajout de « PF1 Waters — Corps d'eau » comme **groupe de contrôles de premier niveau**, à côté des couches de scène et du module Levels, réservé au MJ.
+- L'icône principale ouvre directement le menu de création, modification et suppression des corps d'eau, sans obligation de passer par la couche Regions.
+- Ajout d'un bouton secondaire « Ouvrir la gestion des corps d'eau » dans la palette PF1 Waters pour rouvrir le menu sans devoir changer de couche.
+- Conformité à l'API SceneControls de Foundry V13 : `activeTool` non-bouton valide, `order`, gestion de l'activation/désactivation, contrôle de visibilité MJ, absence de propriété de couche héritée.
+- Les actions sur la géométrie des Regions et les liens des Tuiles/Dessins restent dans leurs outils respectifs. Les flags existants et les paramètres de vision de v1.4.21 ne sont pas modifiés.
+- Tests ajoutés sur l'entrée de premier niveau, la navigation, le clic, la réouverture et les permissions. Documentation de création réécrite pour refléter exclusivement les corps d'eau de la scène.
+
 # 1.4.21 — Vision sous-marine dynamique par token
 
 - Paramètres de vision configurables dans le registre de chaque corps d'eau : activer/désactiver la limitation, distance maximale de vision à la surface et profondeur de demi-visibilité ; valeurs par défaut adaptées aux scènes métriques ou en pieds.

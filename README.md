@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.21
+# PF1 Waters — v1.4.22
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -9,38 +9,37 @@ https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json
 
 Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
 
-## Création d'un corps d'eau
+## Gestion des corps d'eau — bouton principal de la barre d'outils (v1.4.22)
 
-1. Sur la couche **Regions** de la scène, dessiner une Region et la sélectionner.
-2. Utiliser l'outil **PF1 Waters — Corps d'eau**.
-3. Entrer l'élévation de la **surface**, puis une **profondeur** facultative dans les unités de grille.
-4. Le **fond** est automatiquement égal à surface − profondeur. Une profondeur vide signifie « fond non limité ».
-5. L'outil « Retirer la propriété eau » désactive la Region aquatique.
+PF1 Waters possède désormais une **entrée principale « PF1 Waters — Corps d'eau »** dans la barre de contrôles de scène, **au même niveau que Tokens, Regions, Tuiles et Levels**. L'icône de vague apparaît pour le **MJ** dès qu'une scène est ouverte.
 
-Les données sont stockées sous le namespace `flags.pf1-waters.waterRegion` : `{ enabled, surface, depth, visibilityDepth, ringPng, ringScale }`. Le PNG des remous est facultatif et n'affecte pas les règles physiques.
+- **Cliquer sur l'icône principale** ouvre le menu de gestion des corps d'eau de la scène (créer, modifier ou supprimer).
+- Lorsque la palette « PF1 Waters » est déjà sélectionnée, cliquer sur **« Ouvrir la gestion des corps d'eau »** (icône de liste) dans ses outils pour ouvrir à nouveau le menu.
+- Cette interface fonctionne indépendamment de la couche Regions. Elle n'impose pas de changer de couche pour modifier un corps d'eau existant.
+- Les actions qui nécessitent une sélection de formes restent dans les outils natifs **Regions** ; celles qui nécessitent des Tuiles ou Dessins restent dans leurs propres couches.
+- Le bouton « Corps d'eau de la scène » demeure aussi dans les outils Regions, comme accès alternatif.
 
-Le formulaire **PF1 Waters — Corps d'eau** est **non modal** : lorsque le MJ sélectionne **Image PNG des remous**, le navigateur natif de fichiers Foundry peut être placé au premier plan et reste cliquable. **Depuis la v1.4.16, les champs du formulaire défilent verticalement à l'intérieur de la fenêtre**, dont la largeur et la hauteur sont limitées à l'espace visible ; les boutons de confirmation restent accessibles même sur les petits écrans. La Region n'est enregistrée qu'après confirmation du formulaire. Le choix du fichier et le champ facultatif `ringPng` ne changent pas.
+### Créer et configurer l'eau
 
-## Associer une tuile ou un dessin à la surface visuelle de l'eau
+1. Cliquer sur l'icône **PF1 Waters** à la racine de la barre d'outils.
+2. Créer un corps d'eau de scène avec un **nom**, l'**élévation commune de surface** et les paramètres de **portée de vision sous-marine** (activée, distance maximale, profondeur de demi-visibilité).
+3. Sur la couche **Regions**, dessiner une ou plusieurs Regions physiques et les sélectionner.
+4. Choisir **« PF1 Waters — Ajouter des Regions à un corps d'eau »**, sélectionner le corps d'eau et renseigner la profondeur locale ou utiliser la limite d'élévation inférieure de chaque Region.
+5. Pour régler les autres propriétés d'une Region (visibilité, remous, atténuation solaire, tranches d'obscurité), utiliser l'outil de configuration de Regions. Son altitude de surface commune est **en lecture seule** et provient du corps d'eau.
+6. Pour retirer une Region aquatique, utiliser **« Dissocier les Regions »** ou **« Retirer la propriété eau »**.
 
-La **Region** reste la seule définition du corps d'eau et de son volume : surface, profondeur, fond, collision géométrique, nage et trajectoires sous-marines.
+Les corps d'eau sont enregistrés dans `Scene.flags.pf1-waters.waterBodies`, les volumes dans `Region.flags.pf1-waters.waterRegion` (avec `bodyId` et profondeur locale). Une Region non associée à un corps d'eau existant n'est pas aquatique.
 
-Une **tuile** (image de vagues, plan d'eau transparent, etc.) ou un **dessin** ne représente que l'apparence de la surface :
+### Associer une tuile ou un dessin de surface
 
-1. Créer et configurer une Region d'eau sur la couche **Regions**.
-2. Placer une tuile ou un dessin où l'eau doit être **visible**.
-3. Sélectionner cet objet sur la couche **Tuiles** ou **Dessins**, puis choisir **Lier à la surface d’eau**.
-4. Choisir la Region aquatique correspondante dans la liste.
-5. Conserver l'option **Aligner l'élévation sur la Region** pour positionner automatiquement l'objet au niveau de surface configuré. La désactiver si la présentation de la scène exige une élévation différente.
-6. Utiliser **Dissocier la surface d’eau** pour retirer uniquement le lien visuel, sans toucher au corps d'eau.
+1. Sur la couche **Tuiles** ou **Dessins**, sélectionner les visuels devant représenter l'eau.
+2. Cliquer **« Définir comme surface d'un corps d'eau »** et choisir le corps d'eau partagé.
+3. Conserver **« Aligner sur la surface commune »** pour synchroniser leur élévation et, sur une tuile, **« Ne pas masquer la surface comme une toiture »** pour éviter l'occlusion native de type toiture.
+4. Utiliser **« Dissocier la surface d'eau »** pour supprimer le lien visuel sans modifier les Regions.
 
-**Visibilité depuis la surface (Foundry v13) :** la nouvelle option **Ne pas masquer la surface comme une toiture**, activée par défaut, empêche la tuile liée à l’eau de s’estomper comme un toit sous l’effet de l’occlusion native. Ainsi, un token dont le point de vue est au-dessus de l’eau peut voir la texture de surface lorsque sa vision et l’éclairage de la scène l’y autorisent. Le module utilise le mode officiel `CONST.OCCLUSION_MODES.NONE` de Foundry v13 : il ne modifie ni `hidden`, ni l’opacité `alpha`, ni les obstacles, ni le brouillard de guerre. **La tuile reste également visible depuis le dessous**, comme une surface translucide ; il ne s’agit pas d’une règle de visibilité directionnelle. Désactiver l’option ou dissocier la tuile restaure son ancien mode d’occlusion de toiture. Les dessins ne possèdent pas ce mode de toiture et ne sont pas modifiés.
+Chaque tuile/dessin peut couvrir plusieurs Regions associées au **même corps d'eau**. Les liens sont enregistrés dans `TileDocument/ DrawingDocument.flags.pf1-waters.waterSurface.bodyId`. Il n'existe plus de liaison directe par `regionId`.
 
-**Compatibilité Levels / Better Roofs :** si un autre module cache entièrement une tuile à certaines élévations indépendamment de l’occlusion native, PF1 Waters ne désactive pas ces restrictions externes. Il faut alors vérifier les paramètres de niveaux de la tuile dans ce module.
-
-Plusieurs tuiles ou dessins peuvent être associés à une même Region, sans modifier les règles. Les liens survivent à un déplacement/redimensionnement de leur objet. Lorsque la surface d'eau de la Region change, le module aligne les représentations liées qui ont cette option activée. Une Region supprimée ou désactivée laisse les liens inactifs, sans provoquer la création d'une nouvelle zone.
-
-Données de liaison : `flags.pf1-waters.waterSurface = { enabled, regionId, syncElevation, visibilityDepth, keepVisible, previousOcclusionMode }` sur le **TileDocument** ou le **DrawingDocument**. Les Regions conservent leur flag `waterRegion` existant. `visibilityDepth` ne modifie jamais la profondeur physique de la Region.
+**Note :** PF1 Waters utilise le mode d'occlusion natif `CONST.OCCLUSION_MODES.NONE` pour les Tuiles configurées afin de ne pas les faire disparaître comme des toits. Les règles de visibilité d'autres modules comme Levels ou Better Roofs peuvent continuer à limiter l'affichage ; leurs paramètres restent indépendants.
 
 ## État Nager permanent en immersion (v1.4.5)
 
@@ -78,7 +77,7 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 
 ## Vision sous-marine propre à chaque token (v1.4.21)
 
-Chaque **corps d'eau enregistré dans une scène** possède désormais une configuration de portée de vision **indépendante des autres corps d'eau**. Dans **Regions → PF1 Waters — Corps d'eau de la scène → Modifier**, régler :
+Chaque **corps d'eau enregistré dans une scène** possède désormais une configuration de portée de vision **indépendante des autres corps d'eau**. Dans **barre d'outils → PF1 Waters → Modifier un corps d'eau**, régler :
 
 - **Limiter la vision sous-marine :** activation ou désactivation de la limitation pour ce corps d'eau.
 - **Distance maximale de vision à la surface :** portée plafond, dans les unités de distance de la scène (36 m ou 120 pieds par défaut).
@@ -100,7 +99,7 @@ L'API expose aussi `getTokenUnderwaterVisionLimit(token)`, `waterVisionFraction(
 
 **À partir de la v1.4.20, PF1 Waters ne prend plus en charge les configurations des anciennes versions.** Le système est fondé exclusivement sur les corps d'eau enregistrés dans la scène ; il n'y a ni import des anciens flags `pf1-skull-and-shackles.waterRegion`, ni liaison de tuile/dessin vers une Region isolée.
 
-- **Regions — « Corps d'eau de la scène » :** créez un corps d'eau (nom, altitude commune de la surface).
+- **Barre d'outils principale — « PF1 Waters » :** créez, modifiez ou supprimez les corps d'eau, avec leur altitude commune de surface et leurs paramètres de vision. Un raccourci reste disponible dans Regions.
 - **Regions — « Ajouter des Regions à un corps d'eau » :** sélectionnez les contours aquatiques, puis choisissez leur corps d'eau et leur profondeur locale, éventuellement déduite de la limite native d'élévation inférieure. Une Region non associée n'est plus interprétée comme un volume d'eau, même si elle conserve d'anciens paramètres locaux.
 - **Regions — « Paramètres d'eau » :** configurez la profondeur, la visibilité, l'atténuation solaire, les tranches d'obscurité et les remous. La surface de la Region est affichée **en lecture seule**, car elle appartient au corps d'eau enregistré.
 - **Regions — « Dissocier » ou « Retirer la propriété eau » :** les Regions cessent de représenter de l'eau, sans suppression de leurs formes 2D.

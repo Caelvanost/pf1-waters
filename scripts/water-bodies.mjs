@@ -232,3 +232,58 @@ export async function configureSceneWaterBodies() {
     ui.notifications.info("Corps d’eau « "+created.name+" » enregistré.");
   }catch(error){ui.notifications.error(error.message);}
 }
+
+/**
+ * Foundry V13: give PF1 Waters its own ROOT SceneControl, like Levels.
+ *
+ * V13 requires a real non-button activeTool even when the palette only
+ * contains actions. The neutral overview tool satisfies that requirement;
+ * selecting the root icon opens the scene manager immediately, while the
+ * explicit action tool allows reopening the manager without switching layers.
+ *
+ * Keep the Region-layer controls as direct tools for attaching Region shapes;
+ * only the registry management needs a scene-wide root entry.
+ */
+export function registerWaterBodyRootSceneControl(controls) {
+  if(!game.user?.isGM || !controls || typeof controls !== "object") return;
+  if(controls.pf1Waters) return;
+
+  const orders=Object.values(controls)
+    .map(control=>Number(control?.order))
+    .filter(Number.isFinite);
+  const order=orders.length ? Math.max(...orders)+1 : 100;
+  const openManager=()=>void configureSceneWaterBodies();
+
+  controls.pf1Waters={
+    name:"pf1Waters",
+    title:"PF1 Waters — Corps d’eau",
+    icon:"fa-solid fa-water",
+    order,
+    visible:true,
+    activeTool:"overview",
+    onChange:(_event,active)=>{
+      if(active)openManager();
+    },
+    tools:{
+      overview:{
+        name:"overview",
+        title:"PF1 Waters — Gestion des corps d’eau",
+        icon:"fa-solid fa-water",
+        order:0,
+        visible:true,
+        // A persistent selectable tool is required by V13. The root itself
+        // opens the dialog; this tool only retains a valid activeTool.
+        onChange:()=>{}
+      },
+      manageBodies:{
+        name:"manageBodies",
+        title:"PF1 Waters — Ouvrir la gestion des corps d’eau",
+        icon:"fa-solid fa-list",
+        order:1,
+        button:true,
+        visible:true,
+        onChange:openManager
+      }
+    }
+  };
+}

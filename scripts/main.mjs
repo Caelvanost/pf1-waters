@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { registerWaterBodyRootSceneControl } from "./water-bodies.mjs";
 import { registerWaterVisionHooks, refreshWaterVisionSources } from "./water-vision.mjs";
 import { registerWaterVisualDepthHooks, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
 import { registerWaterSurfaceHooks, registerWaterSurfaceSceneControls, syncSceneWaterSurfaceElevations, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
@@ -51,6 +52,7 @@ Hooks.once("init", () => {
     refreshNativeWaterDarkness();
     refreshWaterGlobalLighting();
   });
+  Hooks.on("getSceneControlButtons", registerWaterBodyRootSceneControl);
   Hooks.on("getSceneControlButtons", registerWaterRegionSceneControls);
   Hooks.on("getSceneControlButtons", registerWaterSurfaceSceneControls);
 });
