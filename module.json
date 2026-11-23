@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.27 : un réglage de clarté de l'eau (très claire à vaseuse) pilote visibilité 3D et atténuation solaire exponentielle avec la profondeur.",
+  "description": "PF1 Waters v1.4.27 : clarté de l'eau en cinq niveaux, de très claire à vaseuse, pilotant automatiquement la visibilité sous-marine et l'atténuation solaire réaliste.",
   "version": "1.4.27",
   "authors": [
     {
