@@ -421,3 +421,35 @@ test("ripple scale defaults to 1.5, and existing Regions preserve explicit value
    assert.equal(getWaterRegionData(r).ringScale,1.5);
  }
 });
+
+test("a Region's native darkness behavior is requested after GM confirms configuration",async()=>{
+  const s=scene(),r=region(s,{depth:6});
+  let created=0;
+  r.behaviors=[];
+  r.createEmbeddedDocuments=async(type,definitions)=>{
+    assert.equal(type,"RegionBehavior");
+    assert.equal(definitions[0].type,"adjustDarknessLevel");
+    assert.equal(definitions[0].system.mode,2);
+    assert.equal(definitions[0].system.modifier,0);
+    created++;
+    const createdBehavior={
+      ...definitions[0],getFlag(ns,key){return this.flags?.[ns]?.[key];}
+    };
+    r.behaviors.push(createdBehavior);
+    return [createdBehavior];
+  };
+  globalThis.canvas={scene:s,regions:{controlled:[{document:r}]}};
+  globalThis.foundry={utils:{escapeHTML:v=>String(v)},applications:{api:{
+    DialogV2:{prompt:async config=>{
+      assert.equal(config.modal,false);
+      assert.equal(config.content.includes('name="globalLightDarkness"'),false,
+        "Rejected custom black-filter percentage must not be in the form");
+      return {surface:0,depth:6,ringPng:"",ringScale:1.5,visibilityDepth:36};
+    }}
+  }}};
+  globalThis.ui.notifications.info=()=>{};
+  const {configureSelectedWaterRegions}=await import("../scripts/water-regions.mjs");
+  await configureSelectedWaterRegions();
+  assert.equal(created,1);
+  assert.equal(r.behaviors[0].getFlag("pf1-waters","nativeWaterDepth"),true);
+});
