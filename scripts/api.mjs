@@ -17,7 +17,11 @@ import { measureProjectileWaterDistance } from "./water-projectiles.mjs";
 import { refreshWaterSurfaceMarkers } from "./water-rendering.mjs";
 import {
   hasSceneGlobalIllumination, globalWaterLightFactor,
-  getWaterRegionGlobalLightStates, refreshWaterGlobalLighting
+  getWaterRegionGlobalLightStates, refreshWaterGlobalLighting,
+  hasWaterDarkvision, perceivedWaterGlobalLightFactor,
+  waterLightingDiagnostics,
+  hasWaterDarkvision, perceivedWaterGlobalLightFactor,
+  waterLightingDiagnostics
 } from "./water-global-light.mjs";
 
 export const WATER_AUTOMATION = Object.freeze({

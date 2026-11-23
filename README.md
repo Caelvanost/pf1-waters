@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.11
+# PF1 Waters — v1.4.12
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -75,6 +75,17 @@ La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres o
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Visibilité réelle dans l'obscurité sous-marine (v1.4.12)
+
+La lumière globale conserve la courbe physique demandée : **50 %** à 1× la profondeur de visibilité, **25 %** à 2×, **5 %** à 5× et **0 %** à 20×. La v1.4.12 distingue maintenant la quantité de lumière encore présente et ce qu'un personnage peut **effectivement percevoir** avec ses yeux.
+
+- **Token sans vision dans le noir :** quand la lumière globale restante passe sous **12 %**, l'environnement de la Region devient **visuellement noir** pour ce point de vue. Entre 12 et 20 %, l'image s'assombrit progressivement davantage. Exemple : à −150 m avec une visibilité de 36 m, la courbe physique indique environ **10,6 %** de lumière résiduelle, mais cette quantité est traitée comme insuffisante pour une vision ordinaire.
+- **Token ayant une vision dans le noir :** les modes `sight.visionMode` contenant `darkvision` (ou les modes de détection équivalents activés) ne sont pas masqués par ce calque additionnel. Le système PF1/Foundry garde la gestion de sa perception spéciale et de sa portée. La vision nocturne améliorée `lowlight` n'est pas assimilée à la vision dans le noir.
+- **Rendu :** le calque de noirceur est maintenant placé **au-dessus des images de tokens et remous** dans la couche d'interface de Foundry, pour qu'il ne soit pas caché derrière ces effets. Le masque reste limité à la triangulation de la Region aquatique. Un avertissement explicite est journalisé si sa géométrie ne peut pas être dessinée.
+- **Diagnostic MJ :** dans la console F12, exécuter `game.modules.get("pf1-waters").api.waterLightingDiagnostics()` pour obtenir l'état de l'éclairage global, les yeux du token contrôlé, la lumière physique et perçue, et le nombre de couches graphiques actives.
+
+Cette distinction est une **simulation graphique 2D** : elle ne modifie pas les sources lumineuses locales, les réglages d'éclairage de la scène, les modes de vision ni les documents PF1. À une profondeur où l'environnement devient noir, la couche peut également masquer visuellement des sources lumineuses locales ; leur intégration à une simulation de lumière volumétrique reste une limite à traiter séparément. Il faut confirmer l'affichage dans une scène Foundry réelle.
 
 ## Yeux au-dessus de la surface et assombrissement visible (v1.4.11)
 

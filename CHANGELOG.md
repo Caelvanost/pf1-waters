@@ -1,3 +1,14 @@
+# 1.4.12 — Vision normale aveuglée par la profondeur et calque sombre prioritaire
+
+- Conservation de la courbe de lumière physique : 50 % à 1×, 25 % à 2×, 5 % à 5× et disparition à 20× la profondeur de visibilité.
+- Ajout d'un seuil de perception graphique pour les tokens **sans vision dans le noir** : noir à 12 % ou moins de lumière globale restante ; transition progressive entre 12 et 20 %.
+- Cas de reproduction : à −150 m dans une Region de visibilité 36 m, il reste environ 10,6 % de lumière physique, mais elle n'est plus suffisante pour voir normalement le terrain.
+- Prise en compte de `sight.visionMode` (darkvision) et des modes de détection équivalents. La vision dans le noir n'est pas assombrie par le filtre supplémentaire ; la vision nocturne améliorée ne remplace pas la vision dans le noir.
+- Le calque sombre est désormais ajouté au-dessus des copies de tokens émergés et possède une priorité de rendu élevée dans `InterfaceCanvasGroup`.
+- Avertissement console en l'absence de triangulation de Region, et nouvelle API de diagnostic `waterLightingDiagnostics()`.
+- Limite graphique : l'opacité élevée du filtre peut aussi masquer les lumières locales, même si leurs documents ne sont pas modifiés.
+- Tests de régression sur le seuil perceptif, le rendu à −150 m, les modes de vision et l'ordre des couches d'interface.
+
 # 1.4.11 — Floating au-dessus de l’eau : limite extérieure et éclairage sous-marin visible
 
 - Un token `floating` avec la hauteur `losHeight` sur ou au-dessus de la surface utilise désormais **la limite extérieure de visibilité**, même si le corps du token se trouve dans la même Region que la cible.

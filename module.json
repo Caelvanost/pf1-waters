@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.11 : la hauteur réelle de LOS détermine la limite de visibilité depuis la surface ; assombrissement subaquatique visible.",
-  "version": "1.4.11",
+  "description": "PF1 Waters v1.4.12 : sous l'eau, l'éclairage résiduel inférieur à 12 % n'éclaire plus la vision ordinaire ; vision dans le noir préservée.",
+  "version": "1.4.12",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.11/pf1-waters-v1.4.11.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.12/pf1-waters-v1.4.12.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"
