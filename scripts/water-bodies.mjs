@@ -10,25 +10,19 @@
 import {
   MODULE_ID, WATER_REGION_FLAG, t
 } from "./constants.mjs";
+import {
+  DEFAULT_WATER_CLARITY,WATER_LIGHT_PROFILES,getWaterClarityProfile,
+  getWaterClaritySettings,inferLegacyWaterClarity
+} from "./water-optics.mjs";
 
 const FLAG = "waterBodies";
 
-/** Distances in the Scene's own grid units, matching the PF1 Waters metric defaults. */
-export function getDefaultWaterVisionRange(scene) {
-  const unit=String(scene?.grid?.units??"m").trim().toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  if(["ft","ft.","foot","feet","pied","pieds","pi"].includes(unit))return 120;
-  if(["km","kilometre","kilometres"].includes(unit))return .036;
-  if(["cm","centimetre","centimetres"].includes(unit))return 3600;
-  if(["mm","millimetre","millimetres"].includes(unit))return 36000;
-  if(["mi","mile","miles"].includes(unit))return 36/1609.344;
-  return 36;
+/** Kept for API compatibility. The clarity selector owns both values. */
+export function getDefaultWaterVisionRange(scene){
+  return getWaterClaritySettings(scene).visionRange;
 }
-
-/** New bodies have adjustable vision without modifying TokenDocument.sight. */
-export function getDefaultWaterVisionSettings(scene) {
-  const range=getDefaultWaterVisionRange(scene);
-  return {visionEnabled:true,visionRange:range,visionHalfDepth:range/4};
+export function getDefaultWaterVisionSettings(scene){
+  return {visionEnabled:true,...getWaterClaritySettings(scene)};
 }
 
 export function getSceneWaterBodies(scene=globalThis.canvas?.scene) {
@@ -43,17 +37,24 @@ export function getSceneWaterBodies(scene=globalThis.canvas?.scene) {
     const elevation=Number(value?.surface);
     if (!id || !name || !Number.isFinite(elevation) || seen.has(id)) return [];
     seen.add(id);
+    const profile=getWaterClarityProfile(value?.waterClarity);
+    const settings=profile?getWaterClaritySettings(scene,profile.id):null;
     const range=Number(value?.visionRange);
     const halfDepth=Number(value?.visionHalfDepth);
+    // Old records have no clarity ID. Respect their exact numeric range
+    // and sunlight curve UNTIL the GM explicitly selects a clarity level.
+    const legacyRange=value?.visionRange!==null&&value?.visionRange!==undefined&&
+      value?.visionRange!==""&&Number.isFinite(range)&&range>=0
+      ?range:defaults.visionRange;
+    const legacyHalf=value?.visionHalfDepth!==null&&value?.visionHalfDepth!==undefined&&
+      value?.visionHalfDepth!==""&&Number.isFinite(halfDepth)&&halfDepth>=0
+      ?halfDepth:defaults.visionHalfDepth;
     return [{
       id,name,surface:elevation,
+      waterClarity:profile?.id??null,
       visionEnabled:value?.visionEnabled!==false,
-      visionRange:value?.visionRange!==null&&value?.visionRange!==undefined&&
-        value?.visionRange!==""&&Number.isFinite(range)&&range>=0
-        ?range:defaults.visionRange,
-      visionHalfDepth:value?.visionHalfDepth!==null&&value?.visionHalfDepth!==undefined&&
-        value?.visionHalfDepth!==""&&Number.isFinite(halfDepth)&&halfDepth>=0
-        ?halfDepth:defaults.visionHalfDepth
+      visionRange:settings?.visionRange??legacyRange,
+      visionHalfDepth:settings?.visionHalfDepth??legacyHalf
     }];
   });
 }
@@ -93,24 +94,32 @@ export async function saveSceneWaterBody(scene,values) {
   const bodies=getSceneWaterBodies(scene);
   const previous=bodies.find(body=>body.id===values?.id);
   const defaults=getDefaultWaterVisionSettings(scene);
-  const visionEnabled=typeof values?.visionEnabled==="boolean"?
-    values.visionEnabled:previous?.visionEnabled??defaults.visionEnabled;
-  const visionRange=values?.visionRange===undefined?
-    previous?.visionRange??defaults.visionRange:
-    values.visionRange===""||values.visionRange===null?NaN:Number(values.visionRange);
-  const visionHalfDepth=values?.visionHalfDepth===undefined?
-    previous?.visionHalfDepth??defaults.visionHalfDepth:
-    values.visionHalfDepth===""||values.visionHalfDepth===null?NaN:Number(values.visionHalfDepth);
-  if(!Number.isFinite(visionRange)||visionRange<0){
+  // Explicit clarity selection is canonical. Numeric overrides are accepted
+  // for old API callers but are never requested in the GM dialog.
+  const selectedClarity=values?.waterClarity===undefined
+    ?(values?.visionRange!==undefined||values?.visionHalfDepth!==undefined
+      ?null:(previous?.waterClarity??(previous?null:DEFAULT_WATER_CLARITY)))
+    :values.waterClarity;
+  const clarity=selectedClarity===null?null:getWaterClarityProfile(selectedClarity);
+  if(selectedClarity!==null&&!clarity)throw Error("Clarté de l’eau inconnue.");
+  const resolved=clarity?getWaterClaritySettings(scene,clarity.id):null;
+  const visionEnabled=typeof values?.visionEnabled==="boolean"
+    ?values.visionEnabled:previous?.visionEnabled??defaults.visionEnabled;
+  const visionRange=resolved?.visionRange??(values?.visionRange===undefined
+    ?previous?.visionRange??defaults.visionRange:
+    values.visionRange===""||values.visionRange===null?NaN:Number(values.visionRange));
+  const visionHalfDepth=resolved?.visionHalfDepth??(values?.visionHalfDepth===undefined
+    ?previous?.visionHalfDepth??defaults.visionHalfDepth:
+    values.visionHalfDepth===""||values.visionHalfDepth===null?NaN:Number(values.visionHalfDepth));
+  if(!Number.isFinite(visionRange)||visionRange<0)
     throw Error("La distance maximale de vision doit être un nombre positif ou nul.");
-  }
-  if(!Number.isFinite(visionHalfDepth)||visionHalfDepth<0){
+  if(!Number.isFinite(visionHalfDepth)||visionHalfDepth<0)
     throw Error("La profondeur de demi-visibilité doit être un nombre positif ou nul.");
-  }
   const id=typeof values?.id==="string"&&values.id.trim()?values.id.trim():
     (globalThis.foundry?.utils?.randomID?.(12) ??
       globalThis.crypto?.randomUUID?.() ?? "water-"+Date.now());
-  const entry={id,name,surface,visionEnabled,visionRange,visionHalfDepth};
+  const entry={id,name,surface,waterClarity:clarity?.id??null,
+    visionEnabled,visionRange,visionHalfDepth};
   const index=bodies.findIndex(b=>b.id===id);
   if(index>=0)bodies[index]=entry;
   else bodies.push(entry);
@@ -201,27 +210,26 @@ export async function configureSceneWaterBodies() {
       '<div class="form-fields"><input name="surface" type="number" required step="any" value="'+
       localEscape(old?.surface??0)+'"><span class="units">'+
       localEscape(scene.grid?.units??"")+'</span></div></div>'+
-      '<div class="form-group"><label>Limiter la vision sous-marine</label>'+
-      '<div class="form-fields"><input name="visionEnabled" type="checkbox" '+
-      ((old?.visionEnabled??true)?'checked ':'')+'></div></div>'+
-      '<div class="form-group"><label>Distance maximale de vision à la surface</label>'+
-      '<div class="form-fields"><input name="visionRange" type="number" required min="0" step="any" value="'+
-      localEscape(old?.visionRange??getDefaultWaterVisionRange(scene))+'"><span class="units">'+
-      localEscape(scene.grid?.units??"")+'</span></div></div>'+
-      '<div class="form-group"><label>Demi-profondeur d’atténuation lumineuse</label>'+
-      '<div class="form-fields"><input name="visionHalfDepth" type="number" required min="0" step="any" value="'+
-      localEscape(old?.visionHalfDepth??getDefaultWaterVisionSettings(scene).visionHalfDepth)+
-      '"><span class="units">'+localEscape(scene.grid?.units??"")+'</span></div></div>'+
-      '<p class="hint">La distance maximale fixe la transparence physique de l’eau, identique à toutes les profondeurs. La demi-profondeur règle l’assombrissement progressif de la lumière naturelle (50 % à la profondeur indiquée), sans raccourcir le champ de vision. La vision dans le noir et les lumières locales conservent leurs règles natives PF1 et restent limitées par la transparence de l’eau.</p>'+
+      '<div class="form-group"><label>Clarté de l’eau</label>'+
+      '<div class="form-fields"><select name="waterClarity">'+
+      WATER_LIGHT_PROFILES.map(profile=>
+        '<option value="'+profile.id+'"'+
+        ((old?.waterClarity??inferLegacyWaterClarity(scene,
+          old?.visionRange??getDefaultWaterVisionRange(scene),
+          old?.visionHalfDepth??getDefaultWaterVisionSettings(scene).visionHalfDepth))===profile.id
+          ?' selected':'')+
+        '>'+localEscape(profile.label)+' — '+localEscape(profile.description)+
+        '</option>'
+      ).join('')+'</select></div></div>'+
+      '<p class="hint">Plus l’eau est trouble, plus la distance de visibilité diminue et plus la lumière naturelle s’atténue rapidement avec la profondeur. La vision dans le noir ne contourne pas la limite de transparence de l’eau. Les anciens réglages numériques sont conservés jusqu’à la sélection d’un profil.</p>'+
       '</div>',
     ok:{
       label:old?"Enregistrer":"Créer",icon:"fa-solid fa-water",
       callback:(_event,button)=>({
         name:String(button.form.elements.name.value).trim(),
         surface:button.form.elements.surface.value,
-        visionEnabled:Boolean(button.form.elements.visionEnabled?.checked),
-        visionRange:button.form.elements.visionRange.value,
-        visionHalfDepth:button.form.elements.visionHalfDepth.value,
+        visionEnabled:true,
+        waterClarity:button.form.elements.waterClarity.value,
         id:old?.id
       })
     },rejectClose:false,modal:true

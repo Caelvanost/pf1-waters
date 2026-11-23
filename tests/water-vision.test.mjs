@@ -60,14 +60,15 @@ function fixture(){
   return {scene,viewer,updates};
 }
 
-test("depth curve has exact knots and zero beyond the extinction depth",()=>{
-  for(const [depth,factor] of [[0,1],[8,.5],[16,.25],[40,.05],[160,0],[200,0]]){
-    assert.ok(Math.abs(waterVisionFraction(depth,8)-factor)<1e-9);
-  }
-  assert.equal(waterVisionFraction(1,0),0);
-  assert.equal(waterVisionFraction(0,0),1);
+test("water light fraction is physically exponential, not a sequence of arbitrary knots",()=>{
+ for(const [depth,fraction] of [[0,1],[8,.5],[16,.25],[40,1/32],
+     [160,2**-20],[200,2**-25]]){
+   assert.ok(Math.abs(waterVisionFraction(depth,8)-fraction)<1e-12);
+ }
+ assert.equal(waterVisionFraction(1,0),0);
+ assert.equal(waterVisionFraction(0,0),1);
+ assert.ok(waterVisionFraction(160,8)>0);
 });
-
 test("water transparency range stays fixed at all depths and differs by water body",()=>{
   const {viewer}=fixture();
   const shallow=viewer("shallow",{x:10,elevation:-9.5,losHeight:-8});
@@ -76,9 +77,9 @@ test("water transparency range stays fixed at all depths and differs by water bo
   assert.equal(getTokenUnderwaterVisionLimit(shallow).range,40);
   assert.equal(getTokenUnderwaterVisionLimit(deep).range,40);
   assert.equal(getTokenUnderwaterVisionLimit(river).range,8);
-  assert.equal(getTokenUnderwaterVisionLimit(shallow).lightFraction,.5);
-  assert.equal(getTokenUnderwaterVisionLimit(deep).lightFraction,.25);
-  assert.equal(getTokenUnderwaterVisionLimit(river).lightFraction,.5);
+  assert.ok(Math.abs(getTokenUnderwaterVisionLimit(shallow).lightFraction-.5)<1e-12);
+  assert.ok(Math.abs(getTokenUnderwaterVisionLimit(deep).lightFraction-.25)<1e-12);
+  assert.ok(Math.abs(getTokenUnderwaterVisionLimit(river).lightFraction-.5)<1e-12);
   assert.equal(getTokenUnderwaterVisionLimit(shallow).bodyName,"Baie");
 });
 
@@ -154,7 +155,7 @@ test("registering body vision settings preserves old registry values while allow
   const {scene}=fixture();
   assert.equal(getSceneWaterBodies(scene)[0].visionRange,40);
   assert.equal(getSceneWaterBodies(scene)[1].visionHalfDepth,4);
-  assert.equal(getDefaultWaterVisionRange({grid:{units:"feet"}}),120);
+  assert.ok(Math.abs(getDefaultWaterVisionRange({grid:{units:"feet"}})-25/.3048)<1e-10);
   await saveSceneWaterBody(scene,{id:"bay",name:"Baie corrigée",surface:2});
   assert.equal(getSceneWaterBody(scene,"bay").visionRange,40);
   assert.equal(getSceneWaterBody(scene,"bay").visionHalfDepth,8);
@@ -173,14 +174,16 @@ test("per-scene settings default to scene units for previously created body reco
   scene.flags["pf1-waters"].waterBodies.push({id:"raw",name:"Old profile",surface:0});
   const body=getSceneWaterBody(scene,"raw");
   assert.equal(body.visionEnabled,true);
-  assert.equal(body.visionRange,36);
-  assert.equal(body.visionHalfDepth,9);
+  assert.equal(body.waterClarity,null,"old body remains unchanged until edited");
+  assert.equal(body.visionRange,25);
+  assert.ok(Math.abs(body.visionHalfDepth-Math.LN2/.07)<1e-10);
   scene.grid.units="ft";
-  assert.equal(getSceneWaterBody(scene,"raw").visionRange,120);
-  assert.equal(getSceneWaterBody(scene,"raw").visionHalfDepth,30);
+  assert.ok(Math.abs(getSceneWaterBody(scene,"raw").visionRange-25/.3048)<1e-10);
+  assert.ok(Math.abs(getSceneWaterBody(scene,"raw").visionHalfDepth-
+    Math.LN2/.07/.3048)<1e-10);
 });
 
-test("body editor exposes adjustable underwater range and half-depth",async()=>{
+test("body manager asks only a qualitative water clarity, never numeric optical parameters",async()=>{
   const {scene}=fixture();
   const seen=[];
   globalThis.canvas.scene=scene;
@@ -188,17 +191,35 @@ test("body editor exposes adjustable underwater range and half-depth",async()=>{
   globalThis.foundry.applications={api:{DialogV2:{async prompt(options){
     seen.push(options.content);
     return seen.length===1?{action:"edit",bodyId:"bay"}:
-      {id:"bay",name:"Baie",surface:0,visionEnabled:true,
-        visionRange:"24",visionHalfDepth:"12"};
+      {id:"bay",name:"Baie",surface:0,waterClarity:"silty",visionEnabled:true};
   }}}};
   await configureSceneWaterBodies();
-  assert.match(seen[1],/name="visionRange"/);
-  assert.match(seen[1],/name="visionHalfDepth"/);
-  assert.match(seen[1],/name="visionEnabled"/);
-  assert.equal(getSceneWaterBody(scene,"bay").visionRange,24);
-  assert.equal(getSceneWaterBody(scene,"bay").visionHalfDepth,12);
+  assert.match(seen[1],/name="waterClarity"/);
+  for(const profile of ["crystal","clear","slightlyMurky","murky","silty"])
+    assert.match(seen[1],new RegExp('value="'+profile+'"'));
+  assert.doesNotMatch(seen[1],/name="visionRange"/);
+  assert.doesNotMatch(seen[1],/name="visionHalfDepth"/);
+  assert.doesNotMatch(seen[1],/name="visionEnabled"/);
+  assert.equal(getSceneWaterBody(scene,"bay").waterClarity,"silty");
+  assert.equal(getSceneWaterBody(scene,"bay").visionRange,2);
+  assert.ok(Math.abs(getSceneWaterBody(scene,"bay").visionHalfDepth-
+    Math.LN2/.7)<1e-10);
 });
 
+test("GM clarity choice updates physical visibility and solar attenuation together",async()=>{
+ const {scene,viewer}=fixture();
+ const token=viewer("diver",{losHeight:-8});
+ await saveSceneWaterBody(scene,{id:"bay",name:"Baie",surface:0,
+   waterClarity:"crystal"});
+ const clear=getTokenUnderwaterVisionLimit(token);
+ assert.equal(clear.range,40);
+ await saveSceneWaterBody(scene,{id:"bay",name:"Baie",surface:0,
+   waterClarity:"silty"});
+ const silty=getTokenUnderwaterVisionLimit(token);
+ assert.equal(silty.range,2);
+ assert.ok(silty.lightFraction<clear.lightFraction);
+ assert.equal(silty.darkvision,false);
+});
 test("V13 native sight/light perception getters enforce the cap (source data has no radius)",()=>{
   const {viewer}=fixture();
   class FoundryToken{
@@ -228,7 +249,7 @@ test("V13 native sight/light perception getters enforce the cap (source data has
 test("extreme depths affect light, not water transparency radius",()=>{
   const {viewer}=fixture();
   const diver=viewer("extreme",{losHeight:-160,elevation:-161});
-  assert.equal(getTokenUnderwaterVisionLimit(diver).lightFraction,0);
+  assert.ok(Math.abs(getTokenUnderwaterVisionLimit(diver).lightFraction-2**-20)<1e-12);
   assert.equal(getTokenUnderwaterVisionLimit(diver).range,40);
   assert.equal(waterVisionPixels(0,diver.document.parent),1);
   assert.equal(capWaterTokenPixelRange(diver,Infinity),2000);
@@ -266,7 +287,7 @@ test("ordinary sight, low-light and darkvision share the same optical water cap"
   for(const token of [normal,low,dark]){
     const limit=getTokenUnderwaterVisionLimit(token);
     assert.equal(limit.range,40);
-    assert.equal(limit.lightFraction,0);
+    assert.ok(Math.abs(limit.lightFraction-2**-20)<1e-12);
     assert.equal(capWaterTokenPixelRange(token,10000),2000);
   }
   assert.equal(getTokenUnderwaterVisionLimit(normal).darkvision,false);

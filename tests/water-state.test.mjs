@@ -42,9 +42,9 @@ function token(s,props={}) {
 }
 test("the body provides the shared light-depth scale, independent of Region visibility",()=>{
  const s=scene();const r=region(s);
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,9);
+ assert.ok(Math.abs(getWaterRegionData(r).sunlightHalfDepth-Math.LN2/.07)<1e-10);
  r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,9);
+ assert.ok(Math.abs(getWaterRegionData(r).sunlightHalfDepth-Math.LN2/.07)<1e-10);
  r.flags["pf1-waters"].waterRegion.sunlightHalfDepth=3;
  assert.equal(getWaterRegionData(r).sunlightHalfDepth,9,
    "obsolete local sunlight fields must not override the body");

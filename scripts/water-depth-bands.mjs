@@ -12,6 +12,7 @@
 import { MODULE_ID, WATER_REGION_FLAG, finite } from "./constants.mjs";
 import { getWaterRegionData, isWaterRegion, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { globalWaterLightFactor, hasSceneGlobalIllumination } from "./water-global-light.mjs";
+import { waterDepthForTransmission } from "./water-optics.mjs";
 import {
   calculateNativeWaterDarkness, syncNativeWaterDarknessBandExclusivity
 } from "./water-native-darkness.mjs";
@@ -39,17 +40,11 @@ export function isWaterDepthBand(region) {
   return Boolean(getWaterDepthBandInfo(region)?.sourceId);
 }
 
-/** Invert the decreasing, piecewise-linear natural light curve. */
-function depthForLightFactor(factor, halfDepth, limit) {
-  if (factor >= 1) return 0;
-  if (factor <= globalWaterLightFactor(limit, halfDepth)) return limit;
-  let low = 0, high = limit;
-  for (let i = 0; i < 45; i++) {
-    const mid = (low + high) / 2;
-    if (globalWaterLightFactor(mid, halfDepth) > factor) low = mid;
-    else high = mid;
-  }
-  return (low + high) / 2;
+/** Analytical inversion of the exponential light transmission law. */
+function depthForLightFactor(factor,halfDepth,limit){
+  const depth=waterDepthForTransmission(factor,halfDepth);
+  if(!Number.isFinite(depth))return limit;
+  return clamp(depth,0,limit);
 }
 
 /**
@@ -76,6 +71,9 @@ export function planWaterDepthBands(region, scene = region?.parent) {
     darkness: 1
   }];
 
+  // 20 half-depths ≈ 0.000095% remaining solar radiation. Beyond this,
+  // native integer/quantized darkness is indistinguishable from black.
+  // The continuous underlying light model itself never hard-clamps at 20×.
   const cutoff = 20 * sunlightHalfDepth;
   const maxDepth = Math.min(waterDepth, cutoff);
   if (maxDepth <= EPS) return [];
@@ -97,7 +95,7 @@ export function planWaterDepthBands(region, scene = region?.parent) {
     lastDepth = nextDepth;
   }
 
-  // The physically remaining volume beyond complete solar extinction.
+  // The practically unilluminated volume beyond ~10^-6 transmission.
   if (waterDepth > cutoff + EPS) bands.push({
     index: count, top: surface - cutoff,
     bottom: Number.isFinite(waterDepth) ? surface - waterDepth : null,

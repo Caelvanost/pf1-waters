@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getTokenWaterState } from "../scripts/water-state.mjs";
+import { waterSunlightTransmission,waterVisualLightResponse } from "../scripts/water-optics.mjs";
+const close=(a,b,tolerance=1e-10)=>assert.ok(Math.abs(a-b)<=tolerance,`${a} ≠ ${b}`);
+const lightAt=(depth,half)=>waterSunlightTransmission(depth,half);
+const alphaAt=(depth,half)=>1-waterVisualLightResponse(lightAt(depth,half));
 import {
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates,refreshWaterGlobalLighting,
@@ -60,36 +64,28 @@ test("v13 global-light setting gates the effect",()=>{
  assert.equal(hasSceneGlobalIllumination({environment:{globalLight:{enabled:false}}}),false);
  assert.equal(hasSceneGlobalIllumination({}),false);
 });
-test("sunlight milestones: 50% at 1×, 25% at 2×, 5% at 5×, 0% at 20×",()=>{
- // The curve is piecewise linear, continuous and never negative.
- assert.equal(globalWaterLightFactor(0,36),1);
- assert.equal(globalWaterLightFactor(18,36),.75);
- assert.equal(globalWaterLightFactor(36,36),.5);
- assert.equal(globalWaterLightFactor(54,36),.375);
- assert.equal(globalWaterLightFactor(72,36),.25);
- assert.ok(Math.abs(globalWaterLightFactor(126,36)-.15)<1e-12);
- assert.ok(Math.abs(globalWaterLightFactor(180,36)-.05)<1e-12);
- assert.ok(Math.abs(globalWaterLightFactor(450,36)-.025)<1e-12);
- assert.equal(globalWaterLightFactor(720,36),0);
- assert.equal(globalWaterLightFactor(1000,36),0);
- // Feet-based Regions use their configured 120-foot distance, not metres.
- assert.equal(globalWaterLightFactor(120,120),.5);
- assert.equal(globalWaterLightFactor(180,120),.375);
- assert.equal(globalWaterLightFactor(240,120),.25);
- assert.ok(Math.abs(globalWaterLightFactor(600,120)-.05)<1e-12);
- assert.equal(globalWaterLightFactor(2400,120),0);
- assert.equal(globalWaterLightFactor(3000,120),0);
- assert.equal(globalWaterLightFactor(0,0),1);
- assert.equal(globalWaterLightFactor(.01,0),0);
- assert.equal(globalWaterLightFactor(-10,36),1);
- assert.equal(globalWaterLightFactor(10,-1),1);
+test("Beer-Lambert natural sunlight follows an exact exponential",()=>{
+  for(const [depth,fraction] of [[0,1],[18,Math.SQRT1_2],[36,.5],[54,2**-1.5],
+      [72,.25],[180,1/32],[450,2**-12.5],[720,2**-20]]){
+    close(globalWaterLightFactor(depth,36),fraction);
+  }
+  assert.ok(globalWaterLightFactor(1000,36)>0);
+  close(globalWaterLightFactor(120,120),.5);
+  close(globalWaterLightFactor(180,120),2**-1.5);
+  close(globalWaterLightFactor(240,120),.25);
+  close(globalWaterLightFactor(600,120),1/32);
+  close(globalWaterLightFactor(2400,120),2**-20);
+  close(globalWaterLightFactor(0,0),1);
+  close(globalWaterLightFactor(.01,0),0);
+  close(globalWaterLightFactor(-10,36),1);
+  close(globalWaterLightFactor(10,-1),1);
 });
 test("observer depth and custom water visibility determine attenuation",()=>{
  const {sc}=setup({limit:36});
  const state=getWaterRegionGlobalLightStates(sc,canvas.tokens.controlled);
  assert.equal(state.length,1);
  assert.equal(state[0].depth,18);
- assert.equal(state[0].factor,.75);
+ close(state[0].factor,lightAt(18,36));
  assert.equal(state[0].cutoff,720);
 });
 test("natural-light attenuation scale is independent of sight distance",()=>{
@@ -115,8 +111,7 @@ test("surface-level eyes do not weaken underwater attenuation from a diver",()=>
  const atSurface=createViewer(-1.5); // eye at exactly 0m
  const result=getWaterRegionGlobalLightStates(sc,[viewer,atSurface]);
  assert.equal(result.length,1);
- assert.equal(result[0].factor,.75,
-   "only the observer with submerged eyes contributes to water shading");
+ close(result[0].factor,lightAt(18,36));
 });
 test("two genuinely submerged viewers use their shallowest common lighting",()=>{
  const {sc,viewer,createViewer}=setup();
@@ -124,7 +119,7 @@ test("two genuinely submerged viewers use their shallowest common lighting",()=>
  const result=getWaterRegionGlobalLightStates(sc,[viewer,shallow]);
  assert.equal(result.length,1);
  assert.equal(result[0].depth,9);
- assert.equal(result[0].factor,.875);
+ close(result[0].factor,lightAt(9,36));
 });
 test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  const {viewer,interfaceGroup}=setup();
@@ -135,14 +130,14 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.deepEqual(gfx.polygons,[
   [0,0,200,0,200,200],[0,0,200,200,0,200]
  ]);
- assert.equal(gfx.alpha,.5);
+ close(gfx.alpha,alphaAt(36,36));
  viewer.document.elevation=-73.5; // top -72
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(gfx.alpha,.75,"25% sunlight remains at the second milestone");
+ close(gfx.alpha,alphaAt(72,36));
  viewer.document.elevation=-181.5; // top -180 = 5× visibility
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(gfx.alpha,1,
-   "5% of physical sunlight cannot illuminate an observer with normal sight");
+ close(gfx.alpha,alphaAt(180,36));
+ assert.ok(gfx.alpha<1,"no abrupt extinction after five half-depths");
  viewer.document.elevation=-201.5; // observer's volume extends beyond Region depth
  assert.equal(refreshWaterGlobalLighting(),0,"outside a Region: no attenuation overlay");
  assert.equal(interfaceGroup.children.length,0);
@@ -163,7 +158,7 @@ test("dynamic depth shading renders even if the Region has native elevation band
  assert.equal(refreshWaterGlobalLighting(),1,
    "native OVERRIDE bands do not replace the per-viewer shading fallback");
  assert.equal(interfaceGroup.children.length,1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(18,36));
 });
 test("turning global light off removes local overlays without changing scene",()=>{
  const {sc,viewer,interfaceGroup}=setup();
@@ -192,7 +187,7 @@ test("underwater illumination hooks registered",()=>{
   assert.equal(typeof hooks.get(name),"function");
 });
 
-test("explicit Region visibility scales every milestone up to full extinction",()=>{
+test("the solar attenuation remains exponential through deep water",()=>{
  const {sc,viewer}=setup({limit:10});
  viewer.document.elevation=-11.5; // token top -10m
  let states=getWaterRegionGlobalLightStates(sc,[viewer]);
@@ -203,9 +198,9 @@ test("explicit Region visibility scales every milestone up to full extinction",(
  assert.equal(states[0].factor,.25);
  viewer.document.elevation=-51.5; // top -50m = 5×
  states=getWaterRegionGlobalLightStates(sc,[viewer]);
- assert.ok(Math.abs(states[0].factor-.05)<1e-12);
+ close(states[0].factor,1/32);
  viewer.document.elevation=-201.5; // volume below finite Region; calculation still reaches 0
- assert.equal(globalWaterLightFactor(200,10),0);
+ close(globalWaterLightFactor(200,10),2**-20);
 });
 test("a non-global-light Scene never creates attenuation",()=>{
  const {sc,viewer,interfaceGroup}=setup({light:false});
@@ -215,21 +210,21 @@ test("a non-global-light Scene never creates attenuation",()=>{
  assert.equal(interfaceGroup.children.length,0);
 });
 
-test("a deep Region removes the last 5% of global sunlight at 20× distance",()=>{
+test("deep water approaches black smoothly without physical zero",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:10});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
    ?{enabled:true,bodyId:"body",depth:1000,visibilityDepth:10}:undefined;
  viewer.document.elevation=-201.5; // eyes at top -200m
  const states=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(states.length,1);
- assert.equal(states[0].factor,0);
- assert.equal(states[0].darkness,1);
+ close(states[0].factor,2**-20);
+ close(states[0].darkness,alphaAt(200,10));
  assert.equal(states[0].cutoff,200);
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,1);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(200,10));
  viewer.document.elevation=-301.5;
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,1);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(300,10));
 });
 
 test("darkening is drawn on the visible interface pass, not the cached primary",()=>{
@@ -239,7 +234,7 @@ test("darkening is drawn on the visible interface pass, not the cached primary",
  assert.equal(primary.children.length,0,
    "primary cached canvas must not receive the darkness overlay");
  assert.equal(interfaceGroup.children.length,1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(18,36));
 });
 test("floating with eyes above surface gets no underwater darkness",()=>{
  const {sc,viewer,interfaceGroup}=setup();
@@ -253,9 +248,9 @@ test("floating with eyes above surface gets no underwater darkness",()=>{
  const states=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(states.length,1);
  assert.equal(states[0].depth,18);
- assert.equal(states[0].factor,.75);
+ close(states[0].factor,lightAt(18,36));
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(18,36));
 });
 test("darkness layer is inserted above emerged foreground sprites",()=>{
  const {viewer,interfaceGroup}=setup();
@@ -274,8 +269,7 @@ test("controlled diver has priority over separate shallow vision sources",()=>{
  const sailor=createViewer(-1.5);
  canvas.effects.visionSources.set("sailor",{object:sailor,active:true});
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,.5,
-   "selected diver at 36m sees 50% light despite shallow sight source");
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(36,36));
 });
 
 test("darkvision and low-light vision are not confused",()=>{
@@ -290,18 +284,18 @@ test("darkvision and low-light vision are not confused",()=>{
   {id:"darkvision",enabled:false,range:18}
  ]}}),false);
 });
-test("10.6% physical sunlight at 150m does not give unaided sight",()=>{
+test("perceived sunlight is gradual, with no arbitrary 12% visibility threshold",()=>{
  const physical=globalWaterLightFactor(150,36);
- assert.ok(physical>.1&&physical<.12);
- assert.equal(perceivedWaterGlobalLightFactor(physical,false),0);
+ assert.ok(physical>.05&&physical<.06);
+ close(perceivedWaterGlobalLightFactor(physical,false),
+   waterVisualLightResponse(physical));
  assert.equal(perceivedWaterGlobalLightFactor(physical,true),1);
- assert.equal(perceivedWaterGlobalLightFactor(.25,false),.25);
- assert.ok(perceivedWaterGlobalLightFactor(.15,false)>0);
- assert.ok(perceivedWaterGlobalLightFactor(.15,false)<.15);
- assert.equal(perceivedWaterGlobalLightFactor(.12,false),0);
+ close(perceivedWaterGlobalLightFactor(.25,false),waterVisualLightResponse(.25));
+ assert.ok(perceivedWaterGlobalLightFactor(.12,false)>0);
+ assert.ok(perceivedWaterGlobalLightFactor(.01,false)>0);
  assert.equal(perceivedWaterGlobalLightFactor(0,false),0);
 });
-test("selected ordinary-sighted observer at -150m gets a black screen",()=>{
+test("ordinary observer at -150m darkens progressively instead of abruptly blacking out",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:36});
  region.getFlag=(ns,key)=>ns==="pf1-waters"&&key==="waterRegion"
   ?{enabled:true,bodyId:"body",depth:1000,visibilityDepth:36}:undefined;
@@ -309,16 +303,17 @@ test("selected ordinary-sighted observer at -150m gets a black screen",()=>{
  viewer.document.sight={visionMode:"basic"};
  const state=getWaterRegionGlobalLightStates(sc,[viewer]);
  assert.equal(state.length,1);
- assert.ok(state[0].factor>.1);
- assert.equal(state[0].perceivedFactor,0);
- assert.equal(state[0].darkness,1);
+ close(state[0].factor,lightAt(150,36));
+ close(state[0].perceivedFactor,waterVisualLightResponse(lightAt(150,36)));
+ close(state[0].darkness,alphaAt(150,36));
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children.at(-1).children[0].alpha,1);
+ close(interfaceGroup.children.at(-1).children[0].alpha,alphaAt(150,36));
  assert.equal(interfaceGroup.children.at(-1).zIndex,1000000);
  const diagnostics=waterLightingDiagnostics();
  assert.equal(diagnostics.overlayAttached,true);
  assert.equal(diagnostics.overlayCount,1);
- assert.equal(diagnostics.regions[0].perceivedLightPercent,0);
+ close(diagnostics.regions[0].perceivedLightPercent,
+   100*waterVisualLightResponse(lightAt(150,36)));
 });
 test("a darkvision observer at -150m is not visually blacked out",()=>{
  const {sc,region,viewer,interfaceGroup}=setup({limit:36});
@@ -356,14 +351,14 @@ test("regression: managed native Adjust Darkness Level no longer suppresses dyna
    "the managed native behavior must never disable the client overlay");
  assert.equal(interfaceGroup.children.length,1);
  const graphic=interfaceGroup.children[0].children[0];
- assert.equal(graphic.alpha,.5);
+ close(graphic.alpha,alphaAt(10,10));
  viewer.document.elevation=-21.5; // eyes at -20, 25% natural light
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(graphic.alpha,.75,"depth change must update existing rendered alpha");
+ close(graphic.alpha,alphaAt(20,10));
  viewer.document.elevation=-51.5; // eyes at -50, just 5% sunlight
  assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(graphic.alpha,1,
-   "ordinary vision with effectively no sunlight must become black");
+ close(graphic.alpha,alphaAt(50,10));
+ assert.ok(graphic.alpha<1,"no artificial 5x extinction");
  viewer.document.elevation=-.75; // eyes above the surface
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(interfaceGroup.children.length,0,
@@ -382,10 +377,10 @@ test("depth-only Token updates trigger a visible native-independent shading refr
  viewer.document.elevation=-11.5;
  onTokenUpdate(viewer.document,{elevation:-11.5});
  assert.equal(interfaceGroup.children.length,1);
- assert.equal(interfaceGroup.children[0].children[0].alpha,.5);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(10,10));
  viewer.document.elevation=-21.5;
  onTokenUpdate(viewer.document,{elevation:-21.5});
- assert.equal(interfaceGroup.children[0].children[0].alpha,.75);
+ close(interfaceGroup.children[0].children[0].alpha,alphaAt(20,10));
 });
 
 test("darkvision does not receive opaque black postprocessing in deep water",()=>{

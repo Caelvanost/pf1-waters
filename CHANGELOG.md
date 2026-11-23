@@ -1,3 +1,13 @@
+# 1.4.27 — Un seul réglage de clarté de l'eau
+
+- Remplacement des entrées numériques de portée et de demi-profondeur dans le gestionnaire de corps d'eau par **une liste unique de cinq niveaux**, de « Très claire » à « Vaseuse ».
+- Chaque niveau de clarté affecte automatiquement la portée maximale de visibilité **3D** (constante selon la profondeur, de 40 m à 2 m selon le profil) et l'absorption de la **lumière naturelle** avec la profondeur.
+- Remplacement des anciens paliers artificiels par la loi de Beer-Lambert `exp(-Kd × profondeur)` dans le calcul de lumière naturelle, le diagnostic et les régions d'obscurité par tranches. Les valeurs de Kd sont des références indicatives et les portées horizontales demeurent des approximations de jeu.
+- Un profil nommé `waterClarity` est conservé par corps d'eau. Les valeurs numériques internes `visionRange` et `visionHalfDepth` sont dérivées du profil et des unités de la scène ; aucun champ numérique n'est exposé au MJ pour ce paramétrage.
+- Préservation des anciens corps d'eau et de leurs valeurs existantes jusqu'à leur modification explicite. Un profil proche est suggéré lors de leur première modification.
+- Conservation de la vision dans le noir, de la portée géométrique fixe, du contrôle de visibilité 3D et du brouillard sous-marin temporaire.
+- Tests de non-régression sur les profils, la conversion des unités, l'UI qualitative, les données existantes, la loi exponentielle et la mise à jour des sources de vision.
+
 # 1.4.26 — Rendu d'obscurité dynamique réellement affiché en fonction de la hauteur
 
 - **Correction principale :** la présence d'un comportement natif `Adjust Darkness Level` créé par PF1 Waters supprimait systématiquement le calque d'assombrissement graphique. Comme une mise à jour locale de `system.updateSource()` ne garantit pas un recalcul du rendu d'éclairage sous Foundry V13, aucune variation n'était visible lors des changements d'élévation.

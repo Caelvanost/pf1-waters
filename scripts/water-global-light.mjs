@@ -17,6 +17,7 @@ import {
 } from "./water-visual-depth.mjs";
 import { getWaterRegionData, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { hasWaterDarkvision } from "./water-senses.mjs";
+import { waterSunlightTransmission, waterVisualLightResponse } from "./water-optics.mjs";
 export { hasWaterDarkvision } from "./water-senses.mjs";
 
 const shades = new Map();
@@ -24,24 +25,13 @@ let layer = null;
 let refreshing = false;
 const warnings = new Set();
 
-// Physical light is unchanged; unaided sight cannot resolve details when
-// the remaining global illumination is extremely faint.
-const DARK_SIGHT_FLOOR = 0.12;
-const DARK_SIGHT_TWILIGHT = 0.20;
-
 /**
- * User-specific visual perception, distinct from the GM's ambient-light curve.
- * At ≤12% sunlight, an ordinary-sighted token cannot see by that sunlight.
- * Smooth dusk transition from 20% to 12% prevents abrupt screen changes.
- * Darkvision remains handled by the PF1/Foundry sight system.
+ * The sunlight model uses measured-light exponential decay; the visual pass
+ * uses an approximate perception/display gamma rather than asserting a hard
+ * "no vision at 12% daylight" rule. PF1 darkvision is handled separately.
  */
-export function perceivedWaterGlobalLightFactor(factor, darkvision=false) {
-  if (darkvision) return 1;
-  const f = Math.max(0, Math.min(1, finite(factor, 0)));
-  if (f <= DARK_SIGHT_FLOOR) return 0;
-  if (f >= DARK_SIGHT_TWILIGHT) return f;
-  return f * (f - DARK_SIGHT_FLOOR) /
-    (DARK_SIGHT_TWILIGHT - DARK_SIGHT_FLOOR);
+export function perceivedWaterGlobalLightFactor(factor,darkvision=false){
+  return darkvision ? 1 : waterVisualLightResponse(factor);
 }
 
 function warnOnce(message, error) {
@@ -56,39 +46,12 @@ export function hasSceneGlobalIllumination(scene) {
 }
 
 /**
- * Visual underwater sunlight remaining at multiples of the Region's sight
- * depth, with straight-line transitions between the authored milestones:
- *
- *   0× -> 100 %, 1× -> 50 %, 2× -> 25 %, 5× -> 5 %, 20× -> 0 %.
- *
- * Light stays completely extinguished deeper than 20× visibilityDepth.
- * This applies only to the visual global-light layer, not local light sources.
+ * Sunlight decays approximately exponentially in homogeneous water.
+ * The Scene body half-depth is the distance producing 50% transmission.
+ * Native PF1 lights and the water's fixed sight range are independent.
  */
-export function globalWaterLightFactor(depth, visibilityDepth) {
-  const d = Math.max(0, finite(depth, 0));
-  if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) return 1;
-  if (d === 0) return 1;
-  if (visibilityDepth === 0) return 0;
-
-  const multiple = d / visibilityDepth;
-  const milestones = [
-    [0, 1],
-    [1, 0.5],
-    [2, 0.25],
-    [5, 0.05],
-    [20, 0]
-  ];
-  for (let i = 1; i < milestones.length; i++) {
-    const [end, endLight] = milestones[i];
-    if (multiple <= end) {
-      const [start, startLight] = milestones[i - 1];
-      const ratio = (multiple - start) / (end - start);
-      return Math.max(0, Math.min(1,
-        startLight + (endLight - startLight) * ratio
-      ));
-    }
-  }
-  return 0;
+export function globalWaterLightFactor(depth,halfDepth){
+  return waterSunlightTransmission(depth,halfDepth);
 }
 
 function localWaterViewers() {

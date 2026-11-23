@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.26 : correctif de l'obscurité dynamique selon l'élévation du token, rendu client même en présence d'un comportement natif ; portée sous-marine fixe.",
-  "version": "1.4.26",
+  "description": "PF1 Waters v1.4.27 : un réglage de clarté de l'eau (très claire à vaseuse) pilote visibilité 3D et atténuation solaire exponentielle avec la profondeur.",
+  "version": "1.4.27",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.26/pf1-waters-v1.4.26.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.27/pf1-waters-v1.4.27.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

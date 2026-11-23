@@ -13,6 +13,7 @@ import { getSceneWaterBody, getRegionWaterBodyId } from "./water-bodies.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
 import { hasWaterDarkvision } from "./water-senses.mjs";
+import { waterSunlightTransmission } from "./water-optics.mjs";
 
 const PATCHED = Symbol.for("pf1-waters.vision-source-patched");
 const RANGE_PATCHED = Symbol.for("pf1-waters.token-range-patched");
@@ -22,24 +23,9 @@ const pendingTokens = new Set();
 let scheduled = false;
 let warningIssued = false;
 
-/** Natural-light curve: 100% at surface, 50% at 1x, 25% at 2x,
- * 5% at 5x, 0% at 20x. This is NOT an optical-range reduction.
- * Visual darkness and PF1 light perception are processed separately.
- */
-export function waterVisionFraction(depth, halfDepth) {
-  if (!Number.isFinite(depth) || depth <= 0) return 1;
-  if (!Number.isFinite(halfDepth) || halfDepth <= 0) return 0;
-  const ratio = depth / halfDepth;
-  const knots = [[0, 1], [1, .5], [2, .25], [5, .05], [20, 0]];
-  for (let i = 1; i < knots.length; i++) {
-    const [end, value] = knots[i];
-    if (ratio <= end) {
-      const [start, previous] = knots[i - 1];
-      return Math.max(0, Math.min(1,
-        previous + (value - previous) * (ratio - start) / (end - start)));
-    }
-  }
-  return 0;
+/** Natural irradiance is independent of optical sight radius. */
+export function waterVisionFraction(depth,halfDepth){
+  return waterSunlightTransmission(depth,halfDepth);
 }
 
 /** Return the limit for one viewer, or null when the original vision is kept. */

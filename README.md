@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.26
+# PF1 Waters — v1.4.27
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -27,7 +27,30 @@ game.modules.get("pf1-waters").api.waterLightingDiagnostics()
 
 Vérifier en particulier `regions[].depth`, `regions[].physicalLightPercent`, `regions[].darknessAlpha`, `overlayAttached` et `overlayCount`. Si `overlayCount=0` malgré une obscurité attendue, vérifier **l'éclairage global de la scène**, que la Region appartienne bien à un corps d'eau, et que les yeux du token soient sous la surface.
 
-## Vision sous-marine : portée physique fixe, obscurité croissante (v1.4.25)
+## Nouveau réglage de clarté de l'eau (v1.4.27)
+
+Dans la barre d'outils Foundry, ouvrir **PF1 Waters → Corps d'eau → Créer/Modifier**. L'interface ne demande **plus de valeurs numériques de portée, de profondeur lumineuse ou de coefficient** : elle demande une unique caractéristique de l'eau, sélectionnée dans une liste.
+
+| Clarté sélectionnée | Visibilité indicative | Coefficient solaire Kd (m⁻¹) |
+|---|---:|---:|
+| Très claire — océan limpide | 40 m | 0,035 |
+| Claire — mer claire | 25 m | 0,070 |
+| Légèrement trouble — eau côtière | 12 m | 0,150 |
+| Trouble — baie ou estuaire | 6 m | 0,300 |
+| Vaseuse — port vaseux | 2 m | 0,700 |
+
+Les valeurs ci-dessus sont des **valeurs indicatives de jeu** : la transparence horizontale dépend des particules, de l'éclairage et du contraste, et ne se déduit pas directement d'un coefficient solaire universel. La liste conserve un ordre réaliste : plus l'eau est trouble, moins le plongeur voit loin et moins la lumière pénètre.
+
+Le réglage détermine automatiquement **deux valeurs internes** :
+
+1. **La distance physique maximale** au sein du corps d'eau, indépendante de la profondeur, valable pour la vision normale et la vision dans le noir (sous réserve de la portée native du token et du calcul de visibilité 3D).
+2. **La courbe de lumière naturelle selon la profondeur** calculée avec la loi exponentielle de Beer-Lambert : `lumière restante = exp(-Kd × profondeur en mètres)`. Le rendu du ciel sous l'eau s'assombrit progressivement sans ancien seuil de 12 % ni extinction brusque au palier de 20 demi-profondeurs. La vision dans le noir reste exemptée du voile de secours.
+
+**Compatibilité :** les anciens corps d'eau sans `waterClarity` conservent exactement leurs anciennes valeurs `visionRange` et `visionHalfDepth` jusqu'à leur modification par le MJ. Lorsqu'un ancien corps d'eau est ouvert en modification, la liste suggère le profil le plus proche ; **l'enregistrement** applique le profil choisi. Le registre enregistre à la fois le nom du profil `waterClarity` et ses valeurs internes dérivées, afin de rester compatible avec les autres composants. Les unités des scènes en pieds ou mètres sont converties automatiquement.
+
+**Limite graphique connue :** le voile client peut encore assombrir artificiellement des torches et lumières locales puisqu'il s'applique après le rendu de Foundry V13. L'atténuation exponentielle représente la lumière du soleil, pas la pénétration horizontale exacte d'un faisceau lumineux.
+
+## Historique de la portée fixe avant les profils de clarté (v1.4.25)
 
 **La profondeur n'affecte plus le rayon maximal de vision sous l'eau.** Le corps d'eau possède deux réglages complémentaires :
 
