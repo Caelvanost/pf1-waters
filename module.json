@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.16 : fenêtre de configuration des Regions aquatiques responsive, paramètres défilables et boutons accessibles.",
+  "description": "PF1 Waters v1.4.16 : formulaire des Regions d'eau défilable, champs bien séparés, hauteur limitée et bouton de validation visible.",
   "version": "1.4.16",
   "authors": [
     {
