@@ -46,7 +46,7 @@ test("the body provides the shared light-depth scale, independent of Region visi
  r.flags["pf1-waters"].waterRegion.visibilityDepth=12;
  assert.ok(Math.abs(getWaterRegionData(r).sunlightHalfDepth-Math.LN2/.07)<1e-10);
  r.flags["pf1-waters"].waterRegion.sunlightHalfDepth=3;
- assert.equal(getWaterRegionData(r).sunlightHalfDepth,9,
+ assert.ok(Math.abs(getWaterRegionData(r).sunlightHalfDepth-Math.LN2/.07)<1e-10,
    "obsolete local sunlight fields must not override the body");
  s.flags["pf1-waters"].waterBodies[0].visionHalfDepth=5;
  assert.equal(getWaterRegionData(r).sunlightHalfDepth,5);

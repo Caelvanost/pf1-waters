@@ -171,7 +171,7 @@ test("only the actual viewer's immersed LOS determines per-client native darknes
   assert.equal(getNativeWaterDarknessTargets(scene,[observer]).size,0);
   observer.document.elevation=-151.5;observer.losHeight=-150;
   data=getNativeWaterDarknessTargets(scene,[observer]).get(region.id);
-  assert.ok(data.fraction>.1&&data.fraction<.12);
+  assert.ok(Math.abs(data.fraction-Math.exp(-Math.LN2*150/36))<1e-12);
   assert.ok(data.darkness>.9,"native Region crosses 0.8 global-light threshold");
   clean();
 });
