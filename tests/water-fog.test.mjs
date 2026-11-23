@@ -96,7 +96,9 @@ test("fog explored while submerged is temporary, not committed or saved",async()
   assert.equal(waterFogDiagnostics().pendingDiscard,true);
   visibility.refreshVisibility();
   assert.equal(visibility.resetCount,1);
-  assert.deepEqual(visibility.explored,[]);
+  assert.equal(visibility.explored.length,0);
+  assert.equal(visibility.explored.visible,false,
+    "the exploration container stays hidden while underwater");
   visibility.explored.push("underwater reef");
   fog.commit();
   assert.equal(fog.commits,0);

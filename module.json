@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.24 : vision sous-marine réellement 3D, brouillard noir hors de la vision courante et suppression des boutons Regions redondants.",
+  "description": "PF1 Waters v1.4.24 : visibilité sous-marine 3D avec limites verticales, brouillard noir hors du champ de vision courant, boutons Regions simplifiés.",
   "version": "1.4.24",
   "authors": [
     {

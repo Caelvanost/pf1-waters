@@ -785,10 +785,10 @@ test("3D underwater range correctly combines horizontal and vertical distance",(
   const viewer=makeToken(scene,-10);
   viewer.losHeight=-8.5;
   const target=makeToken(scene,-13);
-  target.document.x=600;
-  target.center={x:650,y:60};
+  target.document.x=680;
+  target.center={x:730,y:60};
   assert.equal(isWithinUnderwaterVisionRange(viewer,target),false,
-    "590px horizontal + 4.5m vertical must exceed the 10m cap");
+    "670px horizontal + 3m vertical must exceed the underwater cap");
   target.document.x=90;
   target.center={x:140,y:60};
   assert.equal(isWithinUnderwaterVisionRange(viewer,target),true,
