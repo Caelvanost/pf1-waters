@@ -1,7 +1,7 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.25 : limite physique de visibilité fixe dans chaque corps d'eau et obscurité naturelle croissante avec la profondeur, compatible avec vision dans le noir et sources lumineuses.",
+  "description": "PF1 Waters v1.4.25 : visibilité physique sous-marine constante et configurable par corps d'eau ; obscurité naturelle croissante en profondeur, vision dans le noir et éclairage natif respectés.",
   "version": "1.4.25",
   "authors": [
     {

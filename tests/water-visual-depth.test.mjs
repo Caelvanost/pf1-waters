@@ -676,8 +676,8 @@ test("underwater visibility must not reveal a distant token despite native LOS a
   const observer=makeToken(scene,-90);
   observer.losHeight=-88.5;
   const target=makeToken(scene,-90);
-  target.document.x=1700;
-  target.center={x:1750,y:60};
+  target.document.x=2800;
+  target.center={x:2850,y:60};
   target.controlled=false;
   canvas.tokens.placeables=[observer,target];
   canvas.tokens.controlled=[observer];
@@ -715,11 +715,11 @@ test("one nearby diver can still see a target when another diver is too far away
   far.losHeight=-88.5;
   const near=makeToken(scene,-90);
   near.losHeight=-88.5;
-  near.document.x=1650;
-  near.center={x:1700,y:60};
+  near.document.x=2800;
+  near.center={x:2850,y:60};
   const target=makeToken(scene,-90);
-  target.document.x=1680;
-  target.center={x:1730,y:60};
+  target.document.x=2830;
+  target.center={x:2880,y:60};
   canvas.tokens.controlled=[far,near];
   canvas.tokens.placeables=[far,near,target];
   canvas.visibility={testVisibility(){return true;}};
