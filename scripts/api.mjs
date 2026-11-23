@@ -1,8 +1,14 @@
 import {
   waterVisionFraction, getTokenUnderwaterVisionLimit, waterVisionPixels,
   constrainWaterVisionSourceData, patchWaterTokenVision,
+  patchWaterTokenRanges, capWaterTokenPixelRange,
   refreshWaterVisionSources, waterVisionDiagnostics
 } from "./water-vision.mjs";
+import {
+  getActiveFogObservers, hasUnderwaterFogObserver,
+  patchWaterFogExploration, waterFogDiagnostics
+} from "./water-fog.mjs";
+import { isWithinUnderwaterVisionRange, isBeyondAllUnderwaterVisionRanges } from "./water-visual-depth.mjs";
 import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, hasInteriorWaterViewer, canSeeWaterTokenFromInterior, getWaterObserverEyeElevation, isWaterObserverSubmerged, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
 import { getWaterSurfaceData, getWaterSurfacesForRegion, assignSelectedSurfacesToBody, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import {
@@ -67,7 +73,11 @@ export const WATER_API = Object.freeze({
   getDefaultWaterVisionRange, getDefaultWaterVisionSettings,
   waterVisionFraction, getTokenUnderwaterVisionLimit,
   waterVisionPixels, constrainWaterVisionSourceData, patchWaterTokenVision,
+  patchWaterTokenRanges, capWaterTokenPixelRange,
   refreshWaterVisionSources, waterVisionDiagnostics,
+  getActiveFogObservers, hasUnderwaterFogObserver,
+  patchWaterFogExploration, waterFogDiagnostics,
+  isWithinUnderwaterVisionRange, isBeyondAllUnderwaterVisionRanges,
   getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
   getRegionWaterBodyId, areWaterRegionsInSameBody,
   configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody,

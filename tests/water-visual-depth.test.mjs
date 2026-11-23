@@ -8,7 +8,8 @@ import {
   surfaceContainsTokenCenter, hasExteriorWaterViewer,
   canSeeWaterTokenFromExterior, hasInteriorWaterViewer,
   canSeeWaterTokenFromInterior, getWaterObserverEyeElevation,
-  isWaterObserverSubmerged
+  isWaterObserverSubmerged,
+  isWithinUnderwaterVisionRange, isBeyondAllUnderwaterVisionRanges
 } from "../scripts/water-visual-depth.mjs";
 
 class Point{
@@ -665,4 +666,74 @@ test("a free-camera GM does not receive a client-local Token hide from exterior 
  refreshTokenWaterVisualDepth(target);
  assert.equal(target.visible,true);
  assert.equal(target.document.hidden,undefined);
+});
+
+test("underwater visibility must not reveal a distant token despite native LOS and lighting",()=>{
+  const {scene,region}=makeScene();
+  region.depth=200;
+  region.testPoint=({x,y})=>x>=0&&x<5000&&y>=0&&y<200;
+  makeVisual(scene,"Tile",{width:5000});
+  const observer=makeToken(scene,-90);
+  observer.losHeight=-88.5;
+  const target=makeToken(scene,-90);
+  target.document.x=1700;
+  target.center={x:1750,y:60};
+  target.controlled=false;
+  canvas.tokens.placeables=[observer,target];
+  canvas.tokens.controlled=[observer];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  try{
+    assert.equal(isWithinUnderwaterVisionRange(observer,target),false);
+    assert.equal(isBeyondAllUnderwaterVisionRanges(target),true);
+    assert.equal(canSeeWaterTokenFromInterior(target),false,
+      "native positive testVisibility must not bypass the underwater range");
+    refreshTokenWaterVisualDepth(target);
+    assert.equal(target.visible,false,"the entire distant token, including its HUD, must disappear");
+    assert.equal(target.mesh.visible,false);
+
+    target.document.x=30;
+    target.center={x:80,y:60};
+    assert.equal(isWithinUnderwaterVisionRange(observer,target),true);
+    assert.equal(isBeyondAllUnderwaterVisionRanges(target),false);
+    assert.equal(canSeeWaterTokenFromInterior(target),true);
+    refreshTokenWaterVisualDepth(target);
+    assert.equal(target.visible,true,"coming back into range restores native visibility");
+  }finally{
+    game.user.isGM=true;
+    canvas.tokens.controlled=[];
+    delete canvas.visibility;
+  }
+});
+
+test("one nearby diver can still see a target when another diver is too far away",()=>{
+  const {scene,region}=makeScene();
+  region.depth=200;
+  region.testPoint=({x,y})=>x>=0&&x<5000&&y>=0&&y<200;
+  makeVisual(scene,"Tile",{width:5000});
+  const far=makeToken(scene,-90);
+  far.losHeight=-88.5;
+  const near=makeToken(scene,-90);
+  near.losHeight=-88.5;
+  near.document.x=1650;
+  near.center={x:1700,y:60};
+  const target=makeToken(scene,-90);
+  target.document.x=1680;
+  target.center={x:1730,y:60};
+  canvas.tokens.controlled=[far,near];
+  canvas.tokens.placeables=[far,near,target];
+  canvas.visibility={testVisibility(){return true;}};
+  game.user.isGM=false;
+  try{
+    assert.equal(isWithinUnderwaterVisionRange(far,target),false);
+    assert.equal(isWithinUnderwaterVisionRange(near,target),true);
+    assert.equal(isBeyondAllUnderwaterVisionRanges(target),false);
+    assert.equal(canSeeWaterTokenFromInterior(target),true);
+    refreshTokenWaterVisualDepth(target);
+    assert.notEqual(target.visible,false);
+  }finally{
+    game.user.isGM=true;
+    canvas.tokens.controlled=[];
+    delete canvas.visibility;
+  }
 });

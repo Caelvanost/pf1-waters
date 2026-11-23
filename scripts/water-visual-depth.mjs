@@ -17,6 +17,9 @@ import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterSurfaceData, getWaterSurfacesForRegion } from "./water-surface-links.mjs";
 import { tokenCenter, getWaterRegionData } from "./water-regions.mjs";
 import { areWaterRegionsInSameBody } from "./water-bodies.mjs";
+import {
+  getTokenUnderwaterVisionLimit,waterVisionPixels
+} from "./water-vision.mjs";
 
 const overlaySprites = new Map();
 const alphaOverrides = new WeakMap();
@@ -208,12 +211,45 @@ export function isWaterObserverSubmerged(viewer, state = undefined) {
  * inside the SAME WATER BODY (or legacy Region). Floating swimmers looking above the surface use
  * exterior visibility rules, even if their bodies are partly submerged.
  */
-export function hasInteriorWaterViewer(targetState) {
+/**
+ * Check the actual observer-to-target distance, not merely Foundry's native
+ * visibility boolean. Detection modes, another lighting module and the
+ * former "same water body" shortcut can otherwise reveal distant swimmers
+ * even when their observer has an underwater sight cap.
+ */
+export function isWithinUnderwaterVisionRange(viewer,target) {
+  const limit=getTokenUnderwaterVisionLimit(viewer);
+  if(!limit)return true;
+  const doc=target?.document??target;
+  if(!viewer?.document||!doc)return false;
+  const origin=tokenCenter(viewer.document);
+  const point=tokenCenter(doc);
+  const maximum=waterVisionPixels(limit.range,viewer.document.parent);
+  if(maximum===null)return true;
+  return Math.hypot(point.x-origin.x,point.y-origin.y)<=maximum+EPSILON;
+}
+
+/**
+ * Multiple controlled vision sources share the same client canvas. Reveal
+ * the target when at least one actual source can see it within its own cap.
+ * Never impose a single "last moved diver" distance on all sources.
+ */
+export function isBeyondAllUnderwaterVisionRanges(target) {
+  const doc=target?.document??target;
+  if(!doc)return false;
+  const observers=getLocalWaterObservers();
+  return observers.length>0&&observers.every(viewer=>
+    Boolean(getTokenUnderwaterVisionLimit(viewer)) &&
+    !isWithinUnderwaterVisionRange(viewer,doc));
+}
+
+export function hasInteriorWaterViewer(targetState,targetToken=null) {
   if (!targetState?.inWater || !targetState.region) return false;
   return getLocalWaterObservers().some((viewer) => {
     const state = getTokenWaterState(viewer.document);
-    return isWaterObserverSubmerged(viewer, state) &&
-      areWaterRegionsInSameBody(state.region,targetState.region);
+    return isWaterObserverSubmerged(viewer,state) &&
+      areWaterRegionsInSameBody(state.region,targetState.region) &&
+      (!targetToken||isWithinUnderwaterVisionRange(viewer,targetToken));
   });
 }
 
@@ -231,7 +267,7 @@ export function canSeeWaterTokenFromInterior(token, targetState = undefined) {
   const state = targetState ?? (doc ? getTokenWaterState(doc) : null);
   if (!doc || !state?.inWater || !state.region ||
       (doc.hidden && !game.user?.isGM) ||
-      !hasInteriorWaterViewer(state)) return false;
+      !hasInteriorWaterViewer(state,doc)) return false;
   const visibility = globalThis.canvas?.visibility;
   if (typeof visibility?.testVisibility !== "function") return false;
   const center = tokenCenter(doc);
@@ -493,9 +529,8 @@ export function refreshTokenWaterVisualDepth(token) {
   const state = getTokenWaterVisualDisplay(doc);
   const enabled = game.settings?.get?.(MODULE_ID, "partialSurfaceDepth") !== false;
   const water = getTokenWaterState(doc);
-  // Interior sight has no artificial depth cap. Still require the actual
-  // target-point LOS test from Foundry to avoid revealing tokens through
-  // walls, fog, darkness or the hidden flag.
+  // Interior sight must obey the observer's individual range cap AND the
+  // native Foundry target-point LOS test.
   const interiorAllowed = enabled && water.inWater &&
     canSeeWaterTokenFromInterior(placeable, water);
   const showEmerged = enabled && state?.mode === "emerged";
@@ -516,8 +551,14 @@ export function refreshTokenWaterVisualDepth(token) {
     state.opacity <= 0 && !interiorAllowed &&
     (!game.user?.isGM ||
       getLocalWaterObservers().length > 0);
+  // Native detection / brightness can report a target as visible despite the
+  // underwater range cap. Hide the entire placeable (HUD included), locally,
+  // only when every active observer has a cap and the target is out of range.
+  const beyondEveryViewer = enabled && water.inWater &&
+    !placeable.controlled && isBeyondAllUnderwaterVisionRanges(placeable);
   let changed = syncWaterTokenVisibility(
-    placeable, interiorAllowed || exteriorAllowed, exteriorTooDeep
+    placeable, interiorAllowed || exteriorAllowed,
+    exteriorTooDeep || beyondEveryViewer
   );
   const allowed = (originalAllowed || exteriorAllowed) &&
     (!doc.hidden || Boolean(game.user?.isGM));

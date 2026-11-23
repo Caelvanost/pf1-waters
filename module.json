@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.22 : bouton principal de gestion des corps d'eau dans la barre d'outils Foundry V13, sans quitter la couche actuelle, et vision sous-marine par corps d'eau.",
-  "version": "1.4.22",
+  "description": "PF1 Waters v1.4.23 : vision sous-marine réellement limitée en profondeur, créatures hors de portée masquées et brouillard de guerre exploré sous l'eau temporaire uniquement.",
+  "version": "1.4.23",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.22/pf1-waters-v1.4.22.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.23/pf1-waters-v1.4.23.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

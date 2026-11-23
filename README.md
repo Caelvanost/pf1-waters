@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.22
+# PF1 Waters — v1.4.23
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -74,6 +74,22 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Correction des limites de vision et exploration temporaire (v1.4.23)
+
+**Foundry V13 :** une vision limitée sous l'eau doit limiter les distances de *sight* et de *light perception* du Token. Les paramètres de `VisionSourceData` ne comportent pas de champ standard `radius` : la version 1.4.23 plafonne donc les getters natifs `Token.sightRange`, `Token.lightPerceptionRange` et `Token.optimalSightRange`, en complément de `VisionSourceData.lightRadius`. La portée continue à diminuer quelle que soit la profondeur ; aux profondeurs extrêmes, la source reçoit un rayon minimum d'un pixel, et non zéro (qui peut être interprété comme non borné). Le TokenDocument n'est pas modifié.
+
+**Visibilité des créatures :** les tokens immergés ne doivent pas apparaître à travers la visibilité native à une distance supérieure à celle de l'observateur. Lorsqu'un observateur sous l'eau se trouve dans le même corps d'eau, PF1 Waters vérifie maintenant **explicitement la distance en pixels entre les centres** avant d'utiliser le test LOS natif. Si toutes les sources de vision actives sont sous l'eau et que le token cible est au-delà de toutes leurs portées, le module masque localement le token **et ses étiquettes / effets / HUD**, puis restaure leur visibilité quand il revient à portée. Si un second observateur peut réellement le voir, celui-ci reste visible. Les murs, l'éclairage, l'élévation et les règles natives restent nécessaires pour autoriser une visibilité en portée.
+
+**Brouillard de guerre :** les zones vues **pendant une plongée** sont temporaires. PF1 Waters empêche `FogManager.commit()` et `FogManager.save()` d'inscrire ces découvertes dans l'exploration persistante du joueur et utilise `CanvasVisibility.resetExploration()` pour écarter l'exploration temporaire avant de reprendre les commits normaux. Les zones découvertes **avant la plongée** ne sont pas effacées. Si des observateurs de surface et sous-marins sont actifs simultanément, les commits de brouillard sont conservativement suspendus **pour tous** jusqu'à ce qu'il ne reste plus d'observateur immergé (Foundry V13 utilise une texture de brouillard 2D partagée par client). Les zones déjà enregistrées sous l'eau par une version antérieure ne sont pas supprimées rétroactivement.
+
+**Tests recommandés dans Foundry :** descendre à plus de vingt fois la demi-profondeur, vérifier que la vision ne devient pas illimitée ; contrôler un plongeur éloigné d'un autre token immergé, puis rapprocher ce token ; explorer un lieu sous l'eau, le quitter, remonter et revenir observer le brouillard. Les validations automatisées ne remplacent pas ce test graphique sur le moteur V13 réel.
+
+Pour diagnostiquer en console :
+```js
+game.modules.get("pf1-waters").api.waterVisionDiagnostics()
+game.modules.get("pf1-waters").api.waterFogDiagnostics()
+```
 
 ## Vision sous-marine propre à chaque token (v1.4.21)
 

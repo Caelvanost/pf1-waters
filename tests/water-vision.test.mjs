@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   waterVisionFraction,getTokenUnderwaterVisionLimit,waterVisionPixels,
   constrainWaterVisionSourceData,patchWaterTokenVision,
+  patchWaterTokenRanges,capWaterTokenPixelRange,
   refreshWaterVisionSources,waterVisionDiagnostics
 } from "../scripts/water-vision.mjs";
 import {
@@ -193,4 +194,60 @@ test("body editor exposes adjustable underwater range and half-depth",async()=>{
   assert.match(seen[1],/name="visionEnabled"/);
   assert.equal(getSceneWaterBody(scene,"bay").visionRange,24);
   assert.equal(getSceneWaterBody(scene,"bay").visionHalfDepth,12);
+});
+
+test("V13 native sight/light perception getters enforce the cap (source data has no radius)",()=>{
+  const {viewer}=fixture();
+  class FoundryToken{
+    get sightRange(){return 9000;}
+    get lightPerceptionRange(){return 10000;}
+    get optimalSightRange(){return Math.max(this.sightRange,this.lightPerceptionRange);}
+    _getVisionSourceData(){return {lightRadius:this.lightPerceptionRange,visionMode:"basic"};}
+  }
+  class PF1Token extends FoundryToken{}
+  assert.equal(patchWaterTokenVision(PF1Token),true);
+  assert.equal(patchWaterTokenRanges(PF1Token),true);
+  const diver=viewer("deep",{losHeight:-16,elevation:-17.5});
+  Object.setPrototypeOf(diver,PF1Token.prototype);
+  assert.equal(diver.sightRange,500);
+  assert.equal(diver.lightPerceptionRange,500);
+  assert.equal(diver.optimalSightRange,500);
+  const data=diver._getVisionSourceData();
+  assert.equal(data.lightRadius,500);
+  assert.equal(Object.hasOwn(data,"radius"),false,
+    "Foundry V13 VisionSourceData does not define radius");
+  diver.losHeight=3;diver.document.elevation=2;
+  assert.equal(diver.sightRange,9000);
+  assert.equal(diver.lightPerceptionRange,10000);
+  assert.equal(diver.optimalSightRange,10000);
+});
+
+test("twenty times the half-depth remains limited: native zero means unbounded",()=>{
+  const {viewer}=fixture();
+  const diver=viewer("extreme",{losHeight:-160,elevation:-161});
+  assert.equal(getTokenUnderwaterVisionLimit(diver).range,0);
+  assert.equal(waterVisionPixels(0,diver.document.parent),1);
+  assert.equal(capWaterTokenPixelRange(diver,Infinity),1);
+  assert.equal(capWaterTokenPixelRange(diver,0),1,
+    "a zero-radius V13 polygon must never be interpreted as unlimited");
+  const data=constrainWaterVisionSourceData(diver,{lightRadius:9999});
+  assert.equal(data.lightRadius,1,
+    "the extreme depth must never restore unlimited light perception");
+});
+
+test("native 36m cap does not touch another, dry token source",()=>{
+  const {viewer}=fixture();
+  class BaseToken{
+    get sightRange(){return Infinity;}
+    get lightPerceptionRange(){return Infinity;}
+    get optimalSightRange(){return Infinity;}
+    _getVisionSourceData(){return {lightRadius:10000};}
+  }
+  class PF1Token extends BaseToken{}
+  patchWaterTokenVision(PF1Token);
+  const dry=viewer("dry",{elevation:3,losHeight:4});
+  Object.setPrototypeOf(dry,PF1Token.prototype);
+  assert.equal(dry.sightRange,Infinity);
+  assert.equal(dry.lightPerceptionRange,Infinity);
+  assert.equal(dry._getVisionSourceData().lightRadius,10000);
 });

@@ -1,3 +1,12 @@
+# 1.4.23 — Portée sous-marine réelle et brouillard non persistant
+
+- Correction Foundry V13 : le champ `radius` de `VisionSourceData` n'est pas standard. Plafonnement désormais effectué aussi sur les accesseurs natifs `Token.sightRange`, `Token.lightPerceptionRange` et `Token.optimalSightRange`, en plus de `lightRadius`.
+- Correction des profondeurs extrêmes : un rayon inférieur à un pixel est remplacé par un minimum non nul, pour éviter qu'un zéro soit considéré comme illimité par les polygones de vision.
+- Les cibles immergées sont vérifiées à la distance réelle de chacun des observateurs avant tout affichage forcé par `testVisibility`; un token au-delà des portées de tous les observateurs sous-marins est caché côté client, étiquettes, effets et HUD compris. La visibilité revient dès qu'une source légitime entre à portée.
+- Suppression de l'exploration **persistante** lors de la plongée : les commits et sauvegardes du `FogManager` sont suspendus tant qu'un observateur actif est immergé ; le brouillard temporaire est écarté à la remontée par `CanvasVisibility.resetExploration()`. Les données de brouillard enregistrées auparavant sont préservées.
+- Limitation V13 documentée : lorsqu'une vue combine un observateur immergé et un observateur de surface, l'exploration persistante est entièrement suspendue pour cette vue, car Foundry conserve une texture de brouillard commune par client.
+- Régressions ajoutées pour les champs de portée Foundry V13, la perte de vision en profondeur extrême, les cibles hors de portée, les observateurs multiples et la suspension/reprise des sauvegardes de brouillard.
+
 # 1.4.22 — Accès principal à la gestion des corps d'eau
 
 - Ajout de « PF1 Waters — Corps d'eau » comme **groupe de contrôles de premier niveau**, à côté des couches de scène et du module Levels, réservé au MJ.

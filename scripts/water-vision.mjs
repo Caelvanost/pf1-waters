@@ -14,6 +14,8 @@ import { getTokenWaterState } from "./water-state.mjs";
 import { getWaterObserverEyeElevation } from "./water-visual-depth.mjs";
 
 const PATCHED = Symbol.for("pf1-waters.vision-source-patched");
+const RANGE_PATCHED = Symbol.for("pf1-waters.token-range-patched");
+const MIN_SOURCE_PIXELS = 1; // V13 interprets a zero polygon radius as unbounded.
 let pendingAll = false;
 const pendingTokens = new Set();
 let scheduled = false;
@@ -76,7 +78,7 @@ export function waterVisionPixels(range, scene) {
   if (!(size > 0) || !(distance > 0) || !Number.isFinite(range) || range < 0) {
     return null;
   }
-  return range * size / distance;
+  return Math.max(MIN_SOURCE_PIXELS,range * size / distance);
 }
 
 /**
@@ -95,11 +97,17 @@ export function constrainWaterVisionSourceData(token, data) {
   if (pixels === null) return data;
 
   const capped = { ...data };
-  for (const field of ["radius", "lightRadius"]) {
-    const previous=data[field]===null||data[field]===undefined
-      ?NaN:Number(data[field]);
-    capped[field]=Number.isFinite(previous)&&previous>=0
-      ?Math.min(previous,pixels):pixels;
+  // Foundry V13 VisionSourceData only defines lightRadius. A "radius"
+  // member may exist in older/extended systems but is NOT authoritative in
+  // V13; the actual token sightRange getter is patched below.
+  const previous=Number(data.lightRadius);
+  capped.lightRadius=data.lightRadius===null||data.lightRadius===undefined||
+      !Number.isFinite(previous)||previous<=0
+    ?pixels:Math.min(previous,pixels);
+  if(Object.hasOwn(data,"radius")){
+    const radius=Number(data.radius);
+    capped.radius=data.radius===null||data.radius===undefined||
+        !Number.isFinite(radius)||radius<=0?pixels:Math.min(radius,pixels);
   }
   return capped;
 }
@@ -109,6 +117,52 @@ export function constrainWaterVisionSourceData(token, data) {
  * This preserves other systems' original source-data behavior and does not
  * re-write documents or monkey-patch a shared VisionSource instance.
  */
+/**
+ * The V13 VisionSourceData interface does not have a sight-radius field:
+ * Token.sightRange, Token.lightPerceptionRange and Token.optimalSightRange
+ * are the authoritative pixel radii. PF1 may subclass these getters; wrap
+ * the resolved class and invoke its original getter, never persist a sight
+ * change into the TokenDocument.
+ */
+export function capWaterTokenPixelRange(token,nativeValue) {
+  const limit=getTokenUnderwaterVisionLimit(token);
+  if(!limit)return nativeValue;
+  const pixels=waterVisionPixels(limit.range,token?.document?.parent);
+  if(pixels===null)return nativeValue;
+  const original=Number(nativeValue);
+  // At extreme depths, V13 treats a zero-radius polygon as unbounded in
+  // some vision modes. Use one physical pixel rather than a literal zero.
+  return Number.isFinite(original)&&original>0
+    ?Math.min(original,pixels):pixels;
+}
+
+function findPropertyDescriptor(proto,key) {
+  for(let cursor=proto;cursor;cursor=Object.getPrototypeOf(cursor)){
+    const descriptor=Object.getOwnPropertyDescriptor(cursor,key);
+    if(descriptor)return descriptor;
+  }
+  return null;
+}
+
+export function patchWaterTokenRanges(tokenClass) {
+  const proto=tokenClass?.prototype;
+  if(!proto)return false;
+  if(Object.hasOwn(proto,RANGE_PATCHED))return true;
+  let count=0;
+  for(const key of ["sightRange","lightPerceptionRange","optimalSightRange"]){
+    const descriptor=findPropertyDescriptor(proto,key);
+    if(typeof descriptor?.get!=="function")continue;
+    const get=descriptor.get;
+    Object.defineProperty(proto,key,{
+      configurable:true,enumerable:descriptor.enumerable,
+      get(){return capWaterTokenPixelRange(this,get.call(this));}
+    });
+    count++;
+  }
+  if(count)Object.defineProperty(proto,RANGE_PATCHED,{value:true});
+  return count>0;
+}
+
 export function patchWaterTokenVision(tokenClass =
   globalThis.CONFIG?.Token?.objectClass ??
   globalThis.foundry?.canvas?.placeables?.Token ??
@@ -121,6 +175,7 @@ export function patchWaterTokenVision(tokenClass =
     }
     return false;
   }
+  patchWaterTokenRanges(tokenClass);
   if (Object.hasOwn(proto, PATCHED)) return true;
   const previous = proto._getVisionSourceData;
   proto._getVisionSourceData = function (...args) {
