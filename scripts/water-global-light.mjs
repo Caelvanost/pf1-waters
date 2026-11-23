@@ -242,7 +242,9 @@ export function waterLightingDiagnostics() {
       darkvision:item.darkvision
     })),
     overlayAttached:layer?.parent===canvas?.interface,
-    overlayCount:shades.size
+    overlayCount:shades.size,
+    overlayMode:"client-visual-fallback",
+    sourceRegions:states.map(s=>s.regionId)
   };
 }
 
@@ -258,17 +260,18 @@ export function refreshWaterGlobalLighting() {
     }
     // The built-in Region behavior, when present, replaces the old black
     // sprite entirely. Native darkness participates in Foundry light/vision.
+    // Native V13 Adjust Darkness Level Regions do not necessarily rebuild
+    // their lighting texture when their DataModel is locally updateSource()'d.
+    // In earlier releases, the *presence* of that managed behavior prevented
+    // this visual layer from rendering at all. Since PF1 Waters automatically
+    // installs such a behavior, depth changes appeared to do nothing.
+    //
+    // This client-local rendered attenuation MUST be independent of the
+    // native Region behavior and of the opt-in altitude bands. Foundry's
+    // lighting/vision engine still handles native light sources and sight;
+    // this layer is an aesthetic fallback and never changes the world Scene.
     const active=getWaterRegionGlobalLightStates(canvas.scene)
-      .filter(item=>item.darkness>0 &&
-        // Static elevation bands already darken the native Foundry canvas.
-        // Never stack our legacy black overlay on top of their lighting.
-        !getWaterDepthBandSettings(item.region).enabled &&
-        ![...(item.region?.behaviors??[])].some(b=>
-          b.type==="adjustDarknessLevel" && b.disabled!==true &&
-          (b.getFlag?.(MODULE_ID,"nativeWaterDepth") ??
-           b.flags?.[MODULE_ID]?.nativeWaterDepth) === true
-        )
-      );
+      .filter(item=>item.darkness>0);
     if (!active.length) {
       clearLayer();
       return 0;

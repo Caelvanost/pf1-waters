@@ -151,7 +151,7 @@ test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(interfaceGroup.children.length,0);
 });
-test("elevation-banded native darkness suppresses the legacy black overlay",()=>{
+test("dynamic depth shading renders even if the Region has native elevation bands",()=>{
  const {region,viewer,interfaceGroup}=setup();
  region.getFlag=(namespace,key)=>
    namespace==="pf1-waters"&&key==="waterRegion"
@@ -160,9 +160,10 @@ test("elevation-banded native darkness suppresses the legacy black overlay",()=>
    : undefined;
  viewer.document.elevation=-19.5;
  assert.equal(getWaterRegionGlobalLightStates(canvas.scene,[viewer]).length,1);
- assert.equal(refreshWaterGlobalLighting(),0,
-   "native OVERRIDE regions must never receive a second darkness overlay");
- assert.equal(interfaceGroup.children.length,0);
+ assert.equal(refreshWaterGlobalLighting(),1,
+   "native OVERRIDE bands do not replace the per-viewer shading fallback");
+ assert.equal(interfaceGroup.children.length,1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.25);
 });
 test("turning global light off removes local overlays without changing scene",()=>{
  const {sc,viewer,interfaceGroup}=setup();
@@ -341,4 +342,61 @@ test("the water darkness layer renders above foreground replica images",()=>{
  assert.equal(refreshWaterGlobalLighting(),1);
  assert.equal(interfaceGroup.children[0],replica);
  assert.equal(interfaceGroup.children[1].name,"pf1-waters-underwater-global-light");
+});
+
+test("regression: managed native Adjust Darkness Level no longer suppresses dynamic shading",()=>{
+ const {region,viewer,interfaceGroup}=setup({limit:10});
+ region.behaviors=[{
+   type:"adjustDarknessLevel",disabled:false,
+   flags:{"pf1-waters":{nativeWaterDepth:true}},
+   getFlag(ns,key){return this.flags?.[ns]?.[key];}
+ }];
+ viewer.document.elevation=-11.5; // eyes at -10, physical sunlight 50%
+ assert.equal(refreshWaterGlobalLighting(),1,
+   "the managed native behavior must never disable the client overlay");
+ assert.equal(interfaceGroup.children.length,1);
+ const graphic=interfaceGroup.children[0].children[0];
+ assert.equal(graphic.alpha,.5);
+ viewer.document.elevation=-21.5; // eyes at -20, 25% natural light
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(graphic.alpha,.75,"depth change must update existing rendered alpha");
+ viewer.document.elevation=-51.5; // eyes at -50, just 5% sunlight
+ assert.equal(refreshWaterGlobalLighting(),1);
+ assert.equal(graphic.alpha,1,
+   "ordinary vision with effectively no sunlight must become black");
+ viewer.document.elevation=-.75; // eyes above the surface
+ assert.equal(refreshWaterGlobalLighting(),0);
+ assert.equal(interfaceGroup.children.length,0,
+   "the temporary layer must disappear on surfacing");
+});
+
+test("depth-only Token updates trigger a visible native-independent shading refresh",()=>{
+ const {region,viewer,interfaceGroup}=setup({limit:10});
+ region.behaviors=[{
+   type:"adjustDarknessLevel",disabled:false,
+   flags:{"pf1-waters":{nativeWaterDepth:true}}
+ }];
+ registerWaterGlobalLightingHooks();
+ const onTokenUpdate=hooks.get("updateToken");
+ assert.equal(typeof onTokenUpdate,"function");
+ viewer.document.elevation=-11.5;
+ onTokenUpdate(viewer.document,{elevation:-11.5});
+ assert.equal(interfaceGroup.children.length,1);
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.5);
+ viewer.document.elevation=-21.5;
+ onTokenUpdate(viewer.document,{elevation:-21.5});
+ assert.equal(interfaceGroup.children[0].children[0].alpha,.75);
+});
+
+test("darkvision does not receive opaque black postprocessing in deep water",()=>{
+ const {region,viewer,interfaceGroup}=setup({limit:10});
+ region.behaviors=[{
+   type:"adjustDarknessLevel",disabled:false,
+   flags:{"pf1-waters":{nativeWaterDepth:true}}
+ }];
+ viewer.document.sight={visionMode:"darkvision"};
+ viewer.document.elevation=-151.5;
+ assert.equal(refreshWaterGlobalLighting(),0,
+   "PF1 darkvision stays under the native vision engine instead of being blacked out");
+ assert.equal(interfaceGroup.children.length,0);
 });

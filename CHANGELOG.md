@@ -1,3 +1,12 @@
+# 1.4.26 — Rendu d'obscurité dynamique réellement affiché en fonction de la hauteur
+
+- **Correction principale :** la présence d'un comportement natif `Adjust Darkness Level` créé par PF1 Waters supprimait systématiquement le calque d'assombrissement graphique. Comme une mise à jour locale de `system.updateSource()` ne garantit pas un recalcul du rendu d'éclairage sous Foundry V13, aucune variation n'était visible lors des changements d'élévation.
+- Le calque visuel client suit désormais **toujours** le facteur d'atténuation solaire de l'observateur immergé, indépendamment de la présence du comportement natif ou des Regions de lumière par tranches.
+- Le changement de hauteur actualise l'alpha du calque sur la Region immergée ; la sortie de l'eau retire le calque. La vision dans le noir reste exemptée du voile ; la portée physique maximale et la distance 3D entre tokens restent inchangées.
+- Diagnostic `waterLightingDiagnostics()` enrichi pour identifier le mode de rendu et les Regions concernées.
+- Tests ajoutés pour le cas de régression (Region dotée d'un comportement natif), les tranches d'obscurité, plusieurs profondeurs, l'événement de modification d'élévation et la vision dans le noir.
+- Limite assumée : le rendu visuel local est superposé **après** l'éclairage de Foundry ; il ne remplace pas une véritable obscurité native et peut également assombrir l'apparence de sources lumineuses locales. Le rendu réel et les éventuels doubles effets des bandes natives doivent être vérifiés dans Foundry V13.
+
 # 1.4.25 — Portée physique fixe et assombrissement selon profondeur
 
 - La profondeur ne réduit plus la portée de vision : `visionRange` est désormais la limite de transparence **constante** du corps d'eau, quel que soit le mode de vision du token. La limite native PF1 et les murs continuent de s'appliquer.

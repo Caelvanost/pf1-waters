@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.25
+# PF1 Waters — v1.4.26
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -8,6 +8,24 @@ Dans Foundry, installer un module par URL de manifeste :
 https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json
 
 Activer **PF1 Waters** dans un monde utilisant le système **pf1**.
+
+## Correction du rendu de l'obscurité selon l'élévation (v1.4.26)
+
+L'obscurité sous-marine doit varier **visuellement** avec l'élévation des yeux du token, même lorsque Foundry V13 ne reconstruit pas son rendu de luminosité après la modification locale d'un comportement natif `Adjust Darkness Level`.
+
+**Origine du problème en v1.4.25 :** PF1 Waters installait automatiquement un comportement natif « Obscurité selon profondeur », puis **désactivait son propre calque graphique** dès que ce comportement existait. La mise à jour locale avec `RegionBehavior.system.updateSource()` n'entraîne pas forcément de reconstruction visible de l'éclairage sous Foundry V13.
+
+**Correction :** PF1 Waters applique désormais le **calque d'assombrissement client** suivant la courbe réelle de lumière naturelle, **même en présence** d'un comportement natif, y compris si le MJ a créé des tranches de profondeur. Le calque est défini par les triangles des Regions aquatiques ; il utilise le point de vue actif du joueur, suit les changements de sélection et d'élévation, et disparaît dès que les yeux ressortent de l'eau. Les joueurs possédant la vision dans le noir ne reçoivent pas cet assombrissement graphique. La **distance maximale de vision reste constante** : elle dépend de la transparence du corps d'eau et des capacités PF1, et non du manque de lumière solaire.
+
+**Important :** ce rendu client est une **simulation graphique**, pas une véritable lumière volumétrique. Les torches et les sources lumineuses locales ne sont pas modifiées dans leurs Documents Foundry, mais un voile noir dessiné après le rendu de la scène peut **assombrir aussi leur apparence**. Si des bandes natives fonctionnent effectivement dans votre installation, le voile peut en accentuer l'assombrissement. Une intégration propre au moteur d'illumination de V13 nécessitera une vérification directe des passes graphiques en jeu. Ne pas confondre l'obscurité affichée avec la condition mécanique d'éclairage d'un token.
+
+Pour diagnostiquer en console Foundry (avec un token immergé sélectionné) :
+
+```js
+game.modules.get("pf1-waters").api.waterLightingDiagnostics()
+```
+
+Vérifier en particulier `regions[].depth`, `regions[].physicalLightPercent`, `regions[].darknessAlpha`, `overlayAttached` et `overlayCount`. Si `overlayCount=0` malgré une obscurité attendue, vérifier **l'éclairage global de la scène**, que la Region appartienne bien à un corps d'eau, et que les yeux du token soient sous la surface.
 
 ## Vision sous-marine : portée physique fixe, obscurité croissante (v1.4.25)
 

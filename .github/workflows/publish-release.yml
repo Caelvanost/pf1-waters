@@ -34,15 +34,15 @@ jobs:
           node - <<'JS'
           const m=require("./module.json");
           const base="https://github.com/Caelvanost/pf1-waters";
-          if(m.id!=="pf1-waters"||m.version!=="1.4.25"||m.url!==base)throw Error("Module identity");
+          if(m.id!=="pf1-waters"||m.version!=="1.4.26"||m.url!==base)throw Error("Module identity");
           if(m.manifest!=="https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json")throw Error("Manifest URL");
-          if(m.download!==base+"/releases/download/v1.4.25/pf1-waters-v1.4.25.zip")throw Error("Download URL");
+          if(m.download!==base+"/releases/download/v1.4.26/pf1-waters-v1.4.26.zip")throw Error("Download URL");
           JS
           mkdir -p dist
-          zip -q -r dist/pf1-waters-v1.4.25.zip module.json scripts lang styles README.md CHANGELOG.md
+          zip -q -r dist/pf1-waters-v1.4.26.zip module.json scripts lang styles README.md CHANGELOG.md
           python - <<'PY'
           import json,zipfile
-          with zipfile.ZipFile("dist/pf1-waters-v1.4.25.zip") as z:
+          with zipfile.ZipFile("dist/pf1-waters-v1.4.26.zip") as z:
               assert all(x in z.namelist() for x in ("module.json","scripts/main.mjs","scripts/api.mjs","lang/fr.json"))
               assert json.loads(z.read("module.json"))["id"]=="pf1-waters"
           PY
@@ -52,11 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=v1.4.25
-          archive=dist/pf1-waters-v1.4.25.zip
+          tag=v1.4.26
+          archive=dist/pf1-waters-v1.4.26.zip
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.25" --notes "Portée de vision physique fixe pour tous les tokens d'un corps d'eau ; la profondeur assombrit la lumière naturelle sans raccourcir le champ de vision, vision dans le noir préservée."
+            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.4.26" --notes "Correctif obscurité selon élévation : affichage client dynamique même avec Adjust Darkness Level ou des bandes natives ; distance sous-marine fixe."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,assets,url
