@@ -13,18 +13,48 @@ import {
 
 const FLAG = "waterBodies";
 
+/** Distances in the Scene's own grid units, matching the PF1 Waters metric defaults. */
+export function getDefaultWaterVisionRange(scene) {
+  const unit=String(scene?.grid?.units??"m").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  if(["ft","ft.","foot","feet","pied","pieds","pi"].includes(unit))return 120;
+  if(["km","kilometre","kilometres"].includes(unit))return .036;
+  if(["cm","centimetre","centimetres"].includes(unit))return 3600;
+  if(["mm","millimetre","millimetres"].includes(unit))return 36000;
+  if(["mi","mile","miles"].includes(unit))return 36/1609.344;
+  return 36;
+}
+
+/** New bodies have adjustable vision without modifying TokenDocument.sight. */
+export function getDefaultWaterVisionSettings(scene) {
+  const range=getDefaultWaterVisionRange(scene);
+  return {visionEnabled:true,visionRange:range,visionHalfDepth:range/4};
+}
+
 export function getSceneWaterBodies(scene=globalThis.canvas?.scene) {
   const raw=scene?.getFlag?.(MODULE_ID,FLAG) ??
     scene?.flags?.[MODULE_ID]?.[FLAG];
   if (!Array.isArray(raw)) return [];
   const seen=new Set();
+  const defaults=getDefaultWaterVisionSettings(scene);
   return raw.flatMap(value=>{
     const id=typeof value?.id==="string" ? value.id.trim() : "";
     const name=typeof value?.name==="string" ? value.name.trim() : "";
     const elevation=Number(value?.surface);
     if (!id || !name || !Number.isFinite(elevation) || seen.has(id)) return [];
     seen.add(id);
-    return [{id,name,surface:elevation}];
+    const range=Number(value?.visionRange);
+    const halfDepth=Number(value?.visionHalfDepth);
+    return [{
+      id,name,surface:elevation,
+      visionEnabled:value?.visionEnabled!==false,
+      visionRange:value?.visionRange!==null&&value?.visionRange!==undefined&&
+        value?.visionRange!==""&&Number.isFinite(range)&&range>=0
+        ?range:defaults.visionRange,
+      visionHalfDepth:value?.visionHalfDepth!==null&&value?.visionHalfDepth!==undefined&&
+        value?.visionHalfDepth!==""&&Number.isFinite(halfDepth)&&halfDepth>=0
+        ?halfDepth:defaults.visionHalfDepth
+    }];
   });
 }
 export function getSceneWaterBody(scene,id) {
@@ -61,10 +91,26 @@ export async function saveSceneWaterBody(scene,values) {
   if(!name)throw Error("Le nom du corps d’eau est obligatoire.");
   if(!Number.isFinite(surface))throw Error("L’élévation de surface est invalide.");
   const bodies=getSceneWaterBodies(scene);
+  const previous=bodies.find(body=>body.id===values?.id);
+  const defaults=getDefaultWaterVisionSettings(scene);
+  const visionEnabled=typeof values?.visionEnabled==="boolean"?
+    values.visionEnabled:previous?.visionEnabled??defaults.visionEnabled;
+  const visionRange=values?.visionRange===undefined?
+    previous?.visionRange??defaults.visionRange:
+    values.visionRange===""||values.visionRange===null?NaN:Number(values.visionRange);
+  const visionHalfDepth=values?.visionHalfDepth===undefined?
+    previous?.visionHalfDepth??defaults.visionHalfDepth:
+    values.visionHalfDepth===""||values.visionHalfDepth===null?NaN:Number(values.visionHalfDepth);
+  if(!Number.isFinite(visionRange)||visionRange<0){
+    throw Error("La distance maximale de vision doit être un nombre positif ou nul.");
+  }
+  if(!Number.isFinite(visionHalfDepth)||visionHalfDepth<0){
+    throw Error("La profondeur de demi-visibilité doit être un nombre positif ou nul.");
+  }
   const id=typeof values?.id==="string"&&values.id.trim()?values.id.trim():
     (globalThis.foundry?.utils?.randomID?.(12) ??
       globalThis.crypto?.randomUUID?.() ?? "water-"+Date.now());
-  const entry={id,name,surface};
+  const entry={id,name,surface,visionEnabled,visionRange,visionHalfDepth};
   const index=bodies.findIndex(b=>b.id===id);
   if(index>=0)bodies[index]=entry;
   else bodies.push(entry);
@@ -155,12 +201,27 @@ export async function configureSceneWaterBodies() {
       '<div class="form-fields"><input name="surface" type="number" required step="any" value="'+
       localEscape(old?.surface??0)+'"><span class="units">'+
       localEscape(scene.grid?.units??"")+'</span></div></div>'+
+      '<div class="form-group"><label>Limiter la vision sous-marine</label>'+
+      '<div class="form-fields"><input name="visionEnabled" type="checkbox" '+
+      ((old?.visionEnabled??true)?'checked ':'')+'></div></div>'+
+      '<div class="form-group"><label>Distance maximale de vision à la surface</label>'+
+      '<div class="form-fields"><input name="visionRange" type="number" required min="0" step="any" value="'+
+      localEscape(old?.visionRange??getDefaultWaterVisionRange(scene))+'"><span class="units">'+
+      localEscape(scene.grid?.units??"")+'</span></div></div>'+
+      '<div class="form-group"><label>Profondeur divisant la distance de vision par deux</label>'+
+      '<div class="form-fields"><input name="visionHalfDepth" type="number" required min="0" step="any" value="'+
+      localEscape(old?.visionHalfDepth??getDefaultWaterVisionSettings(scene).visionHalfDepth)+
+      '"><span class="units">'+localEscape(scene.grid?.units??"")+'</span></div></div>'+
+      '<p class="hint">La vision normale et la perception des lumières sont plafonnées par cette distance. Le rayon diminue progressivement avec la profondeur des yeux : 50 % à la profondeur indiquée, 25 % au double, 5 % à cinq fois et 0 % à vingt fois. Les sources de lumière ne sont pas modifiées.</p>'+
       '</div>',
     ok:{
       label:old?"Enregistrer":"Créer",icon:"fa-solid fa-water",
       callback:(_event,button)=>({
         name:String(button.form.elements.name.value).trim(),
         surface:button.form.elements.surface.value,
+        visionEnabled:Boolean(button.form.elements.visionEnabled?.checked),
+        visionRange:button.form.elements.visionRange.value,
+        visionHalfDepth:button.form.elements.visionHalfDepth.value,
         id:old?.id
       })
     },rejectClose:false,modal:true

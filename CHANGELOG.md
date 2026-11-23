@@ -1,3 +1,12 @@
+# 1.4.21 — Vision sous-marine dynamique par token
+
+- Paramètres de vision configurables dans le registre de chaque corps d'eau : activer/désactiver la limitation, distance maximale de vision à la surface et profondeur de demi-visibilité ; valeurs par défaut adaptées aux scènes métriques ou en pieds.
+- Nouvelle courbe de limitation selon la profondeur des yeux, calculée à partir de la surface commune du corps d'eau ; gestion de plusieurs Regions à fonds distincts et de plusieurs corps d'eau par scène.
+- Intégration client uniquement sur la classe de Token PF1 active via un wrapper idempotent de `_getVisionSourceData()` ; limitation conjointe de la vision et de la perception des zones éclairées, sans altérer la configuration des Tokens ni les sources lumineuses.
+- Actualisation des sources sur déplacement, élévation, changement de sélection, modifications de Region et réglages du corps d'eau. Les yeux hors de l'eau restaurent les paramètres natifs.
+- Fonction de diagnostic `waterVisionDiagnostics()` et nouveaux tests de courbe, isolement multi-token, lumière, configuration du registre et absence d'écriture.
+- Limite connue : les modes de détection spéciaux possédant leur propre rayon ne sont pas modifiés, et la luminosité des zones visibles n'est pas atténuée par cette fonctionnalité.
+
 # 1.4.20 — Suppression de la compatibilité des anciennes Regions et surfaces
 
 - Le registre des corps d'eau de la scène devient obligatoire : seule une Region rattachée à un identifiant de corps d'eau existant représente de l'eau. La surface ne peut plus être paramétrée indépendamment sur chaque Region.

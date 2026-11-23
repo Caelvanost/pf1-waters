@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.20
+# PF1 Waters — v1.4.21
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -75,6 +75,26 @@ La courbe utilise la **profondeur pour 50 % de lumière naturelle** de cette Reg
 **Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
 **Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Vision sous-marine propre à chaque token (v1.4.21)
+
+Chaque **corps d'eau enregistré dans une scène** possède désormais une configuration de portée de vision **indépendante des autres corps d'eau**. Dans **Regions → PF1 Waters — Corps d'eau de la scène → Modifier**, régler :
+
+- **Limiter la vision sous-marine :** activation ou désactivation de la limitation pour ce corps d'eau.
+- **Distance maximale de vision à la surface :** portée plafond, dans les unités de distance de la scène (36 m ou 120 pieds par défaut).
+- **Profondeur divisant la distance de vision par deux :** profondeur à laquelle cette portée est réduite de 50 % (9 m ou 30 pieds par défaut).
+
+**Formule :** la profondeur du regard `d = surface commune du corps d'eau − élévation des yeux du token` (seulement si les yeux sont sous l'eau). La courbe vaut 100 % à la surface, 50 % à une fois la demi-profondeur, 25 % à deux fois, 5 % à cinq fois et 0 % à vingt fois la demi-profondeur. Le rayon réel est le minimum entre les portées natives du token et ce plafond. Exemple : portée à la surface **40 m**, demi-profondeur **8 m** ⇒ portée sous l'eau **20 m à 8 m de profondeur**, **10 m à 16 m** et **2 m à 40 m**.
+
+**Technique :** PF1 Waters enveloppe `Token._getVisionSourceData()` (Foundry V13) sur la classe de Token active et contraint **les rayons de vision et de perception des zones éclairées**, séparément pour chaque source. Le changement intervient côté client, avec réinitialisation de vision sur mouvement horizontal, changement d'élévation, changement de sélection, modification de Region ou du corps d'eau. La visibilité normale, les murs, la lumière et les modes de détection existants continuent de s'appliquer à l'intérieur du rayon permis. Un nageur qui a les yeux hors de l'eau conserve sa vision normale.
+
+**Aucune écriture dans les fiches de tokens :** ni `TokenDocument.sight`, ni les sources de lumière des tokens, ni les lumières ambiantes de la scène ne sont modifiées. Plusieurs tokens contrôlés utilisent leurs propres plafonds de perception. Les modes de détection spéciaux indépendants de la vision normale peuvent conserver leur portée native ; cette version ne modifie pas la luminosité du rendu ni ne crée d'obscurité réelle.
+
+Pour diagnostiquer en console Foundry :
+```js
+game.modules.get("pf1-waters").api.waterVisionDiagnostics()
+```
+L'API expose aussi `getTokenUnderwaterVisionLimit(token)`, `waterVisionFraction(depth, halfDepth)` et `refreshWaterVisionSources()`.
 
 ## Corps d'eau de la scène — format unique (v1.4.20)
 

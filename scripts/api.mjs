@@ -1,3 +1,8 @@
+import {
+  waterVisionFraction, getTokenUnderwaterVisionLimit, waterVisionPixels,
+  constrainWaterVisionSourceData, patchWaterTokenVision,
+  refreshWaterVisionSources, waterVisionDiagnostics
+} from "./water-vision.mjs";
 import { calculateWaterVisualElevation, surfaceContainsTokenCenter, getTokenWaterVisualElevation, calculateUnderwaterVisualOpacity, getTokenWaterVisualDisplay, hasExteriorWaterViewer, canSeeWaterTokenFromExterior, hasInteriorWaterViewer, canSeeWaterTokenFromInterior, getWaterObserverEyeElevation, isWaterObserverSubmerged, refreshTokenWaterVisualDepth, refreshSceneWaterVisualDepth } from "./water-visual-depth.mjs";
 import { getWaterSurfaceData, getWaterSurfacesForRegion, assignSelectedSurfacesToBody, clearSelectedWaterSurfaces, syncWaterSurfaceElevation, syncSceneWaterSurfaceElevations, syncWaterSurfaceVisibility, syncSceneWaterSurfaceVisibilities } from "./water-surface-links.mjs";
 import {
@@ -8,7 +13,8 @@ import {
 import {
   getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
   getRegionWaterBodyId, areWaterRegionsInSameBody,
-  configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody
+  configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody,
+  getDefaultWaterVisionRange, getDefaultWaterVisionSettings
 } from "./water-bodies.mjs";
 import {
   getTokenWaterState, isTokenUnderwater, getTokenPhysicalHeight,
@@ -58,6 +64,10 @@ export const WATER_AUTOMATION = Object.freeze({
 export const WATER_API = Object.freeze({
   WATER_CLASSIFICATION,
   waterAutomation: WATER_AUTOMATION,
+  getDefaultWaterVisionRange, getDefaultWaterVisionSettings,
+  waterVisionFraction, getTokenUnderwaterVisionLimit,
+  waterVisionPixels, constrainWaterVisionSourceData, patchWaterTokenVision,
+  refreshWaterVisionSources, waterVisionDiagnostics,
   getSceneWaterBodies, getSceneWaterBody, getRegionWaterBody,
   getRegionWaterBodyId, areWaterRegionsInSameBody,
   configureSceneWaterBodies, saveSceneWaterBody, deleteSceneWaterBody,
