@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getTokenWaterState } from "../scripts/water-state.mjs";
 import {
   hasSceneGlobalIllumination, globalWaterLightFactor,
   getWaterRegionGlobalLightStates,refreshWaterGlobalLighting,
@@ -95,12 +96,21 @@ test("outside or no-global-light scenes show no underwater shading",()=>{
  assert.equal(refreshWaterGlobalLighting(),0);
  assert.equal(canvas.interface.children.length,0);
 });
-test("multiple active underwater viewers share the least dark view",()=>{
+test("surface-level eyes do not weaken underwater attenuation from a diver",()=>{
  const {sc,viewer,createViewer}=setup();
- const shallow=createViewer(-1.5);
+ const atSurface=createViewer(-1.5); // eye at exactly 0m
+ const result=getWaterRegionGlobalLightStates(sc,[viewer,atSurface]);
+ assert.equal(result.length,1);
+ assert.equal(result[0].factor,.75,
+   "only the observer with submerged eyes contributes to water shading");
+});
+test("two genuinely submerged viewers use their shallowest common lighting",()=>{
+ const {sc,viewer,createViewer}=setup();
+ const shallow=createViewer(-10.5); // eye at -9m
  const result=getWaterRegionGlobalLightStates(sc,[viewer,shallow]);
  assert.equal(result.length,1);
- assert.equal(result[0].factor,1);
+ assert.equal(result[0].depth,9);
+ assert.equal(result[0].factor,.875);
 });
 test("graphics matches Region triangles, fades and cleans up on exit",()=>{
  const {viewer,interfaceGroup}=setup();
