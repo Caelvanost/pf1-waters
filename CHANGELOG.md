@@ -1,3 +1,14 @@
+# 1.4.11 — Floating au-dessus de l’eau : limite extérieure et éclairage sous-marin visible
+
+- Un token `floating` avec la hauteur `losHeight` sur ou au-dessus de la surface utilise désormais **la limite extérieure de visibilité**, même si le corps du token se trouve dans la même Region que la cible.
+- La visibilité sans limite artificielle est réservée aux sources de vision réellement **sous la surface**, dans la même Region aquatique.
+- Sans hauteur de LOS connue, le sommet physique sert de valeur de repli ; les yeux au-dessus de la surface ne confèrent plus de vision subaquatique illimitée.
+- Le token **contrôlé** est prioritaire sur les autres sources de vision, notamment une source restée au niveau du pont, pour éviter de bloquer l'atténuation de lumière du plongeur.
+- L'assombrissement global est maintenant dessiné dans le groupe **InterfaceCanvasGroup**, visible à chaque rafraîchissement, plutôt que dans le groupe primaire mis en cache de Foundry v13.
+- La courbe reste **100 % → 50 % (1×) → 25 % (2×) → 5 % (5×) → 0 % (20×)**, appliquée seulement aux observateurs dont le regard est immergé.
+- L'effet graphique d'interface est susceptible d'assombrir aussi visuellement certaines lumières locales ; leurs caractéristiques et les règles de vision ne sont pas modifiées.
+- Tests de régression sur les LOS émergés, immergés, le passage de surface, la priorité du point de vue contrôlé, et l'affichage sur la couche d'interface.
+
 # 1.4.10 — Lumière globale : 5 % à 5× et extinction à 20×
 
 - Conservation des seuils précédents : **50 %** à une profondeur de visibilité, **25 %** à deux profondeurs.

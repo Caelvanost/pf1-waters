@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.10 : lumière globale sous l'eau à 50 % (1×), 25 % (2×), 5 % (5×), puis 0 % (20× visibilité).",
-  "version": "1.4.10",
+  "description": "PF1 Waters v1.4.11 : LOS des tokens floating au-dessus de l'eau soumis à la visibilité extérieure ; assombrissement sous-marin rendu visible.",
+  "version": "1.4.11",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.10/pf1-waters-v1.4.10.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.11/pf1-waters-v1.4.11.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

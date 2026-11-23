@@ -1,4 +1,4 @@
-# PF1 Waters — v1.4.10
+# PF1 Waters — v1.4.11
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.
 
@@ -72,17 +72,30 @@ La courbe utilise la **profondeur de visibilité de cette Region** (36 mètres o
 
 **Exemple :** pour une Region dont la visibilité vaut 36 m, la lumière globale passe à **50 % à 36 m**, **25 % à 72 m**, **5 % à 180 m**, puis **0 % à 720 m et au-delà**. Dans une scène en pieds (visibilité de 120 pieds), ces seuils sont **120**, **240**, **600** et **2 400 pieds**. L'interpolation est linéaire entre les paliers ; la lumière ne s'éteint qu'au vingtième facteur.
 
-**Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur qui regarde depuis l'eau. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
+**Implémentation :** un assombrissement visuel est appliqué uniquement à la géométrie triangulée de la Region, pour l'observateur dont la ligne de vue se trouve sous la surface. La profondeur de référence est la hauteur de vision du token, ou son sommet physique si nécessaire. Lorsque plusieurs sources immergées partagent la même Region, le point de vue le moins profond prévaut. L'effet est local à l'utilisateur et ne modifie **ni les sources lumineuses locales, ni l'éclairage global enregistré sur la scène**, ni les règles de vision de PF1.
 
-**Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique dans la passe primaire du Canvas est ensuite composé avec l'éclairage natif. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+**Limite Foundry v13 :** le Canvas de scène est bidimensionnel. Ce comportement simule la diminution de luminosité à la profondeur de l'observateur : il ne calcule pas une extinction volumétrique différente pour chaque objet à une élévation différente dans la même vue. Le calque graphique est affiché dans la passe d'interface au-dessus de la scène afin de rester visible après les mouvements d'élévation. Il faut vérifier son rendu en jeu, en particulier les autres modules d'éclairage et les lumières locales.
+
+## Yeux au-dessus de la surface et assombrissement visible (v1.4.11)
+
+**Visibilité :** un token `floating` traverse la surface avec son corps mais peut avoir ses yeux au-dessus de l'eau. La limite de visibilité d'une Region s'applique à lui **comme à tout observateur extérieur** lorsque sa hauteur réelle de ligne de vue (`losHeight`) se situe sur ou au-dessus de la surface. Il ne peut plus voir un token complètement immergé plus profond que `visibilityDepth`, même si les deux sont dans la même Region en 2D ou si son statut `floating` est actif.
+
+- **LOS au-dessus ou à la surface** → règles extérieures : atténuation sur les derniers 30 % de la visibilité autorisée et disparition au-delà de la profondeur maximale.
+- **LOS strictement sous la surface** et corps dans la même Region → règles intérieures : pas de limite artificielle entre les tokens de la même Region ; les murs, la lumière native et les conditions de visibilité Foundry restent applicables.
+- **`losHeight` absent** → utilise la hauteur physique du sommet du token comme estimation prudente ; un corps partiellement émergé ne devient pas automatiquement un observateur sous-marin.
+- La vision du **token contrôlé** prévaut sur les autres sources de vision au moment de déterminer de quel côté de la surface se situe l'observateur.
+
+**Éclairage :** pour résoudre les scènes où le plongeur ne voyait pas la luminosité diminuer, l'effet d'assombrissement utilise maintenant le **groupe InterfaceCanvasGroup**, qui est affiché en continu, plutôt que le `PrimaryCanvasGroup` mis en cache. Le dégradé reste calculé selon la hauteur des yeux de la créature immergée, avec la courbe 100 % → 50 % à 1× → 25 % à 2× → 5 % à 5× → 0 % à 20× la visibilité de la Region. Un `floating` avec les yeux dans l'air ne reçoit aucun assombrissement sous-marin.
+
+**Limites :** il s'agit d'un effet graphique 2D **par client**, délimité par la triangulation de la Region. En étant appliqué après la composition native des effets du Canvas, il peut également assombrir visuellement certaines lumières locales dans la zone, même si leur configuration, leur portée et les règles de vision ne sont pas modifiées. Ce rendu doit être confirmé dans une scène réelle Foundry v13.
 
 ## Visibilité entre créatures immergées (v1.4.8)
 
 La limite de visibilité en profondeur définie sur une Region (36 m / 120 pieds par défaut, ou la valeur du MJ) s'applique **uniquement depuis un point de vue extérieur à l'eau**. Elle ne limite **jamais** la visibilité entre deux tokens physiquement immergés dans **la même Region aquatique**.
 
-- **Observateur dans la même Region d'eau que la cible** : aucune atténuation ni disparition imposée par PF1 Waters, même si le sommet de la cible est plus profond que `visibilityDepth`. L'image du token conserve son opacité native et demeure affichée sous la tuile transparente.
+- **Observateur ayant les yeux sous la surface dans la même Region d'eau que la cible** : aucune atténuation ni disparition imposée par PF1 Waters, même si le sommet de la cible est plus profond que `visibilityDepth`. L'image du token conserve son opacité native et demeure affichée sous la tuile transparente.
 - **Observateur extérieur** (sur le pont, sur une berge, au-dessus de l'eau ou dans une autre Region) : la profondeur maximale de visibilité de la Region reste applicable, selon la position du sommet de la cible. Les derniers 30 % de cette distance restent atténués progressivement.
-- **Plusieurs sources de vision du même utilisateur** : la présence d'au moins une source immergée dans la même Region, et capable de voir la cible selon Foundry, suffit à supprimer la limite externe pour ce client. Les tokens des autres joueurs ne servent pas de sources de vision supplémentaires.
+- **Plusieurs sources de vision du même utilisateur** : si un token est contrôlé, sa ligne de vue est prioritaire ; sinon, une source active réellement immergée dans la même Region et capable de voir la cible peut lever la limite externe pour ce client. Les tokens des autres joueurs ne servent pas de sources de vision supplémentaires.
 - **Murs, éclairage, brouillard, effets d'invisibilité et tokens cachés** : le traitement de la limite de profondeur ne contourne pas les contrôles de visibilité du moteur Foundry v13. Il vérifie un point à la profondeur réelle de la cible via `canvas.visibility.testVisibility`.
 - Lorsque l'observateur sort de l'eau ou change de Region, le prochain rafraîchissement de vision réapplique automatiquement la limite de profondeur extérieure, même si la cible n'a pas bougé.
 
