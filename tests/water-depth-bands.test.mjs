@@ -17,7 +17,8 @@ test("four fixed native bands, adjacent, floor bounded",()=>{
  const {scene,region}=fixture();const b=planWaterDepthBands(region,scene);
  assert.deepEqual(b.map(x=>x.darkness),[.25,.5,.75,1]);
  assert.equal(b.at(-1).bottom,-100);
- assert.ok(Math.abs(b[0].top+10*Math.log2(1/.875))<1e-9);
+ assert.equal(b[0].top,-1.5);
+ assert.deepEqual(b.map(x=>x.top),[-1.5,-7.5,-13.5,-30]);
  for(let i=1;i<b.length;i++)assert.equal(b[i-1].bottom,b[i].top);
 });
 test("shallow water does not create auxiliary Regions",()=>{const {scene,region}=fixture(1);assert.deepEqual(planWaterDepthBands(region,scene),[]);});
@@ -33,3 +34,12 @@ test("sync is idempotent, uses native DARKEN, cleans orphan and preserves manual
  assert.deepEqual(scene.regions,[region,manual]);
 });
 test("players never write",async()=>{const {scene}=fixture();game.user.isGM=false;assert.equal((await syncSceneWaterDepthBands(scene)).skipped,true);});
+
+test("coincident rounded thresholds skip empty bands and retain exact physical floor",()=>{
+ const {scene,region}=fixture(4.2,.1);const b=planWaterDepthBands(region,scene);
+ assert.deepEqual(b,[{index:3,top:-1.5,bottom:-4.2,darkness:1}]);
+});
+test("imperial thresholds align to five-foot squares",()=>{
+ const {scene,region}=fixture(100,10);scene.grid.units="ft";const b=planWaterDepthBands(region,scene);
+ assert.ok(b.length>0);assert.ok(b.every(x=>x.top%5===0));
+});

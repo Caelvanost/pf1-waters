@@ -1,3 +1,8 @@
+## v1.5.2
+
+- Seuils de profondeur arrondis au multiple de 1,50 m le plus proche (5 ft en scènes impériales), avec une première case claire sauf absorption immédiate totale.
+- Suppression des tranches de largeur nulle ; conservation exacte du fond et de la surface.
+
 ## v1.5.1
 
 - Retour aux régions natives d’obscurité : quatre tranches maximum, 25/50/75/100 % d’assombrissement relatif. Aucun auxiliaire pour 0 %.

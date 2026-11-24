@@ -1,3 +1,5 @@
+> **v1.5.2 :** les seuils d’obscurité sont alignés sur les cases de 1,50 m ou 5 ft ; la profondeur physique du fond reste inchangée.
+
 > **v1.5.1 :** les régions natives d’éclairage sont rétablies, automatiquement limitées à quatre par région aquatique (25/50/75/100 %), selon la clarté et la profondeur. Les anciennes notes sont historiques. Les régions manuelles sont conservées. Validation graphique Foundry V13 à effectuer.
 
 > **v1.5.0 :** les tranches d’éclairage décrites dans l’historique ci-dessous sont retirées. Le module nettoie les anciennes régions auxiliaires marquées par PF1 Waters ; aucune nouvelle tranche n’est créée. Le rendu dynamique reste à valider dans Foundry V13.
