@@ -15,7 +15,7 @@ globalThis.canvas={
 };
 globalThis.ui={notifications:{warn(message){throw Error(message);}}};
 globalThis.foundry={
-  applications:{api:{DialogV2:{async prompt(){dialogs++;return null;}}}}
+  applications:{api:{DialogV2:{async wait(){dialogs++;return null;}}}}
 };
 
 function foundryControls(){

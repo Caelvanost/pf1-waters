@@ -43,3 +43,10 @@ test("imperial thresholds align to five-foot squares",()=>{
  const {scene,region}=fixture(100,10);scene.grid.units="ft";const b=planWaterDepthBands(region,scene);
  assert.ok(b.length>0);assert.ok(b.every(x=>x.top%5===0));
 });
+
+test("custom water body light depths override automatic profile and respect bottom",()=>{
+ const {scene,region}=fixture(20,10);
+ scene.flags["pf1-waters"].waterBodies[0].lightDepths=[3,6,12,24];
+ assert.deepEqual(planWaterDepthBands(region,scene),[
+ {index:0,top:-3,bottom:-6,darkness:.25},{index:1,top:-6,bottom:-12,darkness:.5},{index:2,top:-12,bottom:-20,darkness:.75}]);
+});

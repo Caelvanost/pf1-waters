@@ -202,3 +202,15 @@ test("Tile/Drawing association tool binds a full body, not just one Region",asyn
   assert.equal(typeof controls.tiles.tools.pf1WatersTileBodySurface?.onChange,"function");
   assert.equal(typeof controls.drawings.tools.pf1WatersDrawingBodySurface?.onChange,"function");
 });
+
+test("custom light depths survive other body edits and can be reset",async()=>{
+ globalThis.game={user:{isGM:true}};
+ const scene={grid:{units:"m"},flags:{},getFlag(s,k){return this.flags[s]?.[k];},async setFlag(s,k,v){(this.flags[s]??={})[k]=v;}};
+ const body=await saveSceneWaterBody(scene,{id:"light-test",name:"Mer",surface:0,waterClarity:"clear",lightDepths:[3,6,12,24]});
+ assert.deepEqual(body.lightDepths,[3,6,12,24]);
+ const updated=await saveSceneWaterBody(scene,{id:body.id,name:"Mer 2",surface:1,waterClarity:"clear"});
+ assert.deepEqual(updated.lightDepths,body.lightDepths);
+ const reset=await saveSceneWaterBody(scene,{...updated,lightDepths:null});
+ assert.equal(reset.lightDepths,undefined);
+ await assert.rejects(saveSceneWaterBody(scene,{...reset,lightDepths:[3,2,8,9]}));
+});

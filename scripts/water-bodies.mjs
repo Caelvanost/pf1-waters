@@ -12,7 +12,7 @@ import {
 } from "./constants.mjs";
 import {
   DEFAULT_WATER_CLARITY,WATER_LIGHT_PROFILES,getWaterClarityProfile,
-  getWaterClaritySettings,inferLegacyWaterClarity
+  getWaterClaritySettings,inferLegacyWaterClarity,getAutomaticWaterLightDepths,getWaterLightDepthStep,normalizeWaterLightDepths
 } from "./water-optics.mjs";
 
 const FLAG = "waterBodies";
@@ -54,7 +54,8 @@ export function getSceneWaterBodies(scene=globalThis.canvas?.scene) {
       waterClarity:profile?.id??null,
       visionEnabled:value?.visionEnabled!==false,
       visionRange:settings?.visionRange??legacyRange,
-      visionHalfDepth:settings?.visionHalfDepth??legacyHalf
+      visionHalfDepth:settings?.visionHalfDepth??legacyHalf,
+      ...(normalizeWaterLightDepths(value.lightDepths)?{lightDepths:normalizeWaterLightDepths(value.lightDepths)}:{})
     }];
   });
 }
@@ -118,8 +119,11 @@ export async function saveSceneWaterBody(scene,values) {
   const id=typeof values?.id==="string"&&values.id.trim()?values.id.trim():
     (globalThis.foundry?.utils?.randomID?.(12) ??
       globalThis.crypto?.randomUUID?.() ?? "water-"+Date.now());
+  const lightDepths=values?.lightDepths===undefined?previous?.lightDepths??null:values.lightDepths;
+  const normalized=normalizeWaterLightDepths(lightDepths);
+  if(lightDepths!==null&&!normalized)throw Error("Les quatre profondeurs doivent être positives ou nulles et croissantes.");
   const entry={id,name,surface,waterClarity:clarity?.id??null,
-    visionEnabled,visionRange,visionHalfDepth};
+    visionEnabled,visionRange,visionHalfDepth,...(normalized?{lightDepths:normalized}:{})};
   const index=bodies.findIndex(b=>b.id===id);
   if(index>=0)bodies[index]=entry;
   else bodies.push(entry);
@@ -160,7 +164,8 @@ export async function configureSceneWaterBodies() {
   const bodies=getSceneWaterBodies(scene);
   const entries=bodies.map(b=>'<option value="'+localEscape(b.id)+'">'+
     localEscape(b.name)+' — '+localEscape(b.surface)+'</option>').join("");
-  const menu=await foundry.applications.api.DialogV2.prompt({
+  const Dialog=foundry.applications.api.DialogV2;
+  const menu=await (Dialog.wait??Dialog.prompt).call(Dialog,{
     classes:["pf1-waters-region-dialog"],
     window:{title:"PF1 Waters — Corps d’eau de la scène"},
     content:'<div class="standard-form pf1-waters-region-fields">'+
@@ -173,17 +178,21 @@ export async function configureSceneWaterBodies() {
       (bodies.length?'<div class="form-group"><label>Corps d’eau existant</label>'+
       '<div class="form-fields"><select name="bodyId">'+entries+
       '</select></div></div>':"")+'</div>',
-    ok:{
-      label:"Continuer",icon:"fa-solid fa-water",
+    buttons:[{
+      action:"continue",label:"Continuer",icon:"fa-solid fa-water",
       callback:(_event,button)=>({
         action:String(button.form.elements.action.value),
         bodyId:String(button.form.elements.bodyId?.value??"")
       })
-    },rejectClose:false,modal:true
+    },...(bodies.length?[{
+      action:"lightDepth",label:"Configurer profondeur de lumière",icon:"fa-solid fa-sun",
+      callback:(_event,button)=>({action:"lightDepth",bodyId:String(button.form.elements.bodyId?.value??"")})
+    }]:[])],default:"continue",rejectClose:false,modal:true
   });
   if(!menu)return;
   const old=menu.action==="create"?null:getSceneWaterBody(scene,menu.bodyId);
   if(menu.action!=="create"&&!old)return ui.notifications.warn("Corps d’eau introuvable.");
+  if(menu.action==="lightDepth")return configureWaterBodyLightDepths(scene,old);
   if(menu.action==="delete"){
     try{
       const dependencies=getSceneWaterBodyDependents(scene,old.id);
@@ -238,6 +247,46 @@ export async function configureSceneWaterBodies() {
   try{
     const created=await saveSceneWaterBody(scene,values);
     ui.notifications.info("Corps d’eau « "+created.name+" » enregistré.");
+  }catch(error){ui.notifications.error(error.message);}
+}
+
+/** Configure the four native darkness thresholds for one water body. */
+export async function configureWaterBodyLightDepths(scene,body){
+  if(!game.user?.isGM||!body)return;
+  const step=getWaterLightDepthStep(scene);
+  const auto=getAutomaticWaterLightDepths(scene,body.visionHalfDepth);
+  const current=body.lightDepths??auto;
+  const units=localEscape(scene.grid?.units??"m");
+  const result=await foundry.applications.api.DialogV2.prompt({
+    classes:["pf1-waters-region-dialog"],
+    window:{title:"Configurer profondeur de lumière — "+body.name},
+    content:'<div class="standard-form pf1-waters-region-fields">'+
+      '<p>Profondeurs positives sous la surface commune. Les valeurs identiques suppriment les tranches de largeur nulle.</p>'+
+      '<div class="form-group"><label>Calcul automatique selon la clarté</label><div class="form-fields">'+
+      '<input type="checkbox" name="automatic" '+(!body.lightDepths?'checked':'')+'></div></div>'+
+      '<p class="hint">Décochez pour personnaliser les seuils. Les valeurs sont arrondies aux cases de '+localEscape(step)+' '+units+'.</p>'+
+      [25,50,75,100].map((level,i)=>'<div class="form-group"><label>Obscurité '+level+' %</label><div class="form-fields">'+
+      '<input name="depth'+i+'" type="number" min="0" step="'+step+'" value="'+localEscape(current[i])+'"><span class="units">'+units+'</span></div></div>').join('')+
+      '</div>',
+    ok:{label:"Enregistrer",icon:"fa-solid fa-save",callback:(_event,button)=>{
+      const fields=button.form.elements;
+      if(fields.automatic.checked)return {lightDepths:null};
+      const values=[0,1,2,3].map(i=>{
+        const raw=String(fields["depth"+i].value??"").trim();
+        const n=raw===""?NaN:Number(raw);
+        return Number.isFinite(n)&&n>=0?Math.round(n/step)*step:NaN;
+      });
+      if(!normalizeWaterLightDepths(values))throw Error("Les profondeurs doivent être positives ou nulles et croissantes.");
+      return {lightDepths:values};
+    }},rejectClose:false,modal:true
+  });
+  if(!result)return;
+  try{
+    const latest=getSceneWaterBody(scene,body.id);
+    if(!latest)throw Error("Corps d’eau introuvable.");
+    await saveSceneWaterBody(scene,{...latest,lightDepths:result.lightDepths});
+    // The updateScene hook regenerates the native darkness Regions.
+    ui.notifications.info("Profondeurs de lumière enregistrées pour « "+latest.name+" ».");
   }catch(error){ui.notifications.error(error.message);}
 }
 

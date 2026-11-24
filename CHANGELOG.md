@@ -1,3 +1,8 @@
+## v1.5.3
+
+- Bouton « Configurer profondeur de lumière » dans la sélection des corps d’eau.
+- Quatre seuils personnalisables, arrondis aux cases ; possibilité de revenir au calcul automatique selon la clarté.
+
 ## v1.5.2
 
 - Seuils de profondeur arrondis au multiple de 1,50 m le plus proche (5 ft en scènes impériales), avec une première case claire sauf absorption immédiate totale.

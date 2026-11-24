@@ -12,7 +12,8 @@
 import { MODULE_ID, WATER_REGION_FLAG, finite } from "./constants.mjs";
 import { getWaterRegionData, isWaterRegion, getWaterDepthBandSettings } from "./water-regions.mjs";
 import { globalWaterLightFactor, hasSceneGlobalIllumination } from "./water-global-light.mjs";
-import { waterDepthForTransmission, metersPerWaterUnit } from "./water-optics.mjs";
+import { waterDepthForTransmission, getAutomaticWaterLightDepths } from "./water-optics.mjs";
+import { getRegionWaterBody } from "./water-bodies.mjs";
 import {
   calculateNativeWaterDarkness, syncNativeWaterDarknessBandExclusivity
 } from "./water-native-darkness.mjs";
@@ -60,16 +61,7 @@ export function planWaterDepthBands(region, scene = region?.parent) {
   if (!(floor>0)) return [];
   // Round absorbed daylight to the nearest quarter. Zero requires no Region.
   const levels=[.25,.5,.75,1];
-  // Align thresholds to 1.50 m cells (5 ft on imperial scenes).
-  // Keep the first cell clear unless light is completely blocked at entry.
-  // Coincident thresholds deliberately skip zero-thickness bands.
-  const unit=metersPerWaterUnit(scene);
-  const step=unit===.3048?5:1.5/unit;
-  const starts=levels.map(level=>{
-    const raw=waterDepthForTransmission(1-(level-.125),sunlightHalfDepth);
-    if(!Number.isFinite(raw)||raw===0)return raw;
-    return Math.max(step,Math.round(raw/step)*step);
-  });
+  const starts=getRegionWaterBody(region)?.lightDepths??getAutomaticWaterLightDepths(scene,sunlightHalfDepth);
   const bands=[];
   for(let i=0;i<levels.length;i++){
     const start=starts[i],end=Math.min(floor,starts[i+1]??Infinity);
@@ -110,7 +102,7 @@ async function syncOneSource(scene, sourceId, source) {
     return {created:0,removed:0,skipped:true};
   }
 
-  const signature = hash({ version: "1.5.2", sourceId, planned, shapes });
+  const signature = hash({ version: "1.5.3", sourceId, planned, shapes });
   if (existing.length === planned.length &&
       existing.every(b => getWaterDepthBandInfo(b)?.signature === signature)) {
     return {created:0,removed:0,skipped:false};

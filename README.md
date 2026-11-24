@@ -1,3 +1,5 @@
+> **v1.5.3 :** sélectionnez un corps d’eau puis « Configurer profondeur de lumière » pour ajuster les quatre seuils, ou revenir au calcul automatique.
+
 > **v1.5.2 :** les seuils d’obscurité sont alignés sur les cases de 1,50 m ou 5 ft ; la profondeur physique du fond reste inchangée.
 
 > **v1.5.1 :** les régions natives d’éclairage sont rétablies, automatiquement limitées à quatre par région aquatique (25/50/75/100 %), selon la clarté et la profondeur. Les anciennes notes sont historiques. Les régions manuelles sont conservées. Validation graphique Foundry V13 à effectuer.

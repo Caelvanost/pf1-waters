@@ -91,3 +91,23 @@ export function waterVisualLightResponse(irradiance){
   const fraction=Math.max(0,Math.min(1,Number(irradiance)||0));
   return Math.pow(fraction,1/2.2);
 }
+
+// Depths are relative to the common water surface, in scene distance units.
+export function getWaterLightDepthStep(scene){
+  const unit=metersPerWaterUnit(scene);
+  return unit===.3048?5:1.5/unit;
+}
+export function getAutomaticWaterLightDepths(scene,halfDepth){
+  const step=getWaterLightDepthStep(scene);
+  return [.25,.5,.75,1].map(level=>{
+    const raw=waterDepthForTransmission(1-(level-.125),halfDepth);
+    if(!Number.isFinite(raw)||raw===0)return raw;
+    return Math.max(step,Math.round(raw/step)*step);
+  });
+}
+export function normalizeWaterLightDepths(value){
+  if(!Array.isArray(value)||value.length!==4)return null;
+  if(value.some(v=>typeof v!=="number"||!Number.isFinite(v)||v<0))return null;
+  if(value.some((v,i)=>i>0&&v<value[i-1]))return null;
+  return [...value];
+}
