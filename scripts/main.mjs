@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { registerWaterCombatHooks } from "./water-combat.mjs";
 import { registerWaterFogHooks } from "./water-fog.mjs";
 import { registerWaterBodyRootSceneControl } from "./water-bodies.mjs";
 import { registerWaterVisionHooks, refreshWaterVisionSources } from "./water-vision.mjs";
@@ -62,6 +63,7 @@ Hooks.once("ready", async () => {
   try {
     registerWaterFogHooks();
     registerWaterVisionHooks();
+    registerWaterCombatHooks();
     await syncSceneUnderwaterFlags(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceElevations(globalThis.canvas?.scene);
     await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);

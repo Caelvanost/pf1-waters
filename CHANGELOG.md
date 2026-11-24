@@ -1,3 +1,9 @@
+## v1.5.5
+
+- DD de Natation par corps d’eau : 0 (désactivé), 10, 15, 20 ou personnalisé.
+- Carte de chat au début du tour d’un nageur sans vitesse de nage ; jet natif PF1 sur clic et affichage du résultat.
+- Pas de mouvement forcé automatique dans cette version : la flottabilité et les exceptions d’Aquatic Adventures restent à intégrer.
+
 ## v1.5.4
 
 - Gestionnaire des corps d’eau en liste : Modifier, Configurer profondeur de lumière et Supprimer pour chaque entrée ; Nouveau corps d’eau en bas de fenêtre.

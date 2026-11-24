@@ -1,3 +1,5 @@
+> **v1.5.5 :** configurez le DD de Natation dans le corps d’eau. En combat, une carte invite le nageur sans vitesse de nage à effectuer son jet PF1. La flottabilité reste manuelle pour cette version.
+
 > **v1.5.4 :** le bouton Corps d’eau ouvre une liste avec actions directes pour chaque corps d’eau et un bouton Nouveau corps d’eau en bas.
 
 > **v1.5.3 :** sélectionnez un corps d’eau puis « Configurer profondeur de lumière » pour ajuster les quatre seuils, ou revenir au calcul automatique.

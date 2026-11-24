@@ -55,6 +55,7 @@ export function getSceneWaterBodies(scene=globalThis.canvas?.scene) {
       visionEnabled:value?.visionEnabled!==false,
       visionRange:settings?.visionRange??legacyRange,
       visionHalfDepth:settings?.visionHalfDepth??legacyHalf,
+      ...(Number.isInteger(value.swimDC)&&value.swimDC>=0?{swimDC:value.swimDC}:{}) ,
       ...(normalizeWaterLightDepths(value.lightDepths)?{lightDepths:normalizeWaterLightDepths(value.lightDepths)}:{})
     }];
   });
@@ -122,7 +123,9 @@ export async function saveSceneWaterBody(scene,values) {
   const lightDepths=values?.lightDepths===undefined?previous?.lightDepths??null:values.lightDepths;
   const normalized=normalizeWaterLightDepths(lightDepths);
   if(lightDepths!==null&&!normalized)throw Error("Les quatre profondeurs doivent être positives ou nulles et croissantes.");
-  const entry={id,name,surface,waterClarity:clarity?.id??null,
+  const swimDC=values?.swimDC===undefined?(previous?.swimDC??10):Number(values.swimDC);
+  if(!Number.isInteger(swimDC)||swimDC<0)throw Error("DD de Natation invalide.");
+  const entry={id,name,surface,swimDC,waterClarity:clarity?.id??null,
     visionEnabled,visionRange,visionHalfDepth,...(normalized?{lightDepths:normalized}:{})};
   const index=bodies.findIndex(b=>b.id===id);
   if(index>=0)bodies[index]=entry;
@@ -172,7 +175,7 @@ export async function configureSceneWaterBodies() {
       return '<article class="pf1-waters-body-row">'+
         '<div class="pf1-waters-body-label"><strong>'+localEscape(body.name)+'</strong>'+
         '<small>Surface : '+localEscape(body.surface)+' '+units+' · '+localEscape(profile?.label??"Clarté personnalisée")+
-        ' · '+deps.regions.length+' région(s) · Lumière '+(body.lightDepths?'personnalisée':'automatique')+'</small></div>'+
+        ' · DD Natation : '+((body.swimDC??10)||'aucun')+' · '+deps.regions.length+' région(s) · Lumière '+(body.lightDepths?'personnalisée':'automatique')+'</small></div>'+
         '<div class="pf1-waters-body-actions">'+
         '<button type="button" data-water-action="edit" data-water-index="'+i+'"><i class="fa-solid fa-pen"></i> Modifier</button>'+
         '<button type="button" data-water-action="lightDepth" data-water-index="'+i+'"><i class="fa-solid fa-sun"></i> Configurer profondeur de lumière</button>'+
@@ -253,6 +256,11 @@ async function editWaterBodyFromMenu(scene,menu){
         '>'+localEscape(profile.label)+' — '+localEscape(profile.description)+
         '</option>'
       ).join('')+'</select></div></div>'+
+      '<div class="form-group"><label>Agitation de l’eau</label><div class="form-fields"><select name="swimDC">'+
+      [[0,"Aucun test"],[10,"Calme — DD 10"],[15,"Agitée — DD 15"],[20,"Très agitée — DD 20"],[-1,"DD personnalisé"]].map(([dc,label])=>'<option value="'+dc+'"'+
+      (([0,10,15,20].includes(old?.swimDC??10)?(old?.swimDC??10):-1)===dc?' selected':'')+'>'+label+'</option>').join('')+
+      '</select></div></div>'+
+      '<div class="form-group"><label>DD personnalisé (si sélectionné)</label><div class="form-fields"><input name="customSwimDC" type="number" min="1" step="1" value="'+localEscape(old?.swimDC>0?old.swimDC:25)+'"></div></div>'+
       '<p class="hint">Plus l’eau est trouble, plus la distance de visibilité diminue et plus la lumière naturelle s’atténue rapidement avec la profondeur. La vision dans le noir ne contourne pas la limite de transparence de l’eau. Les anciens réglages numériques sont conservés jusqu’à la sélection d’un profil.</p>'+
       '</div>',
     ok:{
@@ -261,6 +269,7 @@ async function editWaterBodyFromMenu(scene,menu){
         name:String(button.form.elements.name.value).trim(),
         surface:button.form.elements.surface.value,
         visionEnabled:true,
+        swimDC:button.form.elements.swimDC.value==="-1"?Number(button.form.elements.customSwimDC.value):Number(button.form.elements.swimDC.value),
         waterClarity:button.form.elements.waterClarity.value,
         id:old?.id
       })
