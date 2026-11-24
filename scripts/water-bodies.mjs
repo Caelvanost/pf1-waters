@@ -177,12 +177,26 @@ export async function configureSceneWaterBodies() {
         '<small>Surface : '+localEscape(body.surface)+' '+units+' · '+localEscape(profile?.label??"Clarté personnalisée")+
         ' · DD Natation : '+((body.swimDC??10)||'aucun')+' · '+deps.regions.length+' région(s) · Lumière '+(body.lightDepths?'personnalisée':'automatique')+'</small></div>'+
         '<div class="pf1-waters-body-actions">'+
-        '<button type="button" data-water-action="edit" data-water-index="'+i+'"><i class="fa-solid fa-pen"></i> Modifier</button>'+
-        '<button type="button" data-water-action="lightDepth" data-water-index="'+i+'"><i class="fa-solid fa-sun"></i> Configurer profondeur de lumière</button>'+
-        '<button type="button" class="pf1-waters-body-delete" data-water-action="delete" data-water-index="'+i+'" title="Supprimer le corps d’eau" aria-label="Supprimer '+localEscape(body.name)+'"><i class="fa-solid fa-trash"></i></button>'+
+        '<button type="button" data-action="pf1WaterEdit" data-water-action="edit" data-water-index="'+i+'"><i class="fa-solid fa-pen"></i> Modifier</button>'+
+        '<button type="button" data-action="pf1WaterLight" data-water-action="lightDepth" data-water-index="'+i+'"><i class="fa-solid fa-sun"></i> Configurer profondeur de lumière</button>'+
+        '<button type="button" class="pf1-waters-body-delete" data-action="pf1WaterDelete" data-water-action="delete" data-water-index="'+i+'" title="Supprimer le corps d’eau" aria-label="Supprimer '+localEscape(body.name)+'"><i class="fa-solid fa-trash"></i></button>'+
         '</div></article>';
     }).join("");
     let selection=null;
+    let submitted=false;
+    const choose=action=>async function(event,target){
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      if(submitted)return;
+      const index=Number(target?.dataset?.waterIndex);
+      const body=Number.isInteger(index)?bodies[index]:null;
+      if(!body)return;
+      submitted=true;
+      selection={action,bodyId:body.id};
+      // wait resolves null on a normal close (rejectClose:false). The
+      // chosen action is stored separately, not routed through a footer.
+      await this.close();
+    };
     const menu=await Dialog.wait({
       classes:["pf1-waters-region-dialog","pf1-waters-body-manager"],
       window:{title:"PF1 Waters — Corps d’eau de la scène"},
@@ -193,25 +207,24 @@ export async function configureSceneWaterBodies() {
         action:"create",label:"Nouveau corps d’eau",icon:"fa-solid fa-plus",
         callback:()=>({action:"create"})
       },{
-        action:"close",label:"Fermer",icon:"fa-solid fa-xmark",
-        callback:()=>selection
+        action:"dismissManager",label:"Fermer",icon:"fa-solid fa-xmark",
+        callback:()=>({action:"dismiss"})
       }],
-      default:"close",rejectClose:false,modal:false,
-      render:(_event,dialog)=>{
-        const root=dialog.element;
-        root?.querySelectorAll("[data-water-action]").forEach(button=>{
-          button.addEventListener("click",()=>{
-            const body=bodies[Number(button.dataset.waterIndex)];
-            if(!body)return;
-            selection={action:button.dataset.waterAction,bodyId:body.id};
-            // Use the native footer callback to resolve DialogV2.wait.
-            root.querySelector('button[data-action="close"]')?.click();
-          });
-        });
+      default:"dismissManager",rejectClose:false,modal:false,
+      actions:{
+        pf1WaterEdit:choose("edit"),
+        pf1WaterLight:choose("lightDepth"),
+        pf1WaterDelete:choose("delete")
       }
     });
-    if(!menu)return;
-    await editWaterBodyFromMenu(scene,menu);
+    const chosen=selection??menu;
+    if(!chosen||!["create","edit","lightDepth","delete"].includes(chosen.action))return;
+    try{
+      await editWaterBodyFromMenu(scene,chosen);
+    }catch(error){
+      console.error(MODULE_ID+" | Corps d’eau : ouverture du formulaire impossible",error);
+      ui.notifications.error("Impossible d’ouvrir le formulaire : "+error.message);
+    }
   }
 }
 
@@ -341,7 +354,10 @@ export function registerWaterBodyRootSceneControl(controls) {
     .map(control=>Number(control?.order))
     .filter(Number.isFinite);
   const order=orders.length ? Math.max(...orders)+1 : 100;
-  const openManager=()=>void configureSceneWaterBodies();
+  const openManager=()=>void configureSceneWaterBodies().catch(error=>{
+    console.error(MODULE_ID+" | Gestionnaire des corps d’eau",error);
+    ui.notifications.error(error.message);
+  });
 
   controls.pf1Waters={
     name:"pf1Waters",

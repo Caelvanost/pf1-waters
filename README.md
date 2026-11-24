@@ -1,3 +1,5 @@
+> **v1.6.1 :** correction de l’ouverture des fenêtres d’édition depuis les lignes du gestionnaire.
+
 > **v1.6.0 :** Combat breath tracking, third owner/GM-only bar. Actor flags: waterBreathing, noBreathing, breathMultiplier (default 2), breathBonus. Token flag breath stores spent, checks and stage. Death requires GM confirmation. Standard/full-round actions are deduplicated per item/action/turn; adjust spent manually for exceptional additional actions.
 
 > **v1.5.9 :** Automatic buoyancy uses PF1 encumbrance. Manual token settings remain valid. Actor flag `pf1-waters.buoyancyOverride` takes precedence (values: `swiftlySinking`, `sinking`, `neutral`, `rising`, `swiftlyRising`).

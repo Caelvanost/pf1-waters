@@ -1,3 +1,8 @@
+## v1.6.1
+
+- Correction des actions Modifier, Configurer profondeur de lumière et Supprimer dans le gestionnaire : actions natives DialogV2, sans clic simulé sur Fermer.
+- Tests de régression du clic sur les lignes et de la fermeture du gestionnaire.
+
 ## v1.6.0
 
 - Combat-only breath tracking: twice effective Constitution, aquatic and nonbreathing exemptions, actor flags, owner/GM-only third token bar, additional expenditure for standard/full-round action references (deduped per action ID per turn).

@@ -83,3 +83,31 @@ test("manager lists each water body with direct row actions and a create button"
  try{await configureSceneWaterBodies();assert.match(config.content,/Mer/);assert.match(config.content,/Lac/);assert.equal((config.content.match(/data-water-action="edit"/g)||[]).length,2);assert.equal((config.content.match(/data-water-action="lightDepth"/g)||[]).length,2);assert.ok(config.buttons.some(b=>b.action==="create"&&b.label==="Nouveau corps d’eau"));assert.doesNotMatch(config.content,/<select/);}
  finally{canvas.scene=previous;foundry.applications.api.DialogV2.wait=old;}
 });
+
+test("native row click closes list and opens editor for the selected existing body",async()=>{
+ const previous=canvas.scene,dialog=foundry.applications.api.DialogV2;
+ const oldWait=dialog.wait,oldPrompt=dialog.prompt;
+ canvas.scene={id:"click",grid:{units:"m"},regions:[],flags:{"pf1-waters":{waterBodies:[{id:"a",name:"Mer",surface:0},{id:"b",name:"Lac",surface:3}]}},getFlag(s,k){return this.flags[s]?.[k];}};
+ let waits=0,closed=0,prompts=0;
+ dialog.wait=async options=>{
+  if(++waits>1)return null;
+  await options.actions.pf1WaterEdit.call({async close(){closed++;}}, {preventDefault(){},stopPropagation(){}},{dataset:{waterIndex:"1"}});
+  return null;
+ };
+ dialog.prompt=async options=>{prompts++;assert.equal(options.window.title,"Modifier Lac");assert.match(options.content,/name="surface"[^>]*value="3"/);assert.match(options.content,/name="swimDC"/);return null;};
+ try{await configureSceneWaterBodies();assert.equal(closed,1);assert.equal(prompts,1);assert.equal(waits,2);}
+ finally{canvas.scene=previous;dialog.wait=oldWait;dialog.prompt=oldPrompt;}
+});
+test("native light row opens selected light configuration; close stops manager",async()=>{
+ const previous=canvas.scene,dialog=foundry.applications.api.DialogV2;
+ const oldWait=dialog.wait,oldPrompt=dialog.prompt;
+ canvas.scene={id:"light",grid:{units:"m"},regions:[],flags:{"pf1-waters":{waterBodies:[{id:"a",name:"Mer",surface:0}]}},getFlag(s,k){return this.flags[s]?.[k];}};
+ let waits=0,prompts=0;
+ dialog.wait=async options=>{
+  if(++waits>1)return options.buttons.find(b=>b.action==="dismissManager").callback();
+  await options.actions.pf1WaterLight.call({async close(){}},{},{dataset:{waterIndex:"0"}});return null;
+ };
+ dialog.prompt=async options=>{prompts++;assert.match(options.window.title,/Configurer profondeur de lumière — Mer/);return null;};
+ try{await configureSceneWaterBodies();assert.equal(prompts,1);assert.equal(waits,2);}
+ finally{canvas.scene=previous;dialog.wait=oldWait;dialog.prompt=oldPrompt;}
+});
