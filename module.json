@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.5.6 : marche automatique au fond et fin des tests de Natation.",
-  "version": "1.5.6",
+  "description": "PF1 Waters v1.5.7 : flottabilité progressive en combat.",
+  "version": "1.5.7",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.5.6/pf1-waters-v1.5.6.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.5.7/pf1-waters-v1.5.7.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

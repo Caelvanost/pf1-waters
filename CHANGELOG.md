@@ -1,3 +1,9 @@
+## v1.5.7
+
+- Flottabilité individuelle (cinq états, défaut négatif), dérive progressive en fin de tour après échec grave ou absence de test, arrêt sur réussite ou limite physique.
+- 3/6/9 m ou 10/20/30 ft par round ; momentum mémorisé par combattant.
+- Les tests particuliers DD 20 contre une flottabilité extrême, les attaques d’opportunité, les coûts de mouvement et les effets de déséquilibre restent à arbitrer manuellement. Les nageurs natifs ne sont pas automatisés.
+
 ## v1.5.6
 
 - Passage automatique de Nage à Marche lorsque le token atteint le fond de sa région aquatique.
