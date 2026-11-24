@@ -1,3 +1,5 @@
+> **v1.5.9 :** Automatic buoyancy uses PF1 encumbrance. Manual token settings remain valid. Actor flag `pf1-waters.buoyancyOverride` takes precedence (values: `swiftlySinking`, `sinking`, `neutral`, `rising`, `swiftlyRising`).
+
 > **v1.5.8 :** les libellés de flottabilité et les messages de Natation utilisent le français ou l’anglais selon la langue du client.
 
 > **v1.5.7 :** flottabilité individuelle dans la configuration du token ; déplacement involontaire en fin de tour (3/6/9 m), uniquement en combat. Les règles particulières des flottabilités extrêmes et le déséquilibre restent manuels.

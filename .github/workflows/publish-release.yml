@@ -34,15 +34,15 @@ jobs:
           node - <<'JS'
           const m=require("./module.json");
           const base="https://github.com/Caelvanost/pf1-waters";
-          if(m.id!=="pf1-waters"||m.version!=="1.5.8"||m.url!==base)throw Error("Module identity");
+          if(m.id!=="pf1-waters"||m.version!=="1.5.9"||m.url!==base)throw Error("Module identity");
           if(m.manifest!=="https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json")throw Error("Manifest URL");
-          if(m.download!==base+"/releases/download/v1.5.8/pf1-waters-v1.5.8.zip")throw Error("Download URL");
+          if(m.download!==base+"/releases/download/v1.5.9/pf1-waters-v1.5.9.zip")throw Error("Download URL");
           JS
           mkdir -p dist
-          zip -q -r dist/pf1-waters-v1.5.8.zip module.json scripts lang styles README.md CHANGELOG.md
+          zip -q -r dist/pf1-waters-v1.5.9.zip module.json scripts lang styles README.md CHANGELOG.md
           python - <<'PY'
           import json,zipfile
-          with zipfile.ZipFile("dist/pf1-waters-v1.5.8.zip") as z:
+          with zipfile.ZipFile("dist/pf1-waters-v1.5.9.zip") as z:
               assert all(x in z.namelist() for x in ("module.json","scripts/main.mjs","scripts/api.mjs","lang/fr.json","lang/en.json"))
               assert json.loads(z.read("module.json"))["id"]=="pf1-waters"
           PY
@@ -52,11 +52,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=v1.5.8
-          archive=dist/pf1-waters-v1.5.8.zip
+          tag=v1.5.9
+          archive=dist/pf1-waters-v1.5.9.zip
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.5.8" --notes "Libellés de flottabilité sans préfixe, localisation française et anglaise des tests de Natation."
+            gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "PF1 Waters v1.5.9" --notes "Automatic buoyancy from PF1 encumbrance with manual token and actor overrides."
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,assets,url

@@ -39,3 +39,25 @@ import {combatLabel} from "../scripts/water-combat.mjs";
 test("buoyancy labels use French or English fallback without module prefix",()=>{
  assert.equal(combatLabel("sinking","fr"),"Coule");assert.equal(combatLabel("swiftlySinking","fr-FR"),"Coule rapidement");assert.equal(combatLabel("sinking","de"),"Sinking");assert.equal(combatLabel("swiftlyRising","en"),"Swiftly Rising");
 });
+
+import {automaticBuoyancy,getBuoyancyMode} from "../scripts/water-combat.mjs";
+test("automatic buoyancy uses prepared PF1 encumbrance levels",()=>{
+ for(const [level,expected] of [[0,"sinking"],[1,"sinking"],[2,"swiftlySinking"],[3,"swiftlySinking"]]){
+  assert.equal(automaticBuoyancy({system:{attributes:{encumbrance:{level}}}}),expected);
+ }
+ assert.equal(automaticBuoyancy({system:{encumbrance:{level:2}}}),"swiftlySinking");
+ assert.equal(automaticBuoyancy({system:{attributes:{speed:{swim:{total:15}}}}}),"neutral");
+ assert.equal(automaticBuoyancy({system:{traits:{subtypes:{value:["aquatic"]}}}}),"neutral");
+});
+test("actor override precedes manual token mode and live automatic load",()=>{
+ let override,mode="auto";
+ const actor={system:{attributes:{encumbrance:{level:2}}},getFlag:()=>override};
+ const token={actor,getFlag:()=>mode};
+ assert.equal(getBuoyancyMode(token),"auto");
+ assert.equal(getBuoyancy(token),"swiftlySinking");
+ actor.system.attributes.encumbrance.level=0;
+ assert.equal(getBuoyancy(token),"sinking");
+ mode="rising";assert.equal(getBuoyancy(token),"rising");
+ override="neutral";assert.equal(getBuoyancy(token),"neutral");
+ override=undefined;assert.equal(getBuoyancy(token),"rising");
+});

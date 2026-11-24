@@ -1,3 +1,9 @@
+## v1.5.9
+
+- Flottabilité automatique selon l’encombrement PF1 : légère/intermédiaire négative, lourde/surcharge fortement négative, créatures aquatiques ou avec vitesse de nage neutres. Correspondance maison.
+- Priorité : flag acteur buoyancyOverride, réglage manuel du token, calcul automatique. Les anciens réglages explicites restent valides.
+- Relecture des données préparées au début et à la fin du tour ; actualisation des cartes ouvertes après modification de l’acteur ou de son inventaire.
+
 ## v1.5.8
 
 - Libellés de flottabilité sans préfixe, français et anglais par défaut pour les autres langues.

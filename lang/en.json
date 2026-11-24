@@ -21,6 +21,8 @@
     "Rises": "rises by",
     "Elevation": "Elevation",
     "DriftHint": "Drifting: aquatic imbalance and attacks of opportunity must be resolved by the GM.",
-    "DriftStopped": "Physical limit reached or drift stopped."
+    "DriftStopped": "Physical limit reached or drift stopped.",
+    "auto": "Automatic — Encumbrance",
+    "EffectiveBuoyancy": "Current buoyancy"
   }
 }

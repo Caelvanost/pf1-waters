@@ -9,17 +9,39 @@ const pending=new Set(), rolling=new Set();
 const queues=new Map(), turns=new Map();
 const MOMENTUM="combatBuoyancy", BUOYANCY="buoyancy";
 const STATES={swiftlySinking:-1,sinking:-1,neutral:0,rising:1,swiftlyRising:1};
-const EN={"Buoyancy":"Buoyancy","swiftlySinking":"Swiftly Sinking","sinking":"Sinking","neutral":"Neutral","rising":"Rising","swiftlyRising":"Swiftly Rising","Swim":"Swim","SwimCheck":"Swim Check","DC":"DC","Round":"Round","Water":"Water","SwimHint":"A move action is required to attempt to control buoyancy.","SwimSuccess":"Success","SwimFailure":"Failure: no progress","SwimBadFailure":"Failure by 5 or more: buoyancy resolved at the end of the turn","SwimUnknown":"Native roll result not recognized.","SwimError":"Unable to make Swim check","Sinks":"sinks by","Rises":"rises by","Elevation":"Elevation","DriftHint":"Drifting: aquatic imbalance and attacks of opportunity must be resolved by the GM.","DriftStopped":"Physical limit reached or drift stopped."};
-const FR={"Buoyancy":"Flottabilité","swiftlySinking":"Coule rapidement","sinking":"Coule","neutral":"Neutre","rising":"Flotte","swiftlyRising":"Flotte rapidement","Swim":"Natation","SwimCheck":"Test de Natation","DC":"DD","Round":"Round","Water":"Eau","SwimHint":"Une action de mouvement est nécessaire pour tenter de contrôler sa flottabilité.","SwimSuccess":"Réussite","SwimFailure":"Échec : aucune progression","SwimBadFailure":"Échec de 5 ou plus : flottabilité résolue en fin de tour","SwimUnknown":"Résultat du jet natif non reconnu.","SwimError":"Test de Natation impossible","Sinks":"coule de","Rises":"remonte de","Elevation":"Élévation","DriftHint":"Dérive : déséquilibre aquatique et attaques d’opportunité à résoudre par le MJ.","DriftStopped":"Limite physique atteinte ou dérive arrêtée."};
+const EN={"auto":"Automatic — Encumbrance","EffectiveBuoyancy":"Current buoyancy","Buoyancy":"Buoyancy","swiftlySinking":"Swiftly Sinking","sinking":"Sinking","neutral":"Neutral","rising":"Rising","swiftlyRising":"Swiftly Rising","Swim":"Swim","SwimCheck":"Swim Check","DC":"DC","Round":"Round","Water":"Water","SwimHint":"A move action is required to attempt to control buoyancy.","SwimSuccess":"Success","SwimFailure":"Failure: no progress","SwimBadFailure":"Failure by 5 or more: buoyancy resolved at the end of the turn","SwimUnknown":"Native roll result not recognized.","SwimError":"Unable to make Swim check","Sinks":"sinks by","Rises":"rises by","Elevation":"Elevation","DriftHint":"Drifting: aquatic imbalance and attacks of opportunity must be resolved by the GM.","DriftStopped":"Physical limit reached or drift stopped."};
+const FR={"auto":"Automatique — Encombrement","EffectiveBuoyancy":"Flottabilité actuelle","Buoyancy":"Flottabilité","swiftlySinking":"Coule rapidement","sinking":"Coule","neutral":"Neutre","rising":"Flotte","swiftlyRising":"Flotte rapidement","Swim":"Natation","SwimCheck":"Test de Natation","DC":"DD","Round":"Round","Water":"Eau","SwimHint":"Une action de mouvement est nécessaire pour tenter de contrôler sa flottabilité.","SwimSuccess":"Réussite","SwimFailure":"Échec : aucune progression","SwimBadFailure":"Échec de 5 ou plus : flottabilité résolue en fin de tour","SwimUnknown":"Résultat du jet natif non reconnu.","SwimError":"Test de Natation impossible","Sinks":"coule de","Rises":"remonte de","Elevation":"Élévation","DriftHint":"Dérive : déséquilibre aquatique et attaques d’opportunité à résoudre par le MJ.","DriftStopped":"Limite physique atteinte ou dérive arrêtée."};
 export function combatLabel(key,language=globalThis.game?.i18n?.lang){
  return (String(language??"en").toLowerCase().split(/[-_]/)[0]==="fr"?FR:EN)[key]??key;
 }
 const label=key=>combatLabel(key);
 const escape=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function primaryGM(){return isPrimaryGM();}
+export function getBuoyancyMode(token){
+ const doc=token?.document??token;
+ const value=doc?.getFlag?.(MODULE_ID,BUOYANCY);
+ return Object.hasOwn(STATES,value)?value:"auto";
+}
+// PF1 calculates carried load, including size, Strength and inventory.
+// Prefer prepared encumbrance data; use the system roll data as fallback.
+export function automaticBuoyancy(actor){
+ const aquatic=actor?.system?.traits?.creatureType?.subTypes??actor?.system?.traits?.creatureType?.subtypes;
+ const raw=actor?.system?.traits?.subtypes??aquatic;
+ const values=Array.isArray(raw)?raw:raw instanceof Set?[...raw]:
+   Array.isArray(raw?.value)?raw.value:typeof raw==="string"?raw.split(/[,;]+/):[];
+ if(hasSwimSpeed(actor)||values.some(v=>String(v).trim().toLowerCase()==="aquatic"))return "neutral";
+ const level=actor?.system?.attributes?.encumbrance?.level??
+   actor?.system?.encumbrance?.level??actor?.getRollData?.()?.attributes?.encumbrance?.level;
+ return level!==null&&level!==undefined&&level!==""&&Number.isFinite(Number(level))&&Number(level)>=2
+   ?"swiftlySinking":"sinking";
+}
 export function getBuoyancy(token){
- const value=token?.getFlag?.(MODULE_ID,BUOYANCY);
- return Object.hasOwn(STATES,value)?value:"sinking";
+ const doc=token?.document??token;
+ const actor=doc?.actor;
+ const override=actor?.getFlag?.(MODULE_ID,"buoyancyOverride");
+ if(Object.hasOwn(STATES,override))return override;
+ const mode=getBuoyancyMode(doc);
+ return mode==="auto"?automaticBuoyancy(actor):mode;
 }
 // Signed speed in units of 10 ft per round. Momentum continues on a
 // minor failure once underway; success stops it.
@@ -66,7 +88,7 @@ function findResult(key){return [...game.messages].find(m=>flag(m,RESULT)?.key==
 function cardContent(data,done=false){
  return '<div class="pf1-waters-swim-card"><h3><i class="fa-solid fa-water"></i> '+escape(data.name)+' — '+escape(label('Swim'))+'</h3>'+
  '<p>'+escape(data.body)+' · '+escape(label('Round'))+' '+escape(data.round)+' · '+escape(label('DC'))+' <strong>'+escape(data.dc)+'</strong></p>'+
- '<p>'+escape(label('Buoyancy'))+' : '+escape(label(data.buoyancy??'sinking'))+'</p>'+
+ '<p data-buoyancy-label>'+escape(label('Buoyancy'))+' : '+escape(label(data.buoyancy??'sinking'))+'</p>'+
  '<button type="button" data-pf1-waters-swim '+(done?'disabled':'')+'><i class="fa-solid fa-dice-d20"></i> '+escape(label('SwimCheck'))+'</button>'+
  '<p class="hint">'+escape(label('SwimHint'))+'</p></div>';
 }
@@ -120,11 +142,11 @@ function renderCard(message,html){
  const data=flag(message,CARD);
  if(!data)return;
  const root=html?.querySelector?html:html?.[0];
+ const ctx=currentContext(data);
  const card=root?.querySelector(".pf1-waters-swim-card");
- if(card){const template=document.createElement("template");template.innerHTML=cardContent({...data,body:data.body});card.replaceWith(template.content.firstElementChild);}
+ if(card){const template=document.createElement("template");template.innerHTML=cardContent({...data,buoyancy:ctx?.buoyancy??data.buoyancy});card.replaceWith(template.content.firstElementChild);}
  const button=root?.querySelector("[data-pf1-waters-swim]");
  if(!button)return;
- const ctx=currentContext(data);
  button.disabled=!ctx||!(game.user.isGM||ctx.actor.isOwner)||Boolean(findResult(data.key));
  button.addEventListener("click",()=>void rollFromCard(message,button).catch(error=>{
  console.error(MODULE_ID+" | Test de Natation impossible",error);
@@ -203,7 +225,7 @@ export function registerWaterCombatHooks(){
   const token=app.document??app.object;
   const field=document.createElement("div");
   field.className="form-group";
-  field.innerHTML='<label>'+escape(label('Buoyancy'))+'</label><div class="form-fields"><select name="flags.pf1-waters.buoyancy">'+Object.keys(STATES).map(value=>'<option value="'+value+'"'+(getBuoyancy(token)===value?' selected':'')+'>'+escape(label(value))+'</option>').join("")+'</select></div>';
+  field.innerHTML='<label>'+escape(label('Buoyancy'))+'</label><div class="form-fields"><select name="flags.pf1-waters.buoyancy">'+['auto',...Object.keys(STATES)].map(value=>'<option value="'+value+'"'+(getBuoyancyMode(token)===value?' selected':'')+'>'+escape(label(value))+'</option>').join("")+'</select></div><p class="hint">'+escape(label('EffectiveBuoyancy'))+' : '+escape(label(getBuoyancy(token)))+'</p>';
   const tab=form.querySelector('[data-tab="identity"].tab')??form.querySelector('.tab')??form;
   tab.append(field);
  });
@@ -218,10 +240,12 @@ export function registerWaterCombatHooks(){
    const data=message&&flag(message,CARD);
    if(!data)continue;
    const ctx=currentContext(data);
+   if(ctx){const line=button.closest(".pf1-waters-swim-card")?.querySelector("[data-buoyancy-label]");if(line)line.textContent=label("Buoyancy")+" : "+label(ctx.buoyancy);}
    button.disabled=!ctx||!(game.user.isGM||ctx.actor.isOwner)||rolling.has(data.key)||Boolean(findResult(data.key));
   }
  };
  Hooks.on("updateToken",refreshButtons);
+ for(const event of ["updateActor","createItem","updateItem","deleteItem","createActiveEffect","updateActiveEffect","deleteActiveEffect"])Hooks.on(event,refreshButtons);
  Hooks.on("updateCombat",refreshButtons);
  Hooks.on("deleteCombat",refreshButtons);
  Hooks.on("createChatMessage",message=>{

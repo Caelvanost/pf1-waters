@@ -64,6 +64,8 @@
     "Rises": "remonte de",
     "Elevation": "Élévation",
     "DriftHint": "Dérive : déséquilibre aquatique et attaques d’opportunité à résoudre par le MJ.",
-    "DriftStopped": "Limite physique atteinte ou dérive arrêtée."
+    "DriftStopped": "Limite physique atteinte ou dérive arrêtée.",
+    "auto": "Automatique — Encombrement",
+    "EffectiveBuoyancy": "Flottabilité actuelle"
   }
 }
