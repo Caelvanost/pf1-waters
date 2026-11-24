@@ -67,12 +67,9 @@ function parseRegionFlag(raw, scene) {
  * their previous lighting behavior until the GM enables this setting.
  */
 export function getWaterDepthBandSettings(region) {
-  const raw=readRegionFlag(region,MODULE_ID);
-  const value = Number(raw?.darknessBandCount);
   return {
-    enabled: false, // Legacy API: persisted elevation bands are retired.
-    count: Number.isFinite(value) && value >= 4
-      ? Math.min(40, Math.max(4, Math.round(value))) : 24
+    enabled: isWaterRegion(region), // Automatic native bands; shallow volumes generate none.
+    count: 4
   };
 }
 
@@ -305,7 +302,7 @@ export async function configureSelectedWaterRegions() {
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
         const darknessBands = false;
-        const darknessBandCount = 24;
+        const darknessBandCount = 4;
         const depth = depthRaw === "" ? null : Number(depthRaw);
         if (depth !== null && (!Number.isFinite(depth) || depth < 0)) {
           throw new Error(t("InvalidDepth", "La profondeur doit être positive ou nulle."));

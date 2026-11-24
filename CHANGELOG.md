@@ -1,3 +1,10 @@
+## v1.5.1
+
+- Retour aux régions natives d’obscurité : quatre tranches maximum, 25/50/75/100 % d’assombrissement relatif. Aucun auxiliaire pour 0 %.
+- Quantification au niveau le plus proche ; seuils physiques 12,5/37,5/62,5/87,5 % d’absorption. Fond réel respecté.
+- Désactivation des hooks d’obscurité dynamique et du voile PIXI ; luminosité de vision native préservée.
+- Validation graphique Foundry V13 à effectuer.
+
 ## v1.5.0
 
 - Retrait des régions d’éclairage par tranches et migration des anciennes régions auxiliaires identifiées par leur flag.

@@ -133,11 +133,7 @@ export function constrainWaterVisionSourceData(token, data) {
   // Changing a visual overlay is not the same as changing Token vision.
   // V13 exposes the brightness of the REAL vision source independently
   // from the Scene's globalLight switch and from vision range.
-  const sourceMode=String(data.visionMode??"").toLowerCase();
-  if(!limit.darkvision&&!sourceMode.includes("darkvision")){
-    capped.brightness=getUnderwaterVisionBrightness(data.brightness,limit);
-    if(token&&typeof token==="object")preparedBrightness.set(token,capped.brightness);
-  }
+  // Native altitude bands handle illumination; preserve user vision brightness.
   return capped;
 }
 

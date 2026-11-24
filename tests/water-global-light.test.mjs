@@ -399,24 +399,6 @@ test("darkvision does not receive opaque black postprocessing in deep water",()=
  assert.equal(interfaceGroup.children.length,0);
 });
 
-test("an initialized native depth-brightness source takes priority over late black overlay",()=>{
- const {viewer,interfaceGroup}=setup({limit:36});
- viewer.document.elevation=-37.5; // eyes 36m below the surface
- const prepared=constrainWaterVisionSourceData(viewer,{
-   brightness:0,lightRadius:10000,visionMode:"basic"
- });
- assert.ok(prepared.brightness<0);
- viewer.vision={data:prepared};
- assert.equal(hasAppliedUnderwaterVisionBrightness(viewer),true);
- assert.equal(refreshWaterGlobalLighting(),0,
-   "never double-darken source brightness with a black overlay");
- assert.equal(interfaceGroup.children.length,0);
- assert.equal(waterLightingDiagnostics().nativeBrightnessApplied[0].applied,true);
-
- // If the renderer did not initialize the new VisionSourceData, the old
- // layer remains a backup for the affected observer.
- viewer.vision.data.brightness=0;
- assert.equal(hasAppliedUnderwaterVisionBrightness(viewer),false);
- assert.equal(refreshWaterGlobalLighting(),1);
- assert.equal(interfaceGroup.children.length,1);
+test("legacy source brightness detection does not claim attenuation is active",()=>{
+ assert.equal(hasAppliedUnderwaterVisionBrightness(null),false);
 });

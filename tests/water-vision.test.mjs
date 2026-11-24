@@ -103,7 +103,7 @@ test("source data clips BOTH vision and light perception without mutating Token 
   assert.equal(output.radius,2000);
   assert.equal(output.lightRadius,2000);
   assert.equal(output.visionMode,"basic");
-  assert.ok(Math.abs(output.brightness-(Math.pow(.5,1/2.2)-1))<1e-12);
+  assert.equal(output.brightness,0);
   assert.equal(input.brightness,0,
     "the native source data is cloned instead of mutated");
   assert.equal(input.radius,5000);
@@ -313,40 +313,16 @@ test("changing body half-depth only alters natural-light factor, not sight radiu
   assert.ok(first.lightFraction>second.lightFraction);
 });
 
-test("actual Foundry VisionSourceData.brightness darkens as a token sinks, with fixed radius",()=>{
-  const {scene,viewer}=fixture();
-  // When global illumination is disabled the old graphical overlay cannot
-  // render, but a vision source still has its own brightness in Foundry V13.
-  scene.environment={globalLight:{enabled:false}};
-  const diver=viewer("ambient",{losHeight:-8});
-  const original={lightRadius:10000,brightness:.15,contrast:0,saturation:1,
-    visionMode:"basic"};
-  const shallow=constrainWaterVisionSourceData(diver,original);
-  assert.equal(shallow.lightRadius,2000);
-  assert.ok(Math.abs(shallow.brightness-(.15+Math.pow(.5,1/2.2)-1))<1e-12);
-  diver.vision={data:shallow};
-  assert.equal(hasAppliedUnderwaterVisionBrightness(diver),true);
-  const diagnostics=waterVisionDiagnostics(scene);
-  canvas.tokens.placeables=[diver];
-  assert.equal(waterVisionDiagnostics(scene)[0].visionSourceUpdated,true);
-
-  diver.losHeight=-16;
-  diver.document.elevation=-17.5;
-  const deep=constrainWaterVisionSourceData(diver,original);
-  assert.equal(deep.lightRadius,2000,
-    "no progressive reduction of the 40m water clarity limit");
-  assert.ok(deep.brightness<shallow.brightness);
-  assert.ok(Math.abs(deep.brightness-(.15+Math.pow(.25,1/2.2)-1))<1e-12);
-  assert.equal(hasAppliedUnderwaterVisionBrightness(diver),false,
-    "old rendered vision brightness becomes stale after a depth change");
-  diver.vision={data:deep};
-  assert.equal(hasAppliedUnderwaterVisionBrightness(diver),true);
-  assert.equal(original.brightness,.15);
-  assert.equal(diver.document.sight.brightness,undefined,
-    "never persist the per-client light value to TokenDocument");
-  assert.equal(diver.document.light.dim,14);
+test("native vision brightness remains unchanged at every depth",()=>{
+ const {viewer}=fixture();const diver=viewer("ambient",{losHeight:-8});
+ const original={lightRadius:10000,brightness:.15,visionMode:"basic"};
+ const shallow=constrainWaterVisionSourceData(diver,original);
+ diver.losHeight=-16;diver.document.elevation=-17.5;
+ const deep=constrainWaterVisionSourceData(diver,original);
+ assert.equal(shallow.lightRadius,2000);assert.equal(deep.lightRadius,2000);
+ assert.equal(shallow.brightness,.15);assert.equal(deep.brightness,.15);
+ assert.equal(hasAppliedUnderwaterVisionBrightness(diver),false);
 });
-
 test("darkvision and emergence retain the normal native source brightness",()=>{
   const {viewer}=fixture();
   const diver=viewer("dark",{losHeight:-160,elevation:-161});
@@ -363,7 +339,7 @@ test("darkvision and emergence retain the normal native source brightness",()=>{
   const deeplyDimmed=constrainWaterVisionSourceData(diver,{
     ...input,visionMode:"basic"
   });
-  assert.ok(deeplyDimmed.brightness<0);
+  assert.equal(deeplyDimmed.brightness,.3);
   diver.losHeight=2;
   diver.document.elevation=1;
   const emerged=constrainWaterVisionSourceData(diver,input);

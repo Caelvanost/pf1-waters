@@ -31,8 +31,6 @@ Hooks.once("init", () => {
 
   registerWaterMovementHooks();
   registerWaterRenderingHooks();
-  registerWaterGlobalLightingHooks();
-  registerNativeWaterDarknessHooks();
   registerWaterDepthBandHooks();
   registerWaterVisualDepthHooks();
   registerWaterSurfaceHooks();
@@ -50,8 +48,6 @@ Hooks.once("init", () => {
     void syncSceneUnderwaterFlags(scene).catch(error=>
       console.warn(MODULE_ID+" | Corps d’eau non synchronisé",error));
     refreshSceneWaterVisualDepth();
-    refreshNativeWaterDarkness();
-    refreshWaterGlobalLighting();
   });
   Hooks.on("getSceneControlButtons", registerWaterBodyRootSceneControl);
   Hooks.on("getSceneControlButtons", registerWaterRegionSceneControls);
@@ -76,8 +72,6 @@ Hooks.once("ready", async () => {
     }
     await syncSceneWaterDepthBands(globalThis.canvas?.scene);
     await ensureSceneNativeWaterDarkness(globalThis.canvas?.scene);
-    refreshNativeWaterDarkness();
-    refreshWaterGlobalLighting();
     await refreshWaterSurfaceMarkers();
   } catch (error) {
     console.error(MODULE_ID + " | Initialisation aquatique impossible", error);
