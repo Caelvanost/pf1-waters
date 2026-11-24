@@ -108,6 +108,22 @@ export function registerWaterCombatHooks(){
  Hooks.on("combatStart",enqueue);
  Hooks.on("updateCombat",(combat,changes)=>{if("round" in changes||"turn" in changes)enqueue(combat);});
  Hooks.on("renderChatMessageHTML",renderCard);
+ // Invalidate outstanding cards immediately when the current swimmer reaches
+ // the bottom, and on subsequent turns. The click handler also revalidates.
+ const refreshButtons=()=>{
+  if(typeof document==="undefined")return;
+  for(const button of document.querySelectorAll("[data-pf1-waters-swim]")){
+   const id=button.closest("[data-message-id]")?.dataset.messageId;
+   const message=game.messages?.get(id);
+   const data=message&&flag(message,CARD);
+   if(!data)continue;
+   const ctx=currentContext(data);
+   button.disabled=!ctx||!(game.user.isGM||ctx.actor.isOwner)||rolling.has(data.key)||Boolean(findResult(data.key));
+  }
+ };
+ Hooks.on("updateToken",refreshButtons);
+ Hooks.on("updateCombat",refreshButtons);
+ Hooks.on("deleteCombat",refreshButtons);
  Hooks.on("createChatMessage",message=>{
  const result=flag(message,RESULT);
  if(!result)return;

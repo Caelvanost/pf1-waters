@@ -1,3 +1,5 @@
+> **v1.5.6 :** lorsqu’un nageur atteint le fond de sa région aquatique, son mode de déplacement passe en Marche ; il reste immergé et ne reçoit plus de test de Natation tant qu’il a pied.
+
 > **v1.5.5 :** configurez le DD de Natation dans le corps d’eau. En combat, une carte invite le nageur sans vitesse de nage à effectuer son jet PF1. La flottabilité reste manuelle pour cette version.
 
 > **v1.5.4 :** le bouton Corps d’eau ouvre une liste avec actions directes pour chaque corps d’eau et un bouton Nouveau corps d’eau en bas.

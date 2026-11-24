@@ -461,3 +461,16 @@ test("a Region's native darkness behavior is requested after GM confirms configu
   assert.equal(created,1);
   assert.equal(r.behaviors[0].getFlag("pf1-waters","nativeWaterDepth"),true);
 });
+
+test("a swimmer reaching the local floor switches to walking and stays submerged",async()=>{
+ const s=scene();region(s,{depth:6});const d=token(s,{elevation:-4,movementAction:"swim"});
+ await syncTokenWaterMovement(d);assert.equal(d.movementAction,"swim");
+ d.elevation=-7.5;await syncTokenWaterMovement(d);await syncTokenUnderwaterFlag(d);
+ assert.equal(d.elevation,-6);assert.equal(d.movementAction,"walk");
+ assert.equal(getTokenWaterState(d).hasFooting,true);assert.equal(getTokenWaterState(d).fullySubmerged,true);
+ assert.equal(d.getFlag("pf1-waters","hasFooting"),true);
+});
+test("a swimmer at the exact bottom changes movement mode without moving elevation",async()=>{
+ const s=scene();region(s,{depth:6});const d=token(s,{elevation:-6,movementAction:"swim"});
+ await syncTokenWaterMovement(d);assert.equal(d.elevation,-6);assert.equal(d.movementAction,"walk");
+});

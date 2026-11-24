@@ -1,3 +1,9 @@
+## v1.5.6
+
+- Passage automatique de Nage à Marche lorsque le token atteint le fond de sa région aquatique.
+- Conservation de l’immersion et des autres modes spéciaux ; aucun test de Natation avec pied.
+- Désactivation des cartes de Natation encore affichées si le token atteint le fond.
+
 ## v1.5.5
 
 - DD de Natation par corps d’eau : 0 (désactivé), 10, 15, 20 ou personnalisé.

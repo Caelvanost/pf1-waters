@@ -185,6 +185,11 @@ export async function syncTokenWaterMovement(token, { force = false } = {}) {
     const water = getWaterRegionData(effectiveRegion);
     const hasFooting = tokenHasFooting(doc, effectiveRegion, effectiveElevation);
     const floating = state.intersectsSurface;
+    // Touching the actual local floor ends swimming. Change only swim
+    // movement, not deliberate flight or other special movement modes.
+    if (hasFooting && ["swim","swimming"].includes(String(doc.movementAction??"").toLowerCase())) {
+      await doc.update({movementAction:"walk"});
+    }
     await setNativeSwimmingStatus(doc, !hasFooting);
 
     const next = {
