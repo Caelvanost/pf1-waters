@@ -66,6 +66,9 @@
     "DriftHint": "Dérive : déséquilibre aquatique et attaques d’opportunité à résoudre par le MJ.",
     "DriftStopped": "Limite physique atteinte ou dérive arrêtée.",
     "auto": "Automatique — Encombrement",
-    "EffectiveBuoyancy": "Flottabilité actuelle"
+    "EffectiveBuoyancy": "Flottabilité actuelle",
+    "BreathAir": "Air",
+    "BreathCheck": "Test de Constitution",
+    "BreathDeath": "Confirmer la mort"
   }
 }

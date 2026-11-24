@@ -1,4 +1,5 @@
 import { MODULE_ID, isPrimaryGM } from "./constants.mjs";
+import {isAquaticActor,beginBreathTurn,finishBreathTurn} from "./water-breath.mjs";
 import { getWaterLightDepthStep } from "./water-optics.mjs";
 import { syncTokenWaterMovement, syncTokenUnderwaterFlag } from "./water-movement.mjs";
 import { getTokenWaterState } from "./water-state.mjs";
@@ -29,7 +30,7 @@ export function automaticBuoyancy(actor){
  const raw=actor?.system?.traits?.subtypes??aquatic;
  const values=Array.isArray(raw)?raw:raw instanceof Set?[...raw]:
    Array.isArray(raw?.value)?raw.value:typeof raw==="string"?raw.split(/[,;]+/):[];
- if(hasSwimSpeed(actor)||values.some(v=>String(v).trim().toLowerCase()==="aquatic"))return "neutral";
+ if(hasSwimSpeed(actor)||isAquaticActor(actor)||values.some(v=>String(v).trim().toLowerCase()==="aquatic"))return "neutral";
  const level=actor?.system?.attributes?.encumbrance?.level??
    actor?.system?.encumbrance?.level??actor?.getRollData?.()?.attributes?.encumbrance?.level;
  return level!==null&&level!==undefined&&level!==""&&Number.isFinite(Number(level))&&Number(level)>=2
@@ -208,8 +209,11 @@ export function registerWaterCombatHooks(){
   const forward=previous&&(current.round>previous.round||
    (current.round===previous.round&&current.turn>previous.turn));
   const job=(queues.get(id)??Promise.resolve()).catch(()=>{}).then(async()=>{
-   if(forward&&previous.key!==current.key&&combat.started)await finishTurn(combat,previous);
-   if(snapshot(combat)?.key===current.key)await postTurnCard(combat);
+   if(forward&&previous.key!==current.key&&combat.started){
+    await finishBreathTurn(combat,combat.combatants?.get(previous.id),previous.key);
+    await finishTurn(combat,previous);
+   }
+   if(snapshot(combat)?.key===current.key){await beginBreathTurn(combat,combat.combatant,current.key);await postTurnCard(combat);}
   });
   queues.set(id,job);
   void job.catch(error=>console.error(MODULE_ID+" | Natation en combat impossible",error)).finally(()=>{if(queues.get(id)===job)queues.delete(id);});

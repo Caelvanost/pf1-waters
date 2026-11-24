@@ -1,3 +1,5 @@
+> **v1.6.0 :** Combat breath tracking, third owner/GM-only bar. Actor flags: waterBreathing, noBreathing, breathMultiplier (default 2), breathBonus. Token flag breath stores spent, checks and stage. Death requires GM confirmation. Standard/full-round actions are deduplicated per item/action/turn; adjust spent manually for exceptional additional actions.
+
 > **v1.5.9 :** Automatic buoyancy uses PF1 encumbrance. Manual token settings remain valid. Actor flag `pf1-waters.buoyancyOverride` takes precedence (values: `swiftlySinking`, `sinking`, `neutral`, `rising`, `swiftlyRising`).
 
 > **v1.5.8 :** les libellés de flottabilité et les messages de Natation utilisent le français ou l’anglais selon la langue du client.

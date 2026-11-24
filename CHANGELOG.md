@@ -1,3 +1,9 @@
+## v1.6.0
+
+- Combat-only breath tracking: twice effective Constitution, aquatic and nonbreathing exemptions, actor flags, owner/GM-only third token bar, additional expenditure for standard/full-round action references (deduped per action ID per turn).
+- Constitution checks at depletion and progressive drowning with GM confirmation for death. Pending checks need manual resolution. Unidentified/repeated same-ID actions require GM adjustment.
+- PF1 creatureSubtypes detection for buoyancy.
+
 ## v1.5.9
 
 - Flottabilité automatique selon l’encombrement PF1 : légère/intermédiaire négative, lourde/surcharge fortement négative, créatures aquatiques ou avec vitesse de nage neutres. Correspondance maison.

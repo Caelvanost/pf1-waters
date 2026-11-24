@@ -23,6 +23,9 @@
     "DriftHint": "Drifting: aquatic imbalance and attacks of opportunity must be resolved by the GM.",
     "DriftStopped": "Physical limit reached or drift stopped.",
     "auto": "Automatic — Encumbrance",
-    "EffectiveBuoyancy": "Current buoyancy"
+    "EffectiveBuoyancy": "Current buoyancy",
+    "BreathAir": "Air",
+    "BreathCheck": "Constitution Check",
+    "BreathDeath": "Confirm death"
   }
 }
