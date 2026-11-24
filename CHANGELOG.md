@@ -1,3 +1,8 @@
+## v1.5.8
+
+- Libellés de flottabilité sans préfixe, français et anglais par défaut pour les autres langues.
+- Localisation des cartes de Natation et messages de flottabilité.
+
 ## v1.5.7
 
 - Flottabilité individuelle (cinq états, défaut négatif), dérive progressive en fin de tour après échec grave ou absence de test, arrêt sur réussite ou limite physique.

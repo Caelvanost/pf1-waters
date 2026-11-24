@@ -1,0 +1,26 @@
+{
+  "PF1W": {
+    "Buoyancy": "Buoyancy",
+    "swiftlySinking": "Swiftly Sinking",
+    "sinking": "Sinking",
+    "neutral": "Neutral",
+    "rising": "Rising",
+    "swiftlyRising": "Swiftly Rising",
+    "Swim": "Swim",
+    "SwimCheck": "Swim Check",
+    "DC": "DC",
+    "Round": "Round",
+    "Water": "Water",
+    "SwimHint": "A move action is required to attempt to control buoyancy.",
+    "SwimSuccess": "Success",
+    "SwimFailure": "Failure: no progress",
+    "SwimBadFailure": "Failure by 5 or more: buoyancy resolved at the end of the turn",
+    "SwimUnknown": "Native roll result not recognized.",
+    "SwimError": "Unable to make Swim check",
+    "Sinks": "sinks by",
+    "Rises": "rises by",
+    "Elevation": "Elevation",
+    "DriftHint": "Drifting: aquatic imbalance and attacks of opportunity must be resolved by the GM.",
+    "DriftStopped": "Physical limit reached or drift stopped."
+  }
+}

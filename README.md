@@ -1,3 +1,5 @@
+> **v1.5.8 :** les libellés de flottabilité et les messages de Natation utilisent le français ou l’anglais selon la langue du client.
+
 > **v1.5.7 :** flottabilité individuelle dans la configuration du token ; déplacement involontaire en fin de tour (3/6/9 m), uniquement en combat. Les règles particulières des flottabilités extrêmes et le déséquilibre restent manuels.
 
 > **v1.5.6 :** lorsqu’un nageur atteint le fond de sa région aquatique, son mode de déplacement passe en Marche ; il reste immergé et ne reçoit plus de test de Natation tant qu’il a pied.

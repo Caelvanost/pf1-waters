@@ -34,3 +34,8 @@ test("vertical motion respects local bottom and floating posture",()=>{
  assert.deepEqual(buoyancyDestination(s,1,3),{elevation:-5,speed:1});
  assert.deepEqual(buoyancyDestination({...s,elevation:-2},2,3),{elevation:-.75,speed:0});
 });
+
+import {combatLabel} from "../scripts/water-combat.mjs";
+test("buoyancy labels use French or English fallback without module prefix",()=>{
+ assert.equal(combatLabel("sinking","fr"),"Coule");assert.equal(combatLabel("swiftlySinking","fr-FR"),"Coule rapidement");assert.equal(combatLabel("sinking","de"),"Sinking");assert.equal(combatLabel("swiftlyRising","en"),"Swiftly Rising");
+});
