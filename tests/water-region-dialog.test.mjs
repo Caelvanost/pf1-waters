@@ -36,8 +36,8 @@ test("Region editor is viewport-bounded, scrollable, and keeps FilePicker non-mo
   assert.doesNotMatch(options.content,/name="sunlightHalfDepth"/,
     "light attenuation is edited in the water body manager");
   assert.match(options.content,/Demi-profondeur de lumière naturelle/);
-  assert.match(options.content,/name="darknessBands"/);
-  assert.match(options.content,/name="darknessBandCount"/);
+  assert.doesNotMatch(options.content,/name="darknessBands"/);
+  assert.doesNotMatch(options.content,/name="darknessBandCount"/);
   assert.match(options.content,/<file-picker[^>]*name="ringPng"/);
   assert.match(options.content,/<\/p><\/div><div class="form-group"><label>/,
     "ripple scale field must not nest inside the PNG field");

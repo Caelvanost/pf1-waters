@@ -1,3 +1,5 @@
+> **v1.5.0 :** les tranches d’éclairage décrites dans l’historique ci-dessous sont retirées. Le module nettoie les anciennes régions auxiliaires marquées par PF1 Waters ; aucune nouvelle tranche n’est créée. Le rendu dynamique reste à valider dans Foundry V13.
+
 # PF1 Waters — v1.4.29
 
 Module autonome de gestion des corps d'eau pour **Foundry VTT v13** et **Pathfinder 1 (PF1 v11.11)**. Interface française, sans dépendance obligatoire à Skull & Shackles, Levels, Wall Height ou Better Roofs.

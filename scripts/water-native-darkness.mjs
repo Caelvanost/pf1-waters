@@ -186,7 +186,9 @@ export function applyNativeWaterDarkness(behavior,darkness=null){
   }catch(e){warn("Mise à jour locale du niveau d'obscurité impossible",e);return false;}
 }
 function refreshNativePerception(){
-  globalThis.canvas?.perception?.update?.({
+  const canvas=globalThis.canvas;
+  canvas?.effects?.illumination?.invalidateDarknessLevelContainer?.();
+  canvas?.perception?.update?.({
     initializeLighting:true,initializeVision:true,
     refreshLighting:true,refreshVision:true
   });

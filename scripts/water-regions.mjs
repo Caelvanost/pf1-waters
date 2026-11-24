@@ -70,7 +70,7 @@ export function getWaterDepthBandSettings(region) {
   const raw=readRegionFlag(region,MODULE_ID);
   const value = Number(raw?.darknessBandCount);
   return {
-    enabled: raw?.darknessBands === true,
+    enabled: false, // Legacy API: persisted elevation bands are retired.
     count: Number.isFinite(value) && value >= 4
       ? Math.min(40, Math.max(4, Math.round(value))) : 24
   };
@@ -255,7 +255,6 @@ export async function configureSelectedWaterRegions() {
     return ui.notifications.warn("Associez d’abord toutes les Regions sélectionnées à un corps d’eau de la scène.");
   }
   const first = getWaterRegionData(regions[0]);
-  const lightingBands = getWaterDepthBandSettings(regions[0]);
   const visibilityDepth = first.visibilityDepth;
   const units = foundry.utils.escapeHTML(globalThis.canvas?.scene?.grid?.units ?? "");
   const result = await foundry.applications.api.DialogV2.prompt({
@@ -283,13 +282,6 @@ export async function configureSelectedWaterRegions() {
       first.sunlightHalfDepth + '" disabled><span class="units">' + units +
       '</span></div></div>' +
       '<p class="hint">Réglable dans le menu principal des corps d’eau. L’obscurité augmente avec la profondeur sans réduire la portée maximale dans l’eau.</p>' +
-      '<div class="form-group"><label>Obscurité native par tranches d’élévation</label>' +
-      '<div class="form-fields"><input name="darknessBands" type="checkbox" ' +
-      (lightingBands.enabled ? 'checked ' : '') + '></div></div>' +
-      '<p class="hint">Crée des Regions d’éclairage auxiliaires, chacune avec une élévation limitée et « Remplacer l’obscurité ». À utiliser si l’obscurité dynamique ne fonctionne pas. Les Regions d’eau physiques restent inchangées.</p>' +
-      '<div class="form-group"><label>Nombre de tranches (4 à 40)</label>' +
-      '<div class="form-fields"><input name="darknessBandCount" type="number" step="1" min="4" max="40" value="' +
-      lightingBands.count + '"></div></div>' +
       '<div class="form-group"><label>' +
       t("RingPng", "Image PNG des remous (facultatif)") +
       '</label><div class="form-fields"><file-picker type="image" name="ringPng" value="' +
@@ -312,18 +304,14 @@ export async function configureSelectedWaterRegions() {
         const ringScale = ringScaleRaw === "" ? NaN : Number(ringScaleRaw);
         const visibilityRaw = String(button.form.elements.visibilityDepth?.value ?? "").trim();
         const visibilityDepth = visibilityRaw === "" ? NaN : Number(visibilityRaw);
-        const darknessBands = Boolean(button.form.elements.darknessBands?.checked);
-        const darknessBandCount = Number(button.form.elements.darknessBandCount?.value);
+        const darknessBands = false;
+        const darknessBandCount = 24;
         const depth = depthRaw === "" ? null : Number(depthRaw);
         if (depth !== null && (!Number.isFinite(depth) || depth < 0)) {
           throw new Error(t("InvalidDepth", "La profondeur doit être positive ou nulle."));
         }
         if (!Number.isFinite(visibilityDepth) || visibilityDepth < 0) {
           throw new Error(t("InvalidVisibilityDepth", "La profondeur visible doit être positive ou nulle."));
-        }
-        if (!Number.isInteger(darknessBandCount) ||
-            darknessBandCount < 4 || darknessBandCount > 40) {
-          throw new Error("Le nombre de tranches d’obscurité doit être compris entre 4 et 40.");
         }
         if (!Number.isFinite(ringScale) || ringScale <= 0) {
           throw new Error(t("InvalidRingScale", "Le ratio des remous doit être strictement positif."));

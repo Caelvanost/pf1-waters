@@ -1,8 +1,8 @@
 {
   "id": "pf1-waters",
   "title": "PF1 Waters",
-  "description": "PF1 Waters v1.4.29 : luminosité de vision native du token modulée par la profondeur, indépendamment du réglage d'éclairage global ; clarté et portée fixes conservées.",
-  "version": "1.4.29",
+  "description": "PF1 Waters v1.5.0 : obscurité dynamique sans régions auxiliaires ; migration des anciennes tranches.",
+  "version": "1.5.0",
   "authors": [
     {
       "name": "Gélik"
@@ -42,7 +42,7 @@
   ],
   "url": "https://github.com/Caelvanost/pf1-waters",
   "manifest": "https://raw.githubusercontent.com/Caelvanost/pf1-waters/main/module.json",
-  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.4.29/pf1-waters-v1.4.29.zip",
+  "download": "https://github.com/Caelvanost/pf1-waters/releases/download/v1.5.0/pf1-waters-v1.5.0.zip",
   "readme": "https://github.com/Caelvanost/pf1-waters/blob/main/README.md",
   "changelog": "https://github.com/Caelvanost/pf1-waters/blob/main/CHANGELOG.md",
   "bugs": "https://github.com/Caelvanost/pf1-waters/issues"

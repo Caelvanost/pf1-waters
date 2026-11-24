@@ -1,3 +1,10 @@
+## v1.5.0
+
+- Retrait des régions d’éclairage par tranches et migration des anciennes régions auxiliaires identifiées par leur flag.
+- Invalidation du cache d’obscurité native lors des changements de profondeur lorsque l’API est disponible.
+- Conservation de l’API historique, des profils optiques et des modes de vision.
+- Validation graphique Foundry V13 à effectuer.
+
 # 1.4.29 — Luminosité native de la vision selon la profondeur
 
 - Correction du manque de variation visuelle : PF1 Waters calcule maintenant la luminosité à la profondeur des yeux **dans les données natives `VisionSourceData.brightness`**, plutôt que de s'appuyer uniquement sur une surcouche graphique dépendante de l'éclairage global.

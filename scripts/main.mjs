@@ -71,8 +71,11 @@ Hooks.once("ready", async () => {
     await syncSceneWaterSurfaceVisibilities(globalThis.canvas?.scene);
     refreshSceneWaterVisualDepth();
     refreshWaterVisionSources();
-    await ensureSceneNativeWaterDarkness(globalThis.canvas?.scene);
+    if(game.user?.isGM){
+      for(const scene of game.scenes??[])await syncSceneWaterDepthBands(scene);
+    }
     await syncSceneWaterDepthBands(globalThis.canvas?.scene);
+    await ensureSceneNativeWaterDarkness(globalThis.canvas?.scene);
     refreshNativeWaterDarkness();
     refreshWaterGlobalLighting();
     await refreshWaterSurfaceMarkers();
