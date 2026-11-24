@@ -1,3 +1,5 @@
+> **v1.5.4 :** le bouton Corps d’eau ouvre une liste avec actions directes pour chaque corps d’eau et un bouton Nouveau corps d’eau en bas.
+
 > **v1.5.3 :** sélectionnez un corps d’eau puis « Configurer profondeur de lumière » pour ajuster les quatre seuils, ou revenir au calcul automatique.
 
 > **v1.5.2 :** les seuils d’obscurité sont alignés sur les cases de 1,50 m ou 5 ft ; la profondeur physique du fond reste inchangée.

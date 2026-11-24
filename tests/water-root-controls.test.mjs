@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  registerWaterBodyRootSceneControl
+  registerWaterBodyRootSceneControl, configureSceneWaterBodies
 } from "../scripts/water-bodies.mjs";
 
 let dialogs=0;
@@ -74,4 +74,12 @@ test("the main module registers the root handler on getSceneControlButtons",()=>
   const source=readFileSync(new URL("../scripts/main.mjs",import.meta.url),"utf8");
   assert.match(source,/import \{ registerWaterBodyRootSceneControl \} from "\.\/water-bodies\.mjs"/);
   assert.match(source,/Hooks\.on\("getSceneControlButtons", registerWaterBodyRootSceneControl\)/);
+});
+
+test("manager lists each water body with direct row actions and a create button",async()=>{
+ const previous=canvas.scene,old=foundry.applications.api.DialogV2.wait;
+ canvas.scene={id:"list",grid:{units:"m"},regions:[],flags:{"pf1-waters":{waterBodies:[{id:"a",name:"Mer",surface:0},{id:"b",name:"Lac",surface:3}]}},getFlag(s,k){return this.flags[s]?.[k];}};
+ let config;foundry.applications.api.DialogV2.wait=async options=>{config=options;return null;};
+ try{await configureSceneWaterBodies();assert.match(config.content,/Mer/);assert.match(config.content,/Lac/);assert.equal((config.content.match(/data-water-action="edit"/g)||[]).length,2);assert.equal((config.content.match(/data-water-action="lightDepth"/g)||[]).length,2);assert.ok(config.buttons.some(b=>b.action==="create"&&b.label==="Nouveau corps d’eau"));assert.doesNotMatch(config.content,/<select/);}
+ finally{canvas.scene=previous;foundry.applications.api.DialogV2.wait=old;}
 });

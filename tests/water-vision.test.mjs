@@ -193,10 +193,12 @@ test("body manager asks only a qualitative water clarity, never numeric optical 
   const seen=[];
   globalThis.canvas.scene=scene;
   globalThis.ui={notifications:{info(){},warn(message){throw Error(message);},error(message){throw Error(message);}}};
-  globalThis.foundry.applications={api:{DialogV2:{async prompt(options){
+  globalThis.foundry.applications={api:{DialogV2:{async wait(options){
     seen.push(options.content);
-    return seen.length===1?{action:"edit",bodyId:"bay"}:
-      {id:"bay",name:"Baie",surface:0,waterClarity:"silty",visionEnabled:true};
+    return seen.length===1?{action:"edit",bodyId:"bay"}:null;
+  },async prompt(options){
+    seen.push(options.content);
+    return {id:"bay",name:"Baie",surface:0,waterClarity:"silty",visionEnabled:true};
   }}}};
   await configureSceneWaterBodies();
   assert.match(seen[1],/name="waterClarity"/);

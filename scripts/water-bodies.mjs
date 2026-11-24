@@ -154,42 +154,65 @@ export async function deleteSceneWaterBody(scene,id) {
 }
 
 /**
- * Single scene tool: choose Create / Edit / Delete, then a compact form.
+ * Scene-local list with direct actions and a refreshed list after editing.
  * The UI remains a normal Foundry V13 DialogV2 with no new dependency.
  */
 export async function configureSceneWaterBodies() {
   if(!game.user?.isGM)return ui.notifications.warn(t("OnlyGM","Outil réservé au MJ."));
   const scene=globalThis.canvas?.scene;
   if(!scene)return;
-  const bodies=getSceneWaterBodies(scene);
-  const entries=bodies.map(b=>'<option value="'+localEscape(b.id)+'">'+
-    localEscape(b.name)+' — '+localEscape(b.surface)+'</option>').join("");
   const Dialog=foundry.applications.api.DialogV2;
-  const menu=await (Dialog.wait??Dialog.prompt).call(Dialog,{
-    classes:["pf1-waters-region-dialog"],
-    window:{title:"PF1 Waters — Corps d’eau de la scène"},
-    content:'<div class="standard-form pf1-waters-region-fields">'+
-      '<p>Chaque corps d’eau possède une surface commune. Ses Regions déterminent des contours et des profondeurs locales.</p>'+
-      '<div class="form-group"><label>Opération</label><div class="form-fields">'+
-      '<select name="action"><option value="create">Créer un corps d’eau</option>'+
-      (bodies.length?'<option value="edit">Modifier un corps d’eau</option>'+
-      '<option value="delete">Supprimer un corps d’eau</option>':"")+
-      '</select></div></div>'+
-      (bodies.length?'<div class="form-group"><label>Corps d’eau existant</label>'+
-      '<div class="form-fields"><select name="bodyId">'+entries+
-      '</select></div></div>':"")+'</div>',
-    buttons:[{
-      action:"continue",label:"Continuer",icon:"fa-solid fa-water",
-      callback:(_event,button)=>({
-        action:String(button.form.elements.action.value),
-        bodyId:String(button.form.elements.bodyId?.value??"")
-      })
-    },...(bodies.length?[{
-      action:"lightDepth",label:"Configurer profondeur de lumière",icon:"fa-solid fa-sun",
-      callback:(_event,button)=>({action:"lightDepth",bodyId:String(button.form.elements.bodyId?.value??"")})
-    }]:[])],default:"continue",rejectClose:false,modal:true
-  });
-  if(!menu)return;
+  // Reopen the refreshed list after every action, including cancelled editors.
+  while(globalThis.canvas?.scene?.id===scene.id && game.user?.isGM){
+    const bodies=getSceneWaterBodies(scene);
+    const units=localEscape(scene.grid?.units??"");
+    const rows=bodies.map((body,i)=>{
+      const profile=getWaterClarityProfile(body.waterClarity);
+      const deps=getSceneWaterBodyDependents(scene,body.id);
+      return '<article class="pf1-waters-body-row">'+
+        '<div class="pf1-waters-body-label"><strong>'+localEscape(body.name)+'</strong>'+
+        '<small>Surface : '+localEscape(body.surface)+' '+units+' · '+localEscape(profile?.label??"Clarté personnalisée")+
+        ' · '+deps.regions.length+' région(s) · Lumière '+(body.lightDepths?'personnalisée':'automatique')+'</small></div>'+
+        '<div class="pf1-waters-body-actions">'+
+        '<button type="button" data-water-action="edit" data-water-index="'+i+'"><i class="fa-solid fa-pen"></i> Modifier</button>'+
+        '<button type="button" data-water-action="lightDepth" data-water-index="'+i+'"><i class="fa-solid fa-sun"></i> Configurer profondeur de lumière</button>'+
+        '<button type="button" class="pf1-waters-body-delete" data-water-action="delete" data-water-index="'+i+'" title="Supprimer le corps d’eau" aria-label="Supprimer '+localEscape(body.name)+'"><i class="fa-solid fa-trash"></i></button>'+
+        '</div></article>';
+    }).join("");
+    let selection=null;
+    const menu=await Dialog.wait({
+      classes:["pf1-waters-region-dialog","pf1-waters-body-manager"],
+      window:{title:"PF1 Waters — Corps d’eau de la scène"},
+      position:{width:780,height:"auto"},
+      content:'<div class="pf1-waters-region-fields pf1-waters-body-list">'+
+        (rows||'<p class="hint">Aucun corps d’eau dans cette scène.</p>')+'</div>',
+      buttons:[{
+        action:"create",label:"Nouveau corps d’eau",icon:"fa-solid fa-plus",
+        callback:()=>({action:"create"})
+      },{
+        action:"close",label:"Fermer",icon:"fa-solid fa-xmark",
+        callback:()=>selection
+      }],
+      default:"close",rejectClose:false,modal:false,
+      render:(_event,dialog)=>{
+        const root=dialog.element;
+        root?.querySelectorAll("[data-water-action]").forEach(button=>{
+          button.addEventListener("click",()=>{
+            const body=bodies[Number(button.dataset.waterIndex)];
+            if(!body)return;
+            selection={action:button.dataset.waterAction,bodyId:body.id};
+            // Use the native footer callback to resolve DialogV2.wait.
+            root.querySelector('button[data-action="close"]')?.click();
+          });
+        });
+      }
+    });
+    if(!menu)return;
+    await editWaterBodyFromMenu(scene,menu);
+  }
+}
+
+async function editWaterBodyFromMenu(scene,menu){
   const old=menu.action==="create"?null:getSceneWaterBody(scene,menu.bodyId);
   if(menu.action!=="create"&&!old)return ui.notifications.warn("Corps d’eau introuvable.");
   if(menu.action==="lightDepth")return configureWaterBodyLightDepths(scene,old);

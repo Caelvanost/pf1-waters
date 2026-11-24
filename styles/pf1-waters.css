@@ -38,3 +38,12 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* Scene water body manager — native V13 dialog, direct row actions. */
+.pf1-waters-body-list { display: flex; flex-direction: column; gap: .5rem; }
+.pf1-waters-body-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .6rem; border-bottom: 1px solid var(--color-border-light-2, #8886); }
+.pf1-waters-body-label { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.pf1-waters-body-label small { display: block; margin-top: .25rem; opacity: .8; }
+.pf1-waters-body-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.pf1-waters-body-actions button { width: auto; white-space: normal; margin: 0; }
+.pf1-waters-body-delete { flex: 0 0 auto; }

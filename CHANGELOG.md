@@ -1,3 +1,8 @@
+## v1.5.4
+
+- Gestionnaire des corps d’eau en liste : Modifier, Configurer profondeur de lumière et Supprimer pour chaque entrée ; Nouveau corps d’eau en bas de fenêtre.
+- Retour automatique à la liste après édition ou création.
+
 ## v1.5.3
 
 - Bouton « Configurer profondeur de lumière » dans la sélection des corps d’eau.
